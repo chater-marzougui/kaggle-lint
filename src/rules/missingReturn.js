@@ -4,7 +4,7 @@
  */
 
 const MissingReturnRule = (function () {
-  'use strict';
+  "use strict";
 
   /**
    * Extracts function definitions with their bodies
@@ -13,14 +13,15 @@ const MissingReturnRule = (function () {
    */
   function extractFunctions(code) {
     const functions = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     let currentFunc = null;
     let funcIndent = 0;
 
     lines.forEach((line, lineIndex) => {
       const lineNum = lineIndex + 1;
 
-      const funcMatch = /^(\s*)def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/.exec(line);
+      const funcMatch =
+        /^(\s*)def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/.exec(line);
       if (funcMatch) {
         if (currentFunc) {
           currentFunc.endLine = lineNum - 1;
@@ -32,10 +33,10 @@ const MissingReturnRule = (function () {
           name: funcMatch[2],
           startLine: lineNum,
           endLine: lineNum,
-          body: '',
+          body: "",
           params: funcMatch[3],
           indent: funcMatch[1].length,
-          bodyIndent: null
+          bodyIndent: null,
         };
         funcIndent = funcMatch[1].length;
         return;
@@ -46,19 +47,25 @@ const MissingReturnRule = (function () {
         const lineIndent = lineIndentMatch ? lineIndentMatch[1].length : 0;
         const trimmed = line.trim();
 
-        if (trimmed === '') {
-          currentFunc.body += line + '\n';
+        if (trimmed === "") {
+          currentFunc.body += line + "\n";
           return;
         }
 
-        if (currentFunc.bodyIndent === null && lineIndent > currentFunc.indent) {
+        if (
+          currentFunc.bodyIndent === null &&
+          lineIndent > currentFunc.indent
+        ) {
           currentFunc.bodyIndent = lineIndent;
         }
 
-        if (currentFunc.bodyIndent !== null && lineIndent >= currentFunc.bodyIndent) {
-          currentFunc.body += line + '\n';
+        if (
+          currentFunc.bodyIndent !== null &&
+          lineIndent >= currentFunc.bodyIndent
+        ) {
+          currentFunc.body += line + "\n";
           currentFunc.endLine = lineNum;
-        } else if (lineIndent <= currentFunc.indent && trimmed !== '') {
+        } else if (lineIndent <= currentFunc.indent && trimmed !== "") {
           currentFunc.hasReturn = checkHasReturn(currentFunc.body);
           functions.push(currentFunc);
           currentFunc = null;
@@ -80,10 +87,10 @@ const MissingReturnRule = (function () {
    * @returns {boolean}
    */
   function checkHasReturn(body) {
-    const lines = body.split('\n');
+    const lines = body.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith('#')) {
+      if (trimmed.startsWith("#")) {
         continue;
       }
       if (/^\s*return\s/.test(line) || /^\s*return$/.test(line)) {
@@ -112,7 +119,7 @@ const MissingReturnRule = (function () {
       /res\s*=/,
       /ret\s*=/,
       /data\s*=/,
-      /\+=|\-=|\*=|\/=/
+      /\+=|\-=|\*=|\/=/,
     ];
 
     for (const pattern of computationPatterns) {
@@ -136,7 +143,7 @@ const MissingReturnRule = (function () {
       /^extract_/,
       /^fetch_/,
       /^load_/,
-      /^read_/
+      /^read_/,
     ];
 
     for (const pattern of funcNamePatterns) {
@@ -155,10 +162,21 @@ const MissingReturnRule = (function () {
    */
   function isSpecialMethod(name) {
     const specialMethods = new Set([
-      '__init__', '__del__', '__setattr__', '__delattr__',
-      '__setitem__', '__delitem__', '__enter__', '__exit__',
-      'setUp', 'tearDown', 'setUpClass', 'tearDownClass',
-      'setup', 'teardown', 'main'
+      "__init__",
+      "__del__",
+      "__setattr__",
+      "__delattr__",
+      "__setitem__",
+      "__delitem__",
+      "__enter__",
+      "__exit__",
+      "setUp",
+      "tearDown",
+      "setUpClass",
+      "tearDownClass",
+      "setup",
+      "teardown",
+      "main",
     ]);
     return specialMethods.has(name);
   }
@@ -173,7 +191,7 @@ const MissingReturnRule = (function () {
     const errors = [];
     const functions = extractFunctions(code);
 
-    functions.forEach(func => {
+    functions.forEach((func) => {
       if (isSpecialMethod(func.name)) {
         return;
       }
@@ -182,7 +200,7 @@ const MissingReturnRule = (function () {
         errors.push({
           line: func.startLine + cellOffset,
           msg: `Function '${func.name}' appears to compute a value but has no return statement`,
-          severity: 'warning'
+          severity: "warning",
         });
       }
     });
@@ -193,6 +211,6 @@ const MissingReturnRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.MissingReturnRule = MissingReturnRule;
 }

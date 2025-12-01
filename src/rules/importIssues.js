@@ -4,7 +4,7 @@
  */
 
 const ImportIssuesRule = (function () {
-  'use strict';
+  "use strict";
 
   /**
    * Runs the import issues rule
@@ -14,7 +14,7 @@ const ImportIssuesRule = (function () {
    */
   function run(code, cellOffset = 0) {
     const errors = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     const imports = [];
     let firstNonImportLine = -1;
     let lastImportLine = -1;
@@ -22,7 +22,7 @@ const ImportIssuesRule = (function () {
     lines.forEach((line, lineIndex) => {
       const trimmedLine = line.trim();
 
-      if (trimmedLine === '' || trimmedLine.startsWith('#')) {
+      if (trimmedLine === "" || trimmedLine.startsWith("#")) {
         return;
       }
 
@@ -37,12 +37,12 @@ const ImportIssuesRule = (function () {
     });
 
     if (firstNonImportLine !== -1 && lastImportLine > firstNonImportLine) {
-      imports.forEach(imp => {
+      imports.forEach((imp) => {
         if (imp.line > firstNonImportLine) {
           errors.push({
             line: imp.line + cellOffset,
-            msg: 'Import statement should be at the top of the file/cell',
-            severity: 'info'
+            msg: "Import statement should be at the top of the file/cell",
+            severity: "info",
           });
         }
       });
@@ -53,7 +53,7 @@ const ImportIssuesRule = (function () {
         errors.push({
           line: lineIndex + 1 + cellOffset,
           msg: "Wildcard import 'from X import *' is discouraged",
-          severity: 'warning'
+          severity: "warning",
         });
       }
     });
@@ -63,14 +63,19 @@ const ImportIssuesRule = (function () {
     lines.forEach((line, lineIndex) => {
       let match;
 
-      match = /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(line);
+      match =
+        /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(
+          line
+        );
       if (match) {
         const name = match[2] || match[1];
         if (importedNames.has(name)) {
           errors.push({
             line: lineIndex + 1 + cellOffset,
-            msg: `Duplicate import of '${name}' (first imported at line ${importedNames.get(name) + cellOffset})`,
-            severity: 'warning'
+            msg: `Duplicate import of '${name}' (first imported at line ${
+              importedNames.get(name) + cellOffset
+            })`,
+            severity: "warning",
           });
         } else {
           importedNames.set(name, lineIndex + 1);
@@ -78,18 +83,20 @@ const ImportIssuesRule = (function () {
       }
 
       match = /^\s*from\s+\S+\s+import\s+(.+)/.exec(line);
-      if (match && !match[1].trim().startsWith('*')) {
-        const importList = match[1].replace(/\(|\)/g, '').split(',');
-        importList.forEach(imp => {
+      if (match && !match[1].trim().startsWith("*")) {
+        const importList = match[1].replace(/\(|\)/g, "").split(",");
+        importList.forEach((imp) => {
           const asMatch = /(\S+)\s+as\s+(\S+)/.exec(imp.trim());
-          const name = asMatch ? asMatch[2] : imp.trim().split(' ')[0];
+          const name = asMatch ? asMatch[2] : imp.trim().split(" ")[0];
 
           if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
             if (importedNames.has(name)) {
               errors.push({
                 line: lineIndex + 1 + cellOffset,
-                msg: `Duplicate import of '${name}' (first imported at line ${importedNames.get(name) + cellOffset})`,
-                severity: 'warning'
+                msg: `Duplicate import of '${name}' (first imported at line ${
+                  importedNames.get(name) + cellOffset
+                })`,
+                severity: "warning",
               });
             } else {
               importedNames.set(name, lineIndex + 1);
@@ -117,7 +124,7 @@ const ImportIssuesRule = (function () {
         errors.push({
           line: line + cellOffset,
           msg: `Imported '${name}' is unused`,
-          severity: 'info'
+          severity: "info",
         });
       }
     });
@@ -128,6 +135,6 @@ const ImportIssuesRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.ImportIssuesRule = ImportIssuesRule;
 }

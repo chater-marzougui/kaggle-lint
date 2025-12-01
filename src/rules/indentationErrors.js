@@ -4,7 +4,7 @@
  */
 
 const IndentationErrorsRule = (function () {
-  'use strict';
+  "use strict";
 
   /**
    * Runs the indentation errors rule
@@ -14,7 +14,7 @@ const IndentationErrorsRule = (function () {
    */
   function run(code, cellOffset = 0) {
     const errors = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
     let usesTabs = false;
     let usesSpaces = false;
@@ -26,7 +26,7 @@ const IndentationErrorsRule = (function () {
     lines.forEach((line, lineIndex) => {
       const lineNum = lineIndex + 1;
 
-      if (line.trim() === '' || line.trim().startsWith('#')) {
+      if (line.trim() === "" || line.trim().startsWith("#")) {
         return;
       }
 
@@ -38,8 +38,8 @@ const IndentationErrorsRule = (function () {
       if (hasTabs && hasSpaces) {
         errors.push({
           line: lineNum + cellOffset,
-          msg: 'Mixed tabs and spaces in indentation',
-          severity: 'error'
+          msg: "Mixed tabs and spaces in indentation",
+          severity: "error",
         });
       }
 
@@ -54,27 +54,27 @@ const IndentationErrorsRule = (function () {
         if (hasTabs && usesSpaces && !hasSpaces) {
           errors.push({
             line: lineNum + cellOffset,
-            msg: 'Inconsistent indentation: file uses spaces elsewhere but this line uses tabs',
-            severity: 'warning'
+            msg: "Inconsistent indentation: file uses spaces elsewhere but this line uses tabs",
+            severity: "warning",
           });
         } else if (hasSpaces && usesTabs && !hasTabs) {
           errors.push({
             line: lineNum + cellOffset,
-            msg: 'Inconsistent indentation: file uses tabs elsewhere but this line uses spaces',
-            severity: 'warning'
+            msg: "Inconsistent indentation: file uses tabs elsewhere but this line uses spaces",
+            severity: "warning",
           });
         }
       }
 
-      const indentLevel = leadingWhitespace.replace(/\t/g, '    ').length;
+      const indentLevel = leadingWhitespace.replace(/\t/g, "    ").length;
 
       if (prevLineEndsWithColon) {
         const prevIndent = indentStack[indentStack.length - 1];
         if (indentLevel <= prevIndent) {
           errors.push({
             line: lineNum + cellOffset,
-            msg: 'Expected indented block after colon',
-            severity: 'error'
+            msg: "Expected indented block after colon",
+            severity: "error",
           });
         } else {
           indentStack.push(indentLevel);
@@ -86,21 +86,24 @@ const IndentationErrorsRule = (function () {
         if (indentLevel > currentIndent) {
           errors.push({
             line: lineNum + cellOffset,
-            msg: 'Unexpected indent',
-            severity: 'error'
+            msg: "Unexpected indent",
+            severity: "error",
           });
           indentStack.push(indentLevel);
         } else if (indentLevel < currentIndent) {
-          while (indentStack.length > 1 && indentStack[indentStack.length - 1] > indentLevel) {
+          while (
+            indentStack.length > 1 &&
+            indentStack[indentStack.length - 1] > indentLevel
+          ) {
             indentStack.pop();
           }
 
           if (indentStack[indentStack.length - 1] !== indentLevel) {
-            const validIndents = indentStack.map(i => `${i}`).join(', ');
+            const validIndents = indentStack.map((i) => `${i}`).join(", ");
             errors.push({
               line: lineNum + cellOffset,
               msg: `Unindent does not match any outer indentation level`,
-              severity: 'error'
+              severity: "error",
             });
           }
         }
@@ -109,12 +112,12 @@ const IndentationErrorsRule = (function () {
       prevLineEndsWithColon = /:\s*(#.*)?$/.test(line.trim());
 
       if (hasSpaces) {
-        const spaceCount = leadingWhitespace.replace(/\t/g, '').length;
+        const spaceCount = leadingWhitespace.replace(/\t/g, "").length;
         if (spaceCount > 0 && spaceCount % 4 !== 0 && spaceCount % 2 !== 0) {
           errors.push({
             line: lineNum + cellOffset,
             msg: `Inconsistent indentation: ${spaceCount} spaces (expected multiple of 2 or 4)`,
-            severity: 'warning'
+            severity: "warning",
           });
         }
       }
@@ -126,6 +129,6 @@ const IndentationErrorsRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.IndentationErrorsRule = IndentationErrorsRule;
 }

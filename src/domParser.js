@@ -5,7 +5,7 @@
  */
 
 const KaggleDomParser = (function () {
-  'use strict';
+  "use strict";
 
   /**
    * Detects current Kaggle theme
@@ -13,17 +13,17 @@ const KaggleDomParser = (function () {
    */
   function detectTheme() {
     const body = document.body;
-    if (body.classList.contains('theme--dark')) {
-      return 'dark';
+    if (body.classList.contains("theme--dark")) {
+      return "dark";
     }
-    if (body.getAttribute('data-theme') === 'dark') {
-      return 'dark';
+    if (body.getAttribute("data-theme") === "dark") {
+      return "dark";
     }
     const bgColor = getComputedStyle(body).backgroundColor;
     if (bgColor && isDarkColor(bgColor)) {
-      return 'dark';
+      return "dark";
     }
-    return 'light';
+    return "light";
   }
 
   /**
@@ -58,17 +58,19 @@ const KaggleDomParser = (function () {
    */
   function detectNotebookMode() {
     const url = window.location.href;
-    if (url.includes('/edit')) {
-      return 'edit';
+    if (url.includes("/edit")) {
+      return "edit";
     }
-    if (url.includes('/run')) {
-      return 'run';
+    if (url.includes("/run")) {
+      return "run";
     }
-    const editButton = document.querySelector('[data-testid="edit-button"], [aria-label="Edit"]');
+    const editButton = document.querySelector(
+      '[data-testid="edit-button"], [aria-label="Edit"]'
+    );
     if (editButton) {
-      return 'view';
+      return "view";
     }
-    return 'edit';
+    return "edit";
   }
 
   let cachedSelector = null;
@@ -81,23 +83,23 @@ const KaggleDomParser = (function () {
    */
   function getCodeCellContainers() {
     const now = Date.now();
-    
-    if (cachedSelector && (now - selectorCacheTime) < CACHE_TTL) {
+
+    if (cachedSelector && now - selectorCacheTime < CACHE_TTL) {
       const cells = document.querySelectorAll(cachedSelector);
       if (cells.length > 0) {
         return cells;
       }
     }
-    
+
     const selectors = [
       '.cell-content[data-cell-type="code"]',
       '[data-testid="code-cell"]',
-      '.code-cell',
-      '.cell--code',
-      '.jp-CodeCell',
-      '.cell[data-cell-type="code"]'
+      ".code-cell",
+      ".cell--code",
+      ".jp-CodeCell",
+      '.cell[data-cell-type="code"]',
     ];
-    
+
     for (const selector of selectors) {
       const cells = document.querySelectorAll(selector);
       if (cells.length > 0) {
@@ -106,8 +108,8 @@ const KaggleDomParser = (function () {
         return cells;
       }
     }
-    
-    cachedSelector = '.cell-content, .cell';
+
+    cachedSelector = ".cell-content, .cell";
     selectorCacheTime = now;
     return document.querySelectorAll(cachedSelector);
   }
@@ -119,15 +121,15 @@ const KaggleDomParser = (function () {
    */
   function extractCodeFromCell(cellElement) {
     const codeSelectors = [
-      'pre code',
-      '.CodeMirror-code',
-      '.cm-content',
-      '.monaco-editor .view-lines',
-      'textarea.code-input',
+      "pre code",
+      ".CodeMirror-code",
+      ".cm-content",
+      ".monaco-editor .view-lines",
+      "textarea.code-input",
       '[data-testid="code-content"]',
-      '.ace_content',
-      'pre',
-      'code'
+      ".ace_content",
+      "pre",
+      "code",
     ];
 
     for (const selector of codeSelectors) {
@@ -146,27 +148,35 @@ const KaggleDomParser = (function () {
    * @returns {string}
    */
   function extractTextContent(element) {
-    if (element.classList.contains('CodeMirror-code')) {
-      const lines = element.querySelectorAll('.CodeMirror-line');
-      return Array.from(lines).map(line => line.textContent).join('\n');
+    if (element.classList.contains("CodeMirror-code")) {
+      const lines = element.querySelectorAll(".CodeMirror-line");
+      return Array.from(lines)
+        .map((line) => line.textContent)
+        .join("\n");
     }
-    
-    if (element.classList.contains('cm-content')) {
-      const lines = element.querySelectorAll('.cm-line');
-      return Array.from(lines).map(line => line.textContent).join('\n');
+
+    if (element.classList.contains("cm-content")) {
+      const lines = element.querySelectorAll(".cm-line");
+      return Array.from(lines)
+        .map((line) => line.textContent)
+        .join("\n");
     }
-    
-    if (element.classList.contains('view-lines')) {
-      const lines = element.querySelectorAll('.view-line');
-      return Array.from(lines).map(line => line.textContent).join('\n');
+
+    if (element.classList.contains("view-lines")) {
+      const lines = element.querySelectorAll(".view-line");
+      return Array.from(lines)
+        .map((line) => line.textContent)
+        .join("\n");
     }
-    
-    if (element.classList.contains('ace_content')) {
-      const lines = element.querySelectorAll('.ace_line');
-      return Array.from(lines).map(line => line.textContent).join('\n');
+
+    if (element.classList.contains("ace_content")) {
+      const lines = element.querySelectorAll(".ace_line");
+      return Array.from(lines)
+        .map((line) => line.textContent)
+        .join("\n");
     }
-    
-    return element.textContent || '';
+
+    return element.textContent || "";
   }
 
   /**
@@ -184,7 +194,7 @@ const KaggleDomParser = (function () {
         codeCells.push({
           element: cell,
           code: code,
-          cellIndex: cellIndex
+          cellIndex: cellIndex,
         });
       }
       cellIndex++;
@@ -201,16 +211,19 @@ const KaggleDomParser = (function () {
   function isCellCollapsed(cellElement) {
     const collapsedIndicators = [
       '[aria-expanded="false"]',
-      '.collapsed',
-      '[data-collapsed="true"]'
+      ".collapsed",
+      '[data-collapsed="true"]',
     ];
-    
+
     for (const indicator of collapsedIndicators) {
-      if (cellElement.querySelector(indicator) || cellElement.matches(indicator)) {
+      if (
+        cellElement.querySelector(indicator) ||
+        cellElement.matches(indicator)
+      ) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -223,7 +236,7 @@ const KaggleDomParser = (function () {
       theme: detectTheme(),
       collapsibleEnabled: isCollapsibleEnabled(),
       mode: detectNotebookMode(),
-      cellCount: getCodeCellContainers().length
+      cellCount: getCodeCellContainers().length,
     };
   }
 
@@ -235,10 +248,10 @@ const KaggleDomParser = (function () {
     extractCodeFromCell,
     getAllCodeCells,
     isCellCollapsed,
-    getNotebookMetadata
+    getNotebookMetadata,
   };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.KaggleDomParser = KaggleDomParser;
 }

@@ -4,7 +4,7 @@
  */
 
 const DuplicateFunctionsRule = (function () {
-  'use strict';
+  "use strict";
 
   /**
    * Extracts function and class definitions with their line numbers
@@ -13,7 +13,7 @@ const DuplicateFunctionsRule = (function () {
    */
   function extractDefinitions(code) {
     const definitions = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
     lines.forEach((line, lineIndex) => {
       let match = /^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/.exec(line);
@@ -21,7 +21,7 @@ const DuplicateFunctionsRule = (function () {
         definitions.push({
           name: match[1],
           line: lineIndex + 1,
-          type: 'function'
+          type: "function",
         });
       }
 
@@ -30,7 +30,7 @@ const DuplicateFunctionsRule = (function () {
         definitions.push({
           name: match[1],
           line: lineIndex + 1,
-          type: 'class'
+          type: "class",
         });
       }
 
@@ -39,7 +39,7 @@ const DuplicateFunctionsRule = (function () {
         definitions.push({
           name: match[1],
           line: lineIndex + 1,
-          type: 'async function'
+          type: "async function",
         });
       }
     });
@@ -59,7 +59,7 @@ const DuplicateFunctionsRule = (function () {
 
     const nameMap = new Map();
 
-    definitions.forEach(def => {
+    definitions.forEach((def) => {
       if (!nameMap.has(def.name)) {
         nameMap.set(def.name, []);
       }
@@ -68,12 +68,14 @@ const DuplicateFunctionsRule = (function () {
 
     nameMap.forEach((defs, name) => {
       if (defs.length > 1) {
-        defs.slice(1).forEach(def => {
+        defs.slice(1).forEach((def) => {
           const firstDef = defs[0];
           errors.push({
             line: def.line + cellOffset,
-            msg: `Duplicate ${def.type} name '${name}' (first defined at line ${firstDef.line + cellOffset})`,
-            severity: 'warning'
+            msg: `Duplicate ${def.type} name '${name}' (first defined at line ${
+              firstDef.line + cellOffset
+            })`,
+            severity: "warning",
           });
         });
       }
@@ -85,6 +87,6 @@ const DuplicateFunctionsRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.DuplicateFunctionsRule = DuplicateFunctionsRule;
 }

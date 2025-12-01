@@ -4,18 +4,18 @@
  */
 
 const UnclosedBracketsRule = (function () {
-  'use strict';
+  "use strict";
 
   const BRACKETS = {
-    '(': ')',
-    '[': ']',
-    '{': '}'
+    "(": ")",
+    "[": "]",
+    "{": "}",
   };
 
   const CLOSE_TO_OPEN = {
-    ')': '(',
-    ']': '[',
-    '}': '{'
+    ")": "(",
+    "]": "[",
+    "}": "{",
   };
 
   /**
@@ -24,7 +24,7 @@ const UnclosedBracketsRule = (function () {
    * @returns {string} Code with strings and comments replaced
    */
   function removeStringsAndComments(code) {
-    let result = '';
+    let result = "";
     let i = 0;
     let inString = null;
     let inTripleString = null;
@@ -32,11 +32,11 @@ const UnclosedBracketsRule = (function () {
 
     while (i < code.length) {
       if (inComment) {
-        if (code[i] === '\n') {
+        if (code[i] === "\n") {
           inComment = false;
-          result += '\n';
+          result += "\n";
         } else {
-          result += ' ';
+          result += " ";
         }
         i++;
         continue;
@@ -44,48 +44,48 @@ const UnclosedBracketsRule = (function () {
 
       if (inTripleString) {
         if (code.slice(i, i + 3) === inTripleString) {
-          result += '   ';
+          result += "   ";
           i += 3;
           inTripleString = null;
         } else {
-          result += code[i] === '\n' ? '\n' : ' ';
+          result += code[i] === "\n" ? "\n" : " ";
           i++;
         }
         continue;
       }
 
       if (inString) {
-        if (code[i] === '\\' && i + 1 < code.length) {
-          result += '  ';
+        if (code[i] === "\\" && i + 1 < code.length) {
+          result += "  ";
           i += 2;
         } else if (code[i] === inString) {
-          result += ' ';
+          result += " ";
           inString = null;
           i++;
         } else {
-          result += code[i] === '\n' ? '\n' : ' ';
+          result += code[i] === "\n" ? "\n" : " ";
           i++;
         }
         continue;
       }
 
-      if (code[i] === '#' && !inString && !inTripleString) {
+      if (code[i] === "#" && !inString && !inTripleString) {
         inComment = true;
-        result += ' ';
+        result += " ";
         i++;
         continue;
       }
 
       if (code.slice(i, i + 3) === '"""' || code.slice(i, i + 3) === "'''") {
         inTripleString = code.slice(i, i + 3);
-        result += '   ';
+        result += "   ";
         i += 3;
         continue;
       }
 
       if ((code[i] === '"' || code[i] === "'") && !inString) {
         inString = code[i];
-        result += ' ';
+        result += " ";
         i++;
         continue;
       }
@@ -106,7 +106,7 @@ const UnclosedBracketsRule = (function () {
   function run(code, cellOffset = 0) {
     const errors = [];
     const cleanCode = removeStringsAndComments(code);
-    const lines = cleanCode.split('\n');
+    const lines = cleanCode.split("\n");
 
     const stack = [];
 
@@ -121,14 +121,14 @@ const UnclosedBracketsRule = (function () {
             char: char,
             line: lineNum,
             column: i + 1,
-            expected: BRACKETS[char]
+            expected: BRACKETS[char],
           });
         } else if (CLOSE_TO_OPEN[char]) {
           if (stack.length === 0) {
             errors.push({
               line: lineNum + cellOffset,
               msg: `Unmatched closing '${char}'`,
-              severity: 'error'
+              severity: "error",
             });
           } else {
             const top = stack[stack.length - 1];
@@ -138,7 +138,7 @@ const UnclosedBracketsRule = (function () {
               errors.push({
                 line: lineNum + cellOffset,
                 msg: `Mismatched bracket: expected '${top.expected}' but found '${char}'`,
-                severity: 'error'
+                severity: "error",
               });
             }
           }
@@ -146,11 +146,11 @@ const UnclosedBracketsRule = (function () {
       }
     });
 
-    stack.forEach(unclosed => {
+    stack.forEach((unclosed) => {
       errors.push({
         line: unclosed.line + cellOffset,
         msg: `Unclosed '${unclosed.char}' (opened at column ${unclosed.column})`,
-        severity: 'error'
+        severity: "error",
       });
     });
 
@@ -160,6 +160,6 @@ const UnclosedBracketsRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.UnclosedBracketsRule = UnclosedBracketsRule;
 }

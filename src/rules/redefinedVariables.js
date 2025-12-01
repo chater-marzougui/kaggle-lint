@@ -4,20 +4,77 @@
  */
 
 const RedefinedVariablesRule = (function () {
-  'use strict';
+  "use strict";
 
   const BUILTIN_NAMES = new Set([
-    'list', 'dict', 'set', 'tuple', 'str', 'int', 'float', 'bool',
-    'type', 'object', 'len', 'range', 'print', 'input', 'open',
-    'file', 'id', 'hash', 'map', 'filter', 'zip', 'enumerate',
-    'sorted', 'reversed', 'sum', 'min', 'max', 'abs', 'round',
-    'all', 'any', 'format', 'repr', 'ascii', 'chr', 'ord',
-    'bin', 'oct', 'hex', 'iter', 'next', 'slice', 'super',
-    'classmethod', 'staticmethod', 'property', 'getattr', 'setattr',
-    'hasattr', 'delattr', 'isinstance', 'issubclass', 'callable',
-    'compile', 'eval', 'exec', 'globals', 'locals', 'vars', 'dir',
-    'help', 'memoryview', 'bytearray', 'bytes', 'complex', 'divmod',
-    'pow', 'frozenset'
+    "list",
+    "dict",
+    "set",
+    "tuple",
+    "str",
+    "int",
+    "float",
+    "bool",
+    "type",
+    "object",
+    "len",
+    "range",
+    "print",
+    "input",
+    "open",
+    "file",
+    "id",
+    "hash",
+    "map",
+    "filter",
+    "zip",
+    "enumerate",
+    "sorted",
+    "reversed",
+    "sum",
+    "min",
+    "max",
+    "abs",
+    "round",
+    "all",
+    "any",
+    "format",
+    "repr",
+    "ascii",
+    "chr",
+    "ord",
+    "bin",
+    "oct",
+    "hex",
+    "iter",
+    "next",
+    "slice",
+    "super",
+    "classmethod",
+    "staticmethod",
+    "property",
+    "getattr",
+    "setattr",
+    "hasattr",
+    "delattr",
+    "isinstance",
+    "issubclass",
+    "callable",
+    "compile",
+    "eval",
+    "exec",
+    "globals",
+    "locals",
+    "vars",
+    "dir",
+    "help",
+    "memoryview",
+    "bytearray",
+    "bytes",
+    "complex",
+    "divmod",
+    "pow",
+    "frozenset",
   ]);
 
   /**
@@ -28,7 +85,7 @@ const RedefinedVariablesRule = (function () {
    */
   function run(code, cellOffset = 0) {
     const errors = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
     const definitions = new Map();
 
@@ -47,7 +104,7 @@ const RedefinedVariablesRule = (function () {
           errors.push({
             line: lineNum + cellOffset,
             msg: `Redefining built-in name '${name}'`,
-            severity: 'warning'
+            severity: "warning",
           });
         }
 
@@ -56,7 +113,7 @@ const RedefinedVariablesRule = (function () {
         }
         definitions.get(name).push({
           line: lineNum,
-          type: 'assignment'
+          type: "assignment",
         });
       }
 
@@ -68,18 +125,20 @@ const RedefinedVariablesRule = (function () {
           errors.push({
             line: lineNum + cellOffset,
             msg: `Function name '${name}' shadows built-in`,
-            severity: 'warning'
+            severity: "warning",
           });
         }
 
         if (definitions.has(name)) {
           const prevDefs = definitions.get(name);
-          const varDefs = prevDefs.filter(d => d.type === 'assignment');
+          const varDefs = prevDefs.filter((d) => d.type === "assignment");
           if (varDefs.length > 0) {
             errors.push({
               line: lineNum + cellOffset,
-              msg: `Function '${name}' redefines variable (previously at line ${varDefs[0].line + cellOffset})`,
-              severity: 'warning'
+              msg: `Function '${name}' redefines variable (previously at line ${
+                varDefs[0].line + cellOffset
+              })`,
+              severity: "warning",
             });
           }
         }
@@ -89,7 +148,7 @@ const RedefinedVariablesRule = (function () {
         }
         definitions.get(name).push({
           line: lineNum,
-          type: 'function'
+          type: "function",
         });
       }
 
@@ -101,18 +160,20 @@ const RedefinedVariablesRule = (function () {
           errors.push({
             line: lineNum + cellOffset,
             msg: `Class name '${name}' shadows built-in`,
-            severity: 'warning'
+            severity: "warning",
           });
         }
 
         if (definitions.has(name)) {
           const prevDefs = definitions.get(name);
-          const varDefs = prevDefs.filter(d => d.type === 'assignment');
+          const varDefs = prevDefs.filter((d) => d.type === "assignment");
           if (varDefs.length > 0) {
             errors.push({
               line: lineNum + cellOffset,
-              msg: `Class '${name}' redefines variable (previously at line ${varDefs[0].line + cellOffset})`,
-              severity: 'warning'
+              msg: `Class '${name}' redefines variable (previously at line ${
+                varDefs[0].line + cellOffset
+              })`,
+              severity: "warning",
             });
           }
         }
@@ -122,7 +183,7 @@ const RedefinedVariablesRule = (function () {
         }
         definitions.get(name).push({
           line: lineNum,
-          type: 'class'
+          type: "class",
         });
       }
 
@@ -134,7 +195,7 @@ const RedefinedVariablesRule = (function () {
           errors.push({
             line: lineNum + cellOffset,
             msg: `Loop variable '${name}' shadows built-in`,
-            severity: 'warning'
+            severity: "warning",
           });
         }
       }
@@ -146,6 +207,6 @@ const RedefinedVariablesRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.RedefinedVariablesRule = RedefinedVariablesRule;
 }

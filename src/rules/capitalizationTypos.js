@@ -4,84 +4,84 @@
  */
 
 const CapitalizationTyposRule = (function () {
-  'use strict';
+  "use strict";
 
   const COMMON_NAMES = {
-    'true': 'True',
-    'false': 'False',
-    'none': 'None',
-    'self': 'self',
-    'cls': 'cls',
-    'numpy': 'numpy',
-    'pandas': 'pandas',
-    'matplotlib': 'matplotlib',
-    'tensorflow': 'tensorflow',
-    'pytorch': 'pytorch',
-    'sklearn': 'sklearn',
-    'scipy': 'scipy',
-    'seaborn': 'seaborn',
-    'print': 'print',
-    'len': 'len',
-    'range': 'range',
-    'list': 'list',
-    'dict': 'dict',
-    'set': 'set',
-    'tuple': 'tuple',
-    'str': 'str',
-    'int': 'int',
-    'float': 'float',
-    'bool': 'bool',
-    'type': 'type',
-    'isinstance': 'isinstance',
-    'hasattr': 'hasattr',
-    'getattr': 'getattr',
-    'setattr': 'setattr',
-    'enumerate': 'enumerate',
-    'zip': 'zip',
-    'map': 'map',
-    'filter': 'filter',
-    'sorted': 'sorted',
-    'reversed': 'reversed',
-    'sum': 'sum',
-    'min': 'min',
-    'max': 'max',
-    'abs': 'abs',
-    'round': 'round',
-    'open': 'open',
-    'read': 'read',
-    'write': 'write',
-    'close': 'close',
-    'append': 'append',
-    'extend': 'extend',
-    'insert': 'insert',
-    'remove': 'remove',
-    'pop': 'pop',
-    'index': 'index',
-    'count': 'count',
-    'sort': 'sort',
-    'reverse': 'reverse',
-    'copy': 'copy',
-    'clear': 'clear',
-    'keys': 'keys',
-    'values': 'values',
-    'items': 'items',
-    'get': 'get',
-    'update': 'update',
-    'dataframe': 'DataFrame',
-    'series': 'Series',
-    'array': 'array',
-    'ndarray': 'ndarray',
-    'valueerror': 'ValueError',
-    'typeerror': 'TypeError',
-    'keyerror': 'KeyError',
-    'indexerror': 'IndexError',
-    'attributeerror': 'AttributeError',
-    'importerror': 'ImportError',
-    'runtimeerror': 'RuntimeError',
-    'exception': 'Exception',
-    'filenotfounderror': 'FileNotFoundError',
-    'zerodivisionerror': 'ZeroDivisionError',
-    'assertionerror': 'AssertionError'
+    true: "True",
+    false: "False",
+    none: "None",
+    self: "self",
+    cls: "cls",
+    numpy: "numpy",
+    pandas: "pandas",
+    matplotlib: "matplotlib",
+    tensorflow: "tensorflow",
+    pytorch: "pytorch",
+    sklearn: "sklearn",
+    scipy: "scipy",
+    seaborn: "seaborn",
+    print: "print",
+    len: "len",
+    range: "range",
+    list: "list",
+    dict: "dict",
+    set: "set",
+    tuple: "tuple",
+    str: "str",
+    int: "int",
+    float: "float",
+    bool: "bool",
+    type: "type",
+    isinstance: "isinstance",
+    hasattr: "hasattr",
+    getattr: "getattr",
+    setattr: "setattr",
+    enumerate: "enumerate",
+    zip: "zip",
+    map: "map",
+    filter: "filter",
+    sorted: "sorted",
+    reversed: "reversed",
+    sum: "sum",
+    min: "min",
+    max: "max",
+    abs: "abs",
+    round: "round",
+    open: "open",
+    read: "read",
+    write: "write",
+    close: "close",
+    append: "append",
+    extend: "extend",
+    insert: "insert",
+    remove: "remove",
+    pop: "pop",
+    index: "index",
+    count: "count",
+    sort: "sort",
+    reverse: "reverse",
+    copy: "copy",
+    clear: "clear",
+    keys: "keys",
+    values: "values",
+    items: "items",
+    get: "get",
+    update: "update",
+    dataframe: "DataFrame",
+    series: "Series",
+    array: "array",
+    ndarray: "ndarray",
+    valueerror: "ValueError",
+    typeerror: "TypeError",
+    keyerror: "KeyError",
+    indexerror: "IndexError",
+    attributeerror: "AttributeError",
+    importerror: "ImportError",
+    runtimeerror: "RuntimeError",
+    exception: "Exception",
+    filenotfounderror: "FileNotFoundError",
+    zerodivisionerror: "ZeroDivisionError",
+    assertionerror: "AssertionError",
   };
 
   /**
@@ -91,7 +91,7 @@ const CapitalizationTyposRule = (function () {
    */
   function buildDefinedNamesMap(code) {
     const map = new Map();
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
     lines.forEach((line) => {
       let match = /^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/.exec(line);
@@ -121,12 +121,12 @@ const CapitalizationTyposRule = (function () {
    */
   function run(code, cellOffset = 0) {
     const errors = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     const definedNames = buildDefinedNamesMap(code);
 
     const allKnownNames = new Map([
       ...Object.entries(COMMON_NAMES).map(([k, v]) => [k.toLowerCase(), v]),
-      ...definedNames
+      ...definedNames,
     ]);
 
     lines.forEach((line, lineIndex) => {
@@ -134,8 +134,11 @@ const CapitalizationTyposRule = (function () {
         return;
       }
 
-      let processedLine = line.replace(/#.*$/, '');
-      processedLine = processedLine.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, '""');
+      let processedLine = line.replace(/#.*$/, "");
+      processedLine = processedLine.replace(
+        /(["'])(?:(?!\1|\\).|\\.)*\1/g,
+        '""'
+      );
 
       const identifierPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
       let match;
@@ -145,17 +148,20 @@ const CapitalizationTyposRule = (function () {
         const lowerName = name.toLowerCase();
         const beforeChar = processedLine[match.index - 1];
 
-        if (beforeChar === '.') {
+        if (beforeChar === ".") {
           continue;
         }
 
         if (allKnownNames.has(lowerName)) {
           const correctName = allKnownNames.get(lowerName);
-          if (name !== correctName && name.toLowerCase() === correctName.toLowerCase()) {
+          if (
+            name !== correctName &&
+            name.toLowerCase() === correctName.toLowerCase()
+          ) {
             errors.push({
               line: lineIndex + 1 + cellOffset,
               msg: `Possible capitalization typo: '${name}' should be '${correctName}'`,
-              severity: 'warning'
+              severity: "warning",
             });
           }
         }
@@ -168,6 +174,6 @@ const CapitalizationTyposRule = (function () {
   return { run };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.CapitalizationTyposRule = CapitalizationTyposRule;
 }

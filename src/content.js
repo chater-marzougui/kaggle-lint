@@ -4,7 +4,7 @@
  */
 
 (function () {
-  'use strict';
+  "use strict";
 
   let isInitialized = false;
   let observer = null;
@@ -16,7 +16,7 @@
    */
   function log(...args) {
     if (DEBUG) {
-      console.log('[Kaggle Linter]', ...args);
+      console.log("[Kaggle Linter]", ...args);
     }
   }
 
@@ -28,12 +28,12 @@
       return;
     }
 
-    log('Initializing...');
+    log("Initializing...");
 
     LintEngine.initializeRules();
 
     const metadata = KaggleDomParser.getNotebookMetadata();
-    log('Notebook metadata:', metadata);
+    log("Notebook metadata:", metadata);
 
     LintOverlay.setTheme(metadata.theme);
 
@@ -44,19 +44,19 @@
     setupKeyboardShortcuts();
 
     isInitialized = true;
-    log('Initialized successfully');
+    log("Initialized successfully");
   }
 
   /**
    * Runs the linter on all code cells
    */
   function runLinter() {
-    log('Running lint...');
+    log("Running lint...");
 
     const cells = KaggleDomParser.getAllCodeCells();
 
     if (cells.length === 0) {
-      log('No code cells found');
+      log("No code cells found");
       LintOverlay.displayErrors([], { bySeverity: {} });
       return;
     }
@@ -104,27 +104,31 @@
     }, 1000);
 
     observer = new MutationObserver((mutations) => {
-      const relevantMutation = mutations.some(mutation => {
-        if (mutation.type === 'characterData') {
+      const relevantMutation = mutations.some((mutation) => {
+        if (mutation.type === "characterData") {
           return true;
         }
 
-        if (mutation.type === 'childList') {
-          const addedRelevant = Array.from(mutation.addedNodes).some(node => {
+        if (mutation.type === "childList") {
+          const addedRelevant = Array.from(mutation.addedNodes).some((node) => {
             if (node.nodeType !== Node.ELEMENT_NODE) return false;
-            return node.matches && (
-              node.matches('[class*="cell"]') ||
-              node.matches('[class*="code"]') ||
-              node.matches('[class*="CodeMirror"]') ||
-              node.matches('[class*="monaco"]')
+            return (
+              node.matches &&
+              (node.matches('[class*="cell"]') ||
+                node.matches('[class*="code"]') ||
+                node.matches('[class*="CodeMirror"]') ||
+                node.matches('[class*="monaco"]'))
             );
           });
 
           if (addedRelevant) return true;
         }
 
-        if (mutation.type === 'attributes') {
-          if (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme') {
+        if (mutation.type === "attributes") {
+          if (
+            mutation.attributeName === "class" ||
+            mutation.attributeName === "data-theme"
+          ) {
             return true;
           }
         }
@@ -142,7 +146,7 @@
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['class', 'data-theme']
+      attributeFilter: ["class", "data-theme"],
     });
   }
 
@@ -150,13 +154,13 @@
    * Sets up keyboard shortcuts
    */
   function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "L") {
         e.preventDefault();
         runLinter();
       }
 
-      if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+      if (e.ctrlKey && e.shiftKey && e.key === "H") {
         e.preventDefault();
         if (LintOverlay.isOverlayVisible()) {
           LintOverlay.hideOverlay();
@@ -169,10 +173,10 @@
 
   window.runLinter = runLinter;
 
-  if (document.readyState === 'complete') {
+  if (document.readyState === "complete") {
     setTimeout(initialize, 500);
   } else {
-    window.addEventListener('load', () => {
+    window.addEventListener("load", () => {
       setTimeout(initialize, 500);
     });
   }

@@ -4,7 +4,7 @@
  */
 
 const LintEngine = (function () {
-  'use strict';
+  "use strict";
 
   const rules = [];
 
@@ -21,32 +21,32 @@ const LintEngine = (function () {
    * Initializes all built-in rules
    */
   function initializeRules() {
-    if (typeof UndefinedVariablesRule !== 'undefined') {
-      registerRule('undefinedVariables', UndefinedVariablesRule);
+    if (typeof UndefinedVariablesRule !== "undefined") {
+      registerRule("undefinedVariables", UndefinedVariablesRule);
     }
-    if (typeof CapitalizationTyposRule !== 'undefined') {
-      registerRule('capitalizationTypos', CapitalizationTyposRule);
+    if (typeof CapitalizationTyposRule !== "undefined") {
+      registerRule("capitalizationTypos", CapitalizationTyposRule);
     }
-    if (typeof DuplicateFunctionsRule !== 'undefined') {
-      registerRule('duplicateFunctions', DuplicateFunctionsRule);
+    if (typeof DuplicateFunctionsRule !== "undefined") {
+      registerRule("duplicateFunctions", DuplicateFunctionsRule);
     }
-    if (typeof ImportIssuesRule !== 'undefined') {
-      registerRule('importIssues', ImportIssuesRule);
+    if (typeof ImportIssuesRule !== "undefined") {
+      registerRule("importIssues", ImportIssuesRule);
     }
-    if (typeof IndentationErrorsRule !== 'undefined') {
-      registerRule('indentationErrors', IndentationErrorsRule);
+    if (typeof IndentationErrorsRule !== "undefined") {
+      registerRule("indentationErrors", IndentationErrorsRule);
     }
-    if (typeof EmptyCellsRule !== 'undefined') {
-      registerRule('emptyCells', EmptyCellsRule);
+    if (typeof EmptyCellsRule !== "undefined") {
+      registerRule("emptyCells", EmptyCellsRule);
     }
-    if (typeof UnclosedBracketsRule !== 'undefined') {
-      registerRule('unclosedBrackets', UnclosedBracketsRule);
+    if (typeof UnclosedBracketsRule !== "undefined") {
+      registerRule("unclosedBrackets", UnclosedBracketsRule);
     }
-    if (typeof RedefinedVariablesRule !== 'undefined') {
-      registerRule('redefinedVariables', RedefinedVariablesRule);
+    if (typeof RedefinedVariablesRule !== "undefined") {
+      registerRule("redefinedVariables", RedefinedVariablesRule);
     }
-    if (typeof MissingReturnRule !== 'undefined') {
-      registerRule('missingReturn', MissingReturnRule);
+    if (typeof MissingReturnRule !== "undefined") {
+      registerRule("missingReturn", MissingReturnRule);
     }
   }
 
@@ -63,20 +63,23 @@ const LintEngine = (function () {
     rules.forEach(({ name, run }) => {
       try {
         let errors;
-        if (name === 'emptyCells') {
+        if (name === "emptyCells") {
           errors = run(code, cellOffset, cellIndex);
         } else {
           errors = run(code, cellOffset);
         }
 
-        errors.forEach(error => {
+        errors.forEach((error) => {
           allErrors.push({
             ...error,
-            rule: name
+            rule: name,
           });
         });
       } catch (e) {
-        console.error(`Error running rule '${name}' on cell ${cellIndex}:`, e.message);
+        console.error(
+          `Error running rule '${name}' on cell ${cellIndex}:`,
+          e.message
+        );
       }
     });
 
@@ -92,19 +95,19 @@ const LintEngine = (function () {
     const allErrors = [];
     let lineOffset = 0;
 
-    cells.forEach(cell => {
+    cells.forEach((cell) => {
       const errors = lintCell(cell.code, lineOffset, cell.cellIndex);
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         allErrors.push({
           ...error,
           cellIndex: cell.cellIndex,
           element: cell.element,
-          cellLine: error.line - lineOffset
+          cellLine: error.line - lineOffset,
         });
       });
 
-      lineOffset += cell.code.split('\n').length;
+      lineOffset += cell.code.split("\n").length;
     });
 
     return allErrors;
@@ -120,7 +123,7 @@ const LintEngine = (function () {
     const severityOrder = { error: 3, warning: 2, info: 1 };
     const minLevel = severityOrder[minSeverity] || 0;
 
-    return errors.filter(error => {
+    return errors.filter((error) => {
       const level = severityOrder[error.severity] || 0;
       return level >= minLevel;
     });
@@ -134,7 +137,7 @@ const LintEngine = (function () {
   function groupByCell(errors) {
     const grouped = new Map();
 
-    errors.forEach(error => {
+    errors.forEach((error) => {
       const cellIndex = error.cellIndex;
       if (!grouped.has(cellIndex)) {
         grouped.set(cellIndex, []);
@@ -153,7 +156,7 @@ const LintEngine = (function () {
   function groupByRule(errors) {
     const grouped = new Map();
 
-    errors.forEach(error => {
+    errors.forEach((error) => {
       const rule = error.rule;
       if (!grouped.has(rule)) {
         grouped.set(rule, []);
@@ -173,11 +176,12 @@ const LintEngine = (function () {
     const stats = {
       total: errors.length,
       byRule: {},
-      bySeverity: { error: 0, warning: 0, info: 0 }
+      bySeverity: { error: 0, warning: 0, info: 0 },
     };
 
-    errors.forEach(error => {
-      stats.bySeverity[error.severity] = (stats.bySeverity[error.severity] || 0) + 1;
+    errors.forEach((error) => {
+      stats.bySeverity[error.severity] =
+        (stats.bySeverity[error.severity] || 0) + 1;
       stats.byRule[error.rule] = (stats.byRule[error.rule] || 0) + 1;
     });
 
@@ -189,7 +193,7 @@ const LintEngine = (function () {
    * @returns {Array<{name: string}>}
    */
   function getRules() {
-    return rules.map(r => ({ name: r.name }));
+    return rules.map((r) => ({ name: r.name }));
   }
 
   return {
@@ -201,10 +205,10 @@ const LintEngine = (function () {
     groupByCell,
     groupByRule,
     getStats,
-    getRules
+    getRules,
   };
 })();
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.LintEngine = LintEngine;
 }
