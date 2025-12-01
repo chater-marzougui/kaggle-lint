@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaggle Python Linter Options</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <h1>🔍 Kaggle Linter</h1>
+    <p class="subtitle">Toggle linting rules</p>
+    
+    <div class="rules-list" id="rules-list">
+      <!-- Rules will be populated by JavaScript -->
+    </div>
+    
+    <div class="actions">
+      <button id="refresh-btn" class="btn btn-primary">🔄 Re-lint Now</button>
+      <button id="toggle-overlay-btn" class="btn btn-secondary">👁️ Toggle Overlay</button>
+    </div>
+    
+    <div class="footer">
+      <span>v1.0.0</span>
+      <a href="https://github.com/chater-marzougui/kaggle-lint" target="_blank">GitHub</a>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -3,7 +3,16 @@
   "name": "Kaggle Python Linter",
   "version": "1.0.0",
   "description": "Lint Python code in Kaggle online notebooks - detect undefined variables, typos, indentation errors, and more",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "storage"],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Kaggle Python Linter Options"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.kaggle.com/code/*", "https://www.kaggle.com/notebooks/*"],

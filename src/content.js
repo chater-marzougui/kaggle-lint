@@ -8,7 +8,8 @@
 
   let isInitialized = false;
   let observer = null;
-  const DEBUG = false;
+  let linterSettings = null;
+  const DEBUG = true; // Enable debug logging
 
   /**
    * Debug logging helper
@@ -21,14 +22,69 @@
   }
 
   /**
+   * Load settings from Chrome storage
+   */
+  async function loadSettings() {
+    return new Promise((resolve) => {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.sync.get(['linterSettings'], (result) => {
+          if (result.linterSettings) {
+            linterSettings = result.linterSettings;
+            log("Loaded settings:", linterSettings);
+          }
+          resolve(linterSettings);
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  }
+
+  /**
+   * Listen for messages from popup
+   */
+  function setupMessageListener() {
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        log("Received message:", message);
+        
+        if (message.type === 'runLinter') {
+          runLinter();
+          sendResponse({ success: true });
+        } else if (message.type === 'toggleOverlay') {
+          if (LintOverlay.isOverlayVisible()) {
+            LintOverlay.hideOverlay();
+          } else {
+            LintOverlay.showOverlay();
+          }
+          sendResponse({ success: true });
+        } else if (message.type === 'settingsChanged') {
+          linterSettings = message.settings;
+          log("Settings updated:", linterSettings);
+          runLinter();
+          sendResponse({ success: true });
+        }
+        
+        return true; // Keep message channel open for async response
+      });
+    }
+  }
+
+  /**
    * Initializes the linter
    */
-  function initialize() {
+  async function initialize() {
     if (isInitialized) {
       return;
     }
 
     log("Initializing...");
+
+    // Load settings first
+    await loadSettings();
+
+    // Setup message listener for popup communication
+    setupMessageListener();
 
     LintEngine.initializeRules();
 
@@ -54,6 +110,7 @@
     log("Running lint...");
 
     const cells = KaggleDomParser.getAllCodeCells();
+    log(`Found ${cells.length} code cells`);
 
     if (cells.length === 0) {
       log("No code cells found");
@@ -61,7 +118,19 @@
       return;
     }
 
-    const errors = LintEngine.lintNotebook(cells);
+    let errors = LintEngine.lintNotebook(cells);
+    
+    // Filter errors based on settings
+    if (linterSettings && linterSettings.rules) {
+      const enabledRules = linterSettings.rules;
+      errors = errors.filter(error => {
+        const isEnabled = enabledRules[error.rule] !== false;
+        if (!isEnabled) {
+          log(`Filtering out error from disabled rule: ${error.rule}`);
+        }
+        return isEnabled;
+      });
+    }
 
     errors.sort((a, b) => {
       const severityOrder = { error: 0, warning: 1, info: 2 };
@@ -117,7 +186,9 @@
               (node.matches('[class*="cell"]') ||
                 node.matches('[class*="code"]') ||
                 node.matches('[class*="CodeMirror"]') ||
-                node.matches('[class*="monaco"]'))
+                node.matches('[class*="monaco"]') ||
+                node.matches('[class*="jp-"]') ||
+                node.matches('[class*="cm-"]'))
             );
           });
 
@@ -148,6 +219,8 @@
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
+    
+    log("Mutation observer set up");
   }
 
   /**
@@ -169,6 +242,8 @@
         }
       }
     });
+    
+    log("Keyboard shortcuts set up");
   }
 
   window.runLinter = runLinter;
