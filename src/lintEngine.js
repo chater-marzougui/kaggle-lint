@@ -76,7 +76,7 @@ const LintEngine = (function () {
           });
         });
       } catch (e) {
-        console.error(`Error running rule ${name}:`, e);
+        console.error(`Error running rule '${name}' on cell ${cellIndex}:`, e.message);
       }
     });
 

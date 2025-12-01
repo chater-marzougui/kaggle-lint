@@ -51,17 +51,6 @@ const UndefinedVariablesRule = (function () {
     const defined = new Set();
     const lines = code.split('\n');
 
-    const patterns = [
-      /^(\s*)def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/gm,
-      /^(\s*)class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[:\(]/gm,
-      /^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=/gm,
-      /^(\s*)for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\s+in\s+/gm,
-      /^(\s*)with\s+.*\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/gm,
-      /^(\s*)except\s+\w+\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/gm,
-      /^(\s*)import\s+([a-zA-Z_][a-zA-Z0-9_]*)/gm,
-      /^(\s*)from\s+\S+\s+import\s+(.+)/gm
-    ];
-
     lines.forEach((line, idx) => {
       let match;
 

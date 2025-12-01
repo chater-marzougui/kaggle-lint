@@ -253,4 +253,6 @@ console.log('\n=== Summary ===');
 console.log(`Passed: ${passed}`);
 console.log(`Failed: ${failed}`);
 
-process.exit(failed > 0 ? 1 : 0);
+if (failed > 0) {
+  throw new Error(`${failed} test(s) failed`);
+}

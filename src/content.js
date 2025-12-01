@@ -8,6 +8,17 @@
 
   let isInitialized = false;
   let observer = null;
+  const DEBUG = false;
+
+  /**
+   * Debug logging helper
+   * @param {...any} args - Arguments to log
+   */
+  function log(...args) {
+    if (DEBUG) {
+      console.log('[Kaggle Linter]', ...args);
+    }
+  }
 
   /**
    * Initializes the linter
@@ -17,12 +28,12 @@
       return;
     }
 
-    console.log('[Kaggle Linter] Initializing...');
+    log('Initializing...');
 
     LintEngine.initializeRules();
 
     const metadata = KaggleDomParser.getNotebookMetadata();
-    console.log('[Kaggle Linter] Notebook metadata:', metadata);
+    log('Notebook metadata:', metadata);
 
     LintOverlay.setTheme(metadata.theme);
 
@@ -33,19 +44,19 @@
     setupKeyboardShortcuts();
 
     isInitialized = true;
-    console.log('[Kaggle Linter] Initialized successfully');
+    log('Initialized successfully');
   }
 
   /**
    * Runs the linter on all code cells
    */
   function runLinter() {
-    console.log('[Kaggle Linter] Running lint...');
+    log('Running lint...');
 
     const cells = KaggleDomParser.getAllCodeCells();
 
     if (cells.length === 0) {
-      console.log('[Kaggle Linter] No code cells found');
+      log('No code cells found');
       LintOverlay.displayErrors([], { bySeverity: {} });
       return;
     }
@@ -61,7 +72,7 @@
 
     const stats = LintEngine.getStats(errors);
 
-    console.log(`[Kaggle Linter] Found ${errors.length} issues:`, stats);
+    log(`Found ${errors.length} issues:`, stats);
 
     LintOverlay.displayErrors(errors, stats);
 

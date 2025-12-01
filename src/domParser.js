@@ -71,29 +71,45 @@ const KaggleDomParser = (function () {
     return 'edit';
   }
 
+  let cachedSelector = null;
+  let selectorCacheTime = 0;
+  const CACHE_TTL = 5000;
+
   /**
    * Gets all code cell containers
    * @returns {NodeListOf<Element>}
    */
   function getCodeCellContainers() {
+    const now = Date.now();
+    
+    if (cachedSelector && (now - selectorCacheTime) < CACHE_TTL) {
+      const cells = document.querySelectorAll(cachedSelector);
+      if (cells.length > 0) {
+        return cells;
+      }
+    }
+    
     const selectors = [
       '.cell-content[data-cell-type="code"]',
       '[data-testid="code-cell"]',
       '.code-cell',
       '.cell--code',
       '.jp-CodeCell',
-      '.cell[data-cell-type="code"]',
-      '[class*="CodeCell"]'
+      '.cell[data-cell-type="code"]'
     ];
     
     for (const selector of selectors) {
       const cells = document.querySelectorAll(selector);
       if (cells.length > 0) {
+        cachedSelector = selector;
+        selectorCacheTime = now;
         return cells;
       }
     }
     
-    return document.querySelectorAll('.cell-content, .cell, [data-testid*="cell"]');
+    cachedSelector = '.cell-content, .cell';
+    selectorCacheTime = now;
+    return document.querySelectorAll(cachedSelector);
   }
 
   /**
