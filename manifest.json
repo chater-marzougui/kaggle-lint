@@ -6,11 +6,9 @@
   "permissions": ["activeTab", "storage", "scripting"],
 
   "host_permissions": [
+    "https://www.kaggle.com/*",
     "https://*.kaggleusercontent.com/*",
-    "https://*.jupyter-proxy.kaggle.net/*",
-    "https://www.kaggle.com/code/*",
-    "https://www.kaggle.com/notebooks/*",
-    "https://*.kaggle.com/*"
+    "https://*.jupyter-proxy.kaggle.net/*"
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
@@ -43,7 +41,18 @@
         "src/content.js"
       ],
       "css": ["src/ui/styles.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/pageInjection.js"],
+      "matches": [
+        "https://www.kaggle.com/*",
+        "https://*.kaggleusercontent.com/*",
+        "https://*.jupyter-proxy.kaggle.net/*"
+      ]
     }
   ],
   "icons": {
