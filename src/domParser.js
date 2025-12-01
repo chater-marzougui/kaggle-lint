@@ -62,7 +62,9 @@ const KaggleDomParser = (function () {
    * Force a cell to render by scrolling it into view
    */
   function forceRenderCell(cell) {
-    cell.scrollIntoView({ block: "nearest", behavior: "instant" });
+    if (cell && typeof cell.scrollIntoView === "function") {
+      cell.scrollIntoView({ block: "nearest", behavior: "instant" });
+    }
   }
 
   /**
