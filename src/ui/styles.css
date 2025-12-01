@@ -1,0 +1,290 @@
+/* Kaggle Python Linter Styles */
+
+.kaggle-lint-overlay {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 400px;
+  max-height: 60vh;
+  z-index: 10000;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* Light theme */
+.kaggle-lint-theme-light {
+  background: #ffffff;
+  color: #333333;
+  border: 1px solid #e0e0e0;
+}
+
+.kaggle-lint-theme-light .kaggle-lint-header {
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.kaggle-lint-theme-light .kaggle-lint-error-item:hover {
+  background: #f0f0f0;
+}
+
+/* Dark theme */
+.kaggle-lint-theme-dark {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid #3c3c3c;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-header {
+  background: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-error-item:hover {
+  background: #2a2a2a;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn {
+  background: #3c3c3c;
+  color: #d4d4d4;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn:hover {
+  background: #4a4a4a;
+}
+
+/* Header */
+.kaggle-lint-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  user-select: none;
+}
+
+.kaggle-lint-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.kaggle-lint-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.kaggle-lint-btn {
+  background: #e0e0e0;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.kaggle-lint-btn:hover {
+  background: #d0d0d0;
+}
+
+.kaggle-lint-close:hover {
+  background: #ff6b6b;
+  color: white;
+}
+
+/* Content */
+.kaggle-lint-content {
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(60vh - 50px);
+}
+
+/* Summary */
+.kaggle-lint-summary {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.7;
+}
+
+.kaggle-lint-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+/* Success message */
+.kaggle-lint-success {
+  text-align: center;
+  padding: 20px;
+  font-size: 15px;
+  color: #4caf50;
+}
+
+/* Error list */
+.kaggle-lint-errors {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kaggle-lint-error-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-bottom: 4px;
+}
+
+.kaggle-lint-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.kaggle-lint-location {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.kaggle-lint-message {
+  flex: 1;
+  word-break: break-word;
+}
+
+.kaggle-lint-rule {
+  flex-shrink: 0;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* Severity colors */
+.kaggle-lint-severity-error {
+  border-left: 3px solid #f44336;
+}
+
+.kaggle-lint-severity-warning {
+  border-left: 3px solid #ff9800;
+}
+
+.kaggle-lint-severity-info {
+  border-left: 3px solid #2196f3;
+}
+
+.kaggle-lint-error {
+  color: #f44336;
+}
+
+.kaggle-lint-warning {
+  color: #ff9800;
+}
+
+.kaggle-lint-info {
+  color: #2196f3;
+}
+
+/* Inline markers */
+.kaggle-lint-inline-marker {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-inline-marker {
+  background: rgba(30, 30, 30, 0.95);
+}
+
+.kaggle-lint-inline-marker span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Tooltip */
+.kaggle-lint-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  min-width: 280px;
+  max-width: 400px;
+  z-index: 101;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-tooltip {
+  background: #2d2d2d;
+  border-color: #3c3c3c;
+}
+
+.kaggle-lint-tooltip-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.kaggle-lint-tooltip-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Cell highlight */
+.kaggle-lint-highlight {
+  animation: kaggle-lint-pulse 0.5s ease-in-out 2;
+}
+
+@keyframes kaggle-lint-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.4);
+  }
+}
+
+/* Scrollbar styling */
+.kaggle-lint-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kaggle-lint-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kaggle-lint-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.kaggle-lint-content::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
