@@ -76,6 +76,17 @@ const KaggleDomParser = (function () {
   let cachedSelector = null;
   let selectorCacheTime = 0;
   const CACHE_TTL = 5000;
+  const DEBUG = false; // Set to true for debugging
+
+  /**
+   * Debug logging helper
+   * @param {...any} args - Arguments to log
+   */
+  function log(...args) {
+    if (DEBUG) {
+      console.log("[KaggleDomParser]", ...args);
+    }
+  }
 
   /**
    * Gets all code cell containers
@@ -87,29 +98,61 @@ const KaggleDomParser = (function () {
     if (cachedSelector && now - selectorCacheTime < CACHE_TTL) {
       const cells = document.querySelectorAll(cachedSelector);
       if (cells.length > 0) {
+        log(`Using cached selector: ${cachedSelector}, found ${cells.length} cells`);
         return cells;
       }
     }
 
+    // Selectors for Kaggle notebook cells - JupyterLab based
+    // Priority order: most specific first
     const selectors = [
+      // JupyterLab selectors (Kaggle uses JupyterLab)
+      ".jp-CodeCell",
+      ".jp-Cell.jp-CodeCell",
+      // Generic cell selectors
       '.cell-content[data-cell-type="code"]',
       '[data-testid="code-cell"]',
       ".code-cell",
       ".cell--code",
-      ".jp-CodeCell",
       '.cell[data-cell-type="code"]',
+      // Fallback: any jp-Cell that might contain code
+      ".jp-Cell",
     ];
+
+    log("Searching for code cells with selectors:", selectors);
 
     for (const selector of selectors) {
       const cells = document.querySelectorAll(selector);
+      log(`Selector "${selector}" found ${cells.length} elements`);
       if (cells.length > 0) {
         cachedSelector = selector;
         selectorCacheTime = now;
+        log(`Using selector: ${selector}`);
         return cells;
       }
     }
 
-    cachedSelector = ".cell-content, .cell";
+    // Final fallback: look for any element that contains cm-content (CodeMirror)
+    const cmContents = document.querySelectorAll(".cm-content");
+    if (cmContents.length > 0) {
+      log(`Found ${cmContents.length} cm-content elements, using parent cells`);
+      // Return parent cells that contain cm-content
+      const parentCells = [];
+      cmContents.forEach((cm) => {
+        // Walk up to find a suitable parent cell container
+        let parent = cm.closest(".jp-Cell, .cell, [class*='cell']");
+        if (parent && !parentCells.includes(parent)) {
+          parentCells.push(parent);
+        }
+      });
+      if (parentCells.length > 0) {
+        log(`Found ${parentCells.length} parent cells from cm-content`);
+        return parentCells;
+      }
+    }
+
+    log("No cells found with any selector");
+    cachedSelector = ".cell-content, .cell, .jp-Cell";
     selectorCacheTime = now;
     return document.querySelectorAll(cachedSelector);
   }
@@ -120,11 +163,21 @@ const KaggleDomParser = (function () {
    * @returns {string|null} Code content or null if not a code cell
    */
   function extractCodeFromCell(cellElement) {
+    // Check if this is a Markdown cell - skip it
+    if (cellElement.classList.contains("jp-MarkdownCell")) {
+      log("Skipping Markdown cell");
+      return null;
+    }
+
     const codeSelectors = [
-      "pre code",
-      ".CodeMirror-code",
+      // CodeMirror 6 (used by JupyterLab 4.x / Kaggle)
       ".cm-content",
+      // CodeMirror 5
+      ".CodeMirror-code",
+      // Monaco editor
       ".monaco-editor .view-lines",
+      // Standard code elements
+      "pre code",
       "textarea.code-input",
       '[data-testid="code-content"]',
       ".ace_content",
@@ -132,13 +185,18 @@ const KaggleDomParser = (function () {
       "code",
     ];
 
+    log("Extracting code from cell:", cellElement.className);
+
     for (const selector of codeSelectors) {
       const codeElement = cellElement.querySelector(selector);
       if (codeElement) {
-        return extractTextContent(codeElement);
+        const code = extractTextContent(codeElement);
+        log(`Found code with selector "${selector}":`, code.substring(0, 100) + (code.length > 100 ? "..." : ""));
+        return code;
       }
     }
 
+    log("No code content found in cell");
     return null;
   }
 
@@ -148,34 +206,58 @@ const KaggleDomParser = (function () {
    * @returns {string}
    */
   function extractTextContent(element) {
+    // CodeMirror 5
     if (element.classList.contains("CodeMirror-code")) {
       const lines = element.querySelectorAll(".CodeMirror-line");
-      return Array.from(lines)
+      const code = Array.from(lines)
         .map((line) => line.textContent)
         .join("\n");
+      log("Extracted CodeMirror-code content:", code.length, "chars");
+      return code;
     }
 
+    // CodeMirror 6 (JupyterLab 4.x / Kaggle)
     if (element.classList.contains("cm-content")) {
       const lines = element.querySelectorAll(".cm-line");
-      return Array.from(lines)
-        .map((line) => line.textContent)
-        .join("\n");
+      if (lines.length > 0) {
+        const code = Array.from(lines)
+          .map((line) => {
+            // Handle empty lines (they contain just <br> elements)
+            if (line.querySelector("br") && line.textContent.trim() === "") {
+              return "";
+            }
+            return line.textContent;
+          })
+          .join("\n");
+        log("Extracted cm-content content:", code.length, "chars,", lines.length, "lines");
+        return code;
+      }
+      // Fallback for cm-content without cm-line
+      log("cm-content without cm-line, using textContent");
+      return element.textContent || "";
     }
 
+    // Monaco editor
     if (element.classList.contains("view-lines")) {
       const lines = element.querySelectorAll(".view-line");
-      return Array.from(lines)
+      const code = Array.from(lines)
         .map((line) => line.textContent)
         .join("\n");
+      log("Extracted Monaco view-lines content:", code.length, "chars");
+      return code;
     }
 
+    // ACE editor
     if (element.classList.contains("ace_content")) {
       const lines = element.querySelectorAll(".ace_line");
-      return Array.from(lines)
+      const code = Array.from(lines)
         .map((line) => line.textContent)
         .join("\n");
+      log("Extracted ACE content:", code.length, "chars");
+      return code;
     }
 
+    log("Using plain textContent extraction");
     return element.textContent || "";
   }
 
@@ -188,6 +270,8 @@ const KaggleDomParser = (function () {
     const codeCells = [];
     let cellIndex = 0;
 
+    log(`Processing ${cells.length} potential cells`);
+
     cells.forEach((cell) => {
       const code = extractCodeFromCell(cell);
       if (code !== null && code.trim().length > 0) {
@@ -196,10 +280,14 @@ const KaggleDomParser = (function () {
           code: code,
           cellIndex: cellIndex,
         });
+        log(`Cell ${cellIndex}: ${code.length} chars of code`);
+      } else {
+        log(`Cell ${cellIndex}: skipped (no code or empty)`);
       }
       cellIndex++;
     });
 
+    log(`Found ${codeCells.length} code cells with content`);
     return codeCells;
   }
 
