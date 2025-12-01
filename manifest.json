@@ -1,30 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Kaggle Python Linter",
-  "version": "1.0.0",
-  "description": "Lint Python code in Kaggle online notebooks - detect undefined variables, typos, indentation errors, and more",
+  "version": "1.0.1",
   "permissions": ["activeTab", "storage", "scripting"],
-
   "host_permissions": [
     "https://www.kaggle.com/*",
-    "https://*.kaggleusercontent.com/*",
-    "https://*.jupyter-proxy.kaggle.net/*"
+    "*://*.kaggle.com/*",
+    "*://*.kaggleusercontent.com/*",
+    "*://www.kaggle.com/*",
+    "https://*.kaggleusercontent.com/*"
   ],
-  "action": {
-    "default_popup": "src/popup/popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    },
-    "default_title": "Kaggle Python Linter Options"
-  },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.kaggle.com/code/*",
-        "https://www.kaggle.com/notebooks/*"
-      ],
+      "matches": ["<all_urls>"],
+
       "js": [
         "src/rules/undefinedVariables.js",
         "src/rules/capitalizationTypos.js",
@@ -47,17 +36,8 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/pageInjection.js"],
-      "matches": [
-        "https://www.kaggle.com/*",
-        "https://*.kaggleusercontent.com/*",
-        "https://*.jupyter-proxy.kaggle.net/*"
-      ]
+      "resources": ["*"],
+      "matches": ["<all_urls>"]
     }
-  ],
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  }
+  ]
 }
