@@ -175,8 +175,8 @@
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            // Check if the added node is an iframe
-            if (node.tagName === "IFRAME") {
+            // Check if the added node is an iframe (use nodeName for robustness)
+            if (node.nodeName.toLowerCase() === "iframe") {
               log("🆕 New iframe detected, waiting for load...");
               node.addEventListener("load", () => {
                 injectIntoFrameElement(node);
@@ -649,6 +649,7 @@
     log(`Found ${cells.length} .jp-Cell elements in document`);
 
     if (cells.length === 0) {
+      log("⚠️ No cells found to render in this document");
       return;
     }
 
