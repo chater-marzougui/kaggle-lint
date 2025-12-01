@@ -73,19 +73,21 @@
   }
 
   /**
-   * Fallback method: Inject script tag into the page
+   * Inject the page script into a specific document
+   * @param {Document} targetDocument - The document to inject into
+   * @param {string} suffix - Suffix for the script ID to allow multiple injections
    */
-  function injectPageScriptFallback() {
-    log("🔧 Using script tag injection fallback...");
+  function injectIntoDocument(targetDocument, suffix = "") {
+    const scriptId = "kaggle-linter-page-script" + suffix;
 
     // Check if already injected
-    if (document.getElementById("kaggle-linter-page-script")) {
-      log("Page script already injected");
+    if (targetDocument.getElementById(scriptId)) {
+      log(`Page script already injected into ${suffix || "main"} document`);
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = "kaggle-linter-page-script";
+    const script = targetDocument.createElement("script");
+    script.id = scriptId;
 
     // Try to load from extension URL
     if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getURL) {
@@ -96,18 +98,131 @@
     }
 
     script.onload = function () {
-      log("✅ Page script loaded successfully");
+      log(`✅ Page script loaded successfully in ${suffix || "main"} document`);
     };
 
     script.onerror = function () {
-      log("⚠️ Failed to load page script from URL, using inline");
-      const inlineScript = document.createElement("script");
-      inlineScript.id = "kaggle-linter-page-script";
+      log(`⚠️ Failed to load page script from URL in ${suffix || "main"} document, using inline`);
+      const inlineScript = targetDocument.createElement("script");
+      inlineScript.id = scriptId;
       inlineScript.textContent = getPageInjectionCode();
-      (document.head || document.documentElement).appendChild(inlineScript);
+      (targetDocument.head || targetDocument.documentElement).appendChild(inlineScript);
     };
 
-    (document.head || document.documentElement).appendChild(script);
+    (targetDocument.head || targetDocument.documentElement).appendChild(script);
+  }
+
+  /**
+   * Recursively inject page script into all accessible iframes
+   * @param {Document} rootDocument - The root document to start from
+   * @param {string} prefix - Prefix for tracking injection depth
+   */
+  function injectIntoFramesRecursively(rootDocument, prefix = "") {
+    const iframes = rootDocument.querySelectorAll("iframe");
+    log(`🔍 Found ${iframes.length} iframes in ${prefix || "main"} document`);
+
+    iframes.forEach((iframe, index) => {
+      const frameName = iframe.name || iframe.id || `frame-${index}`;
+      const suffix = `${prefix}-${frameName}`;
+
+      try {
+        // Try to access the iframe's document (same-origin only)
+        const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+
+        if (iframeDoc) {
+          log(`📄 Injecting into iframe: ${frameName}`);
+          injectIntoDocument(iframeDoc, suffix);
+
+          // Recursively inject into nested iframes
+          injectIntoFramesRecursively(iframeDoc, suffix);
+        } else {
+          log(`⚠️ Cannot access iframe document for ${frameName} (cross-origin or not loaded)`);
+        }
+      } catch (e) {
+        // Cross-origin iframe - can't access directly
+        // The content script with all_frames: true should handle this
+        log(`⚠️ Cross-origin iframe ${frameName}: ${e.message}`);
+      }
+    });
+  }
+
+  /**
+   * Fallback method: Inject script tag into the page and all accessible iframes
+   */
+  function injectPageScriptFallback() {
+    log("🔧 Using script tag injection fallback...");
+
+    // Inject into the current document
+    injectIntoDocument(document);
+
+    // Recursively inject into all accessible iframes
+    injectIntoFramesRecursively(document);
+
+    // Also set up an observer to inject into dynamically added iframes
+    setupIframeObserver();
+  }
+
+  /**
+   * Set up a MutationObserver to watch for dynamically added iframes
+   */
+  let iframeObserver = null;
+  function setupIframeObserver() {
+    if (iframeObserver) {
+      iframeObserver.disconnect();
+    }
+
+    iframeObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Check if the added node is an iframe (use nodeName for robustness)
+            if (node.nodeName.toLowerCase() === "iframe") {
+              log("🆕 New iframe detected, waiting for load...");
+              node.addEventListener("load", () => {
+                injectIntoFrameElement(node);
+              });
+            }
+            // Also check for iframes within added containers
+            const iframes = node.querySelectorAll ? node.querySelectorAll("iframe") : [];
+            iframes.forEach((iframe) => {
+              log("🆕 New iframe in container detected, waiting for load...");
+              if (iframe.contentDocument) {
+                injectIntoFrameElement(iframe);
+              } else {
+                iframe.addEventListener("load", () => {
+                  injectIntoFrameElement(iframe);
+                });
+              }
+            });
+          }
+        });
+      });
+    });
+
+    iframeObserver.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+
+    log("🔍 Iframe observer set up");
+  }
+
+  /**
+   * Inject into a specific iframe element
+   * @param {HTMLIFrameElement} iframe
+   */
+  function injectIntoFrameElement(iframe) {
+    const frameName = iframe.name || iframe.id || "unnamed-frame";
+    try {
+      const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (iframeDoc) {
+        log(`📄 Injecting into dynamically added iframe: ${frameName}`);
+        injectIntoDocument(iframeDoc, `-${frameName}`);
+        injectIntoFramesRecursively(iframeDoc, `-${frameName}`);
+      }
+    } catch (e) {
+      log(`⚠️ Cannot access dynamically added iframe ${frameName}: ${e.message}`);
+    }
   }
 
   /**
@@ -198,17 +313,20 @@
   }
 
   /**
-   * Listen for messages from the page injection script
+   * Listen for messages from the page injection script (including from iframes)
    */
   function setupPageMessageListener() {
     window.addEventListener("message", function (event) {
-      // Only accept messages from the same window
-      if (event.source !== window) {
+      // Accept messages from same window or from iframes
+      const isFromSameWindow = event.source === window;
+      const isFromIframe = isMessageFromIframe(event.source);
+
+      if (!isFromSameWindow && !isFromIframe) {
         return;
       }
 
       if (event.data && event.data.type === "KAGGLE_LINTER_READY") {
-        log("📩 Page injection script is ready");
+        log("📩 Page injection script is ready", isFromIframe ? "(from iframe)" : "(from main)");
         pageInjectionReady = true;
 
         // If there was a pending lint request, run it now
@@ -219,7 +337,7 @@
       }
 
       if (event.data && event.data.type === "KAGGLE_LINTER_CODE") {
-        log("📩 Received code from page injection:", event.data.code.length, "cells");
+        log("📩 Received code from page injection:", event.data.code.length, "cells", isFromIframe ? "(from iframe)" : "(from main)");
         processExtractedCode(event.data.code);
       }
 
@@ -230,11 +348,80 @@
   }
 
   /**
-   * Request code extraction from the page injection script
+   * Check if a message source is from an iframe within our document
+   * @param {Window} source - The message source window
+   * @returns {boolean}
+   */
+  function isMessageFromIframe(source) {
+    try {
+      const iframes = document.querySelectorAll("iframe");
+      for (const iframe of iframes) {
+        if (iframe.contentWindow === source) {
+          return true;
+        }
+        // Also check nested iframes
+        try {
+          const nestedIframes = iframe.contentDocument ? iframe.contentDocument.querySelectorAll("iframe") : [];
+          for (const nested of nestedIframes) {
+            if (nested.contentWindow === source) {
+              return true;
+            }
+          }
+        } catch (e) {
+          // Cross-origin, ignore
+        }
+      }
+    } catch (e) {
+      // Error checking, ignore
+    }
+    return false;
+  }
+
+  /**
+   * Request code extraction from the page injection script (and all iframes)
    */
   function requestCodeFromPage() {
-    log("📤 Requesting code extraction from page...");
+    log("📤 Requesting code extraction from page and iframes...");
+
+    // Request from main window
     window.postMessage({ type: "KAGGLE_LINTER_REQUEST" }, "*");
+
+    // Also request from all accessible iframes
+    requestCodeFromIframes(document);
+  }
+
+  /**
+   * Recursively request code extraction from all accessible iframes
+   * @param {Document} rootDocument
+   */
+  function requestCodeFromIframes(rootDocument) {
+    const iframes = rootDocument.querySelectorAll("iframe");
+
+    iframes.forEach((iframe) => {
+      try {
+        const iframeWindow = iframe.contentWindow;
+        if (iframeWindow) {
+          log(`📤 Requesting code from iframe: ${iframe.name || iframe.id || "unnamed"}`);
+          iframeWindow.postMessage({ type: "KAGGLE_LINTER_REQUEST" }, "*");
+
+          // Recursively request from nested iframes
+          const iframeDoc = iframe.contentDocument;
+          if (iframeDoc) {
+            requestCodeFromIframes(iframeDoc);
+          }
+        }
+      } catch (e) {
+        // Cross-origin iframe - try to post message anyway
+        log(`⚠️ Cross-origin iframe, attempting postMessage: ${e.message}`);
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: "KAGGLE_LINTER_REQUEST" }, "*");
+          }
+        } catch (e2) {
+          log(`⚠️ Cannot post message to iframe: ${e2.message}`);
+        }
+      }
+    });
   }
 
   /**
@@ -262,22 +449,74 @@
   }
 
   /**
-   * Find the DOM element for a cell by index or UUID
+   * Find the DOM element for a cell by index or UUID (searches main document and iframes)
    * @param {number} cellIndex
    * @param {string|null} uuid
    * @returns {Element|null}
    */
   function findCellElement(cellIndex, uuid) {
+    // First search in main document
+    let element = findCellElementInDocument(document, cellIndex, uuid);
+    if (element) {
+      return element;
+    }
+
+    // Then search in iframes
+    return findCellElementInIframes(document, cellIndex, uuid);
+  }
+
+  /**
+   * Find cell element in a specific document
+   * @param {Document} doc
+   * @param {number} cellIndex
+   * @param {string|null} uuid
+   * @returns {Element|null}
+   */
+  function findCellElementInDocument(doc, cellIndex, uuid) {
     if (uuid) {
-      const cellByUuid = document.querySelector(`[data-uuid="${uuid}"]`);
+      const cellByUuid = doc.querySelector(`[data-uuid="${uuid}"]`);
       if (cellByUuid) {
         return cellByUuid.querySelector(".cm-editor") || cellByUuid;
       }
     }
 
-    const cells = document.querySelectorAll(".jp-Cell");
+    const cells = doc.querySelectorAll(".jp-Cell");
     if (cells[cellIndex]) {
       return cells[cellIndex].querySelector(".cm-editor") || cells[cellIndex];
+    }
+
+    return null;
+  }
+
+  /**
+   * Recursively search for cell element in iframes
+   * @param {Document} rootDocument
+   * @param {number} cellIndex
+   * @param {string|null} uuid
+   * @returns {Element|null}
+   */
+  function findCellElementInIframes(rootDocument, cellIndex, uuid) {
+    const iframes = rootDocument.querySelectorAll("iframe");
+
+    for (const iframe of iframes) {
+      try {
+        const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+        if (iframeDoc) {
+          // Search in this iframe's document
+          const element = findCellElementInDocument(iframeDoc, cellIndex, uuid);
+          if (element) {
+            return element;
+          }
+
+          // Recursively search in nested iframes
+          const nestedElement = findCellElementInIframes(iframeDoc, cellIndex, uuid);
+          if (nestedElement) {
+            return nestedElement;
+          }
+        }
+      } catch (e) {
+        // Cross-origin iframe, can't access
+      }
     }
 
     return null;
@@ -325,11 +564,12 @@
   }
 
   /**
-   * Fallback: Run linter using DOM-based extraction
+   * Fallback: Run linter using DOM-based extraction (including iframes)
    */
   function runLinterWithDomFallback() {
     log("Using DOM-based extraction fallback...");
 
+    // Force render cells in main document
     const cells = document.querySelectorAll(".jp-Cell");
     if (cells.length > 0) {
       cells.forEach((cell) => {
@@ -343,8 +583,8 @@
     }
 
     setTimeout(() => {
-      const codeCells = KaggleDomParser.getAllCodeCells(document);
-      log(`Found ${codeCells.length} code cells via DOM`);
+      const codeCells = getAllCodeCellsIncludingIframes(document);
+      log(`Found ${codeCells.length} code cells via DOM (including iframes)`);
 
       if (codeCells.length === 0) {
         log("No code cells found via DOM either");
@@ -356,14 +596,60 @@
     }, 200);
   }
 
+  /**
+   * Get all code cells from a document and its iframes recursively
+   * @param {Document} rootDocument
+   * @returns {Array<{element: Element, code: string, cellIndex: number}>}
+   */
+  function getAllCodeCellsIncludingIframes(rootDocument) {
+    let allCells = [];
+
+    // Get cells from main document
+    const mainCells = KaggleDomParser.getAllCodeCells(rootDocument);
+    allCells = allCells.concat(mainCells);
+
+    // Get cells from iframes (recursively handled within each iframe)
+    const iframes = rootDocument.querySelectorAll("iframe");
+    iframes.forEach((iframe) => {
+      try {
+        const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+        if (iframeDoc) {
+          // Recursively get cells from this iframe and its nested iframes
+          const iframeCells = getAllCodeCellsIncludingIframes(iframeDoc);
+          log(`Found ${iframeCells.length} code cells in iframe: ${iframe.name || iframe.id || "unnamed"}`);
+          allCells = allCells.concat(iframeCells);
+        }
+      } catch (e) {
+        // Cross-origin iframe, can't access
+        log(`⚠️ Cannot access iframe for DOM extraction: ${e.message}`);
+      }
+    });
+
+    return allCells;
+  }
+
   function forceRenderAllCells() {
     log("🔄 Forcing cells to render...");
 
-    const cells = document.querySelectorAll(".jp-Cell");
-    log(`Found ${cells.length} .jp-Cell elements`);
+    // Force render in main document
+    forceRenderCellsInDocument(document);
+
+    // Force render in iframes
+    forceRenderCellsInIframes(document);
+
+    log("✅ Finished forcing cell renders");
+  }
+
+  /**
+   * Force render cells in a specific document
+   * @param {Document} doc
+   */
+  function forceRenderCellsInDocument(doc) {
+    const cells = doc.querySelectorAll(".jp-Cell");
+    log(`Found ${cells.length} .jp-Cell elements in document`);
 
     if (cells.length === 0) {
-      log("⚠️ No cells found to render");
+      log("⚠️ No cells found to render in this document");
       return;
     }
 
@@ -376,8 +662,27 @@
     if (cells[0] && typeof cells[0].scrollIntoView === "function") {
       cells[0].scrollIntoView({ block: "start", behavior: "instant" });
     }
+  }
 
-    log("✅ Finished forcing cell renders");
+  /**
+   * Recursively force render cells in all accessible iframes
+   * @param {Document} rootDocument
+   */
+  function forceRenderCellsInIframes(rootDocument) {
+    const iframes = rootDocument.querySelectorAll("iframe");
+
+    iframes.forEach((iframe) => {
+      try {
+        const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+        if (iframeDoc) {
+          log(`Forcing render in iframe: ${iframe.name || iframe.id || "unnamed"}`);
+          forceRenderCellsInDocument(iframeDoc);
+          forceRenderCellsInIframes(iframeDoc);
+        }
+      } catch (e) {
+        // Cross-origin iframe, can't access
+      }
+    });
   }
 
   async function initialize() {
