@@ -1,0 +1,173 @@
+/**
+ * Capitalization Typos Rule
+ * Detects potential typos from incorrect capitalization of known names
+ */
+
+const CapitalizationTyposRule = (function () {
+  'use strict';
+
+  const COMMON_NAMES = {
+    'true': 'True',
+    'false': 'False',
+    'none': 'None',
+    'self': 'self',
+    'cls': 'cls',
+    'numpy': 'numpy',
+    'pandas': 'pandas',
+    'matplotlib': 'matplotlib',
+    'tensorflow': 'tensorflow',
+    'pytorch': 'pytorch',
+    'sklearn': 'sklearn',
+    'scipy': 'scipy',
+    'seaborn': 'seaborn',
+    'print': 'print',
+    'len': 'len',
+    'range': 'range',
+    'list': 'list',
+    'dict': 'dict',
+    'set': 'set',
+    'tuple': 'tuple',
+    'str': 'str',
+    'int': 'int',
+    'float': 'float',
+    'bool': 'bool',
+    'type': 'type',
+    'isinstance': 'isinstance',
+    'hasattr': 'hasattr',
+    'getattr': 'getattr',
+    'setattr': 'setattr',
+    'enumerate': 'enumerate',
+    'zip': 'zip',
+    'map': 'map',
+    'filter': 'filter',
+    'sorted': 'sorted',
+    'reversed': 'reversed',
+    'sum': 'sum',
+    'min': 'min',
+    'max': 'max',
+    'abs': 'abs',
+    'round': 'round',
+    'open': 'open',
+    'read': 'read',
+    'write': 'write',
+    'close': 'close',
+    'append': 'append',
+    'extend': 'extend',
+    'insert': 'insert',
+    'remove': 'remove',
+    'pop': 'pop',
+    'index': 'index',
+    'count': 'count',
+    'sort': 'sort',
+    'reverse': 'reverse',
+    'copy': 'copy',
+    'clear': 'clear',
+    'keys': 'keys',
+    'values': 'values',
+    'items': 'items',
+    'get': 'get',
+    'update': 'update',
+    'dataframe': 'DataFrame',
+    'series': 'Series',
+    'array': 'array',
+    'ndarray': 'ndarray',
+    'valueerror': 'ValueError',
+    'typeerror': 'TypeError',
+    'keyerror': 'KeyError',
+    'indexerror': 'IndexError',
+    'attributeerror': 'AttributeError',
+    'importerror': 'ImportError',
+    'runtimeerror': 'RuntimeError',
+    'exception': 'Exception',
+    'filenotfounderror': 'FileNotFoundError',
+    'zerodivisionerror': 'ZeroDivisionError',
+    'assertionerror': 'AssertionError'
+  };
+
+  /**
+   * Builds a lowercase lookup map from code-defined names
+   * @param {string} code - Python source code
+   * @returns {Map<string, string>}
+   */
+  function buildDefinedNamesMap(code) {
+    const map = new Map();
+    const lines = code.split('\n');
+
+    lines.forEach((line) => {
+      let match = /^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/.exec(line);
+      if (match) {
+        map.set(match[1].toLowerCase(), match[1]);
+      }
+
+      match = /^\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)/.exec(line);
+      if (match) {
+        map.set(match[1].toLowerCase(), match[1]);
+      }
+
+      match = /^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=(?!=)/.exec(line);
+      if (match && !/^\s*(if|while|for|with|except|elif)/.test(line)) {
+        map.set(match[1].toLowerCase(), match[1]);
+      }
+    });
+
+    return map;
+  }
+
+  /**
+   * Runs the capitalization typos rule
+   * @param {string} code - Python source code
+   * @param {number} cellOffset - Line offset for cell
+   * @returns {Array<{line: number, msg: string, severity: string}>}
+   */
+  function run(code, cellOffset = 0) {
+    const errors = [];
+    const lines = code.split('\n');
+    const definedNames = buildDefinedNamesMap(code);
+
+    const allKnownNames = new Map([
+      ...Object.entries(COMMON_NAMES).map(([k, v]) => [k.toLowerCase(), v]),
+      ...definedNames
+    ]);
+
+    lines.forEach((line, lineIndex) => {
+      if (/^\s*#/.test(line)) {
+        return;
+      }
+
+      let processedLine = line.replace(/#.*$/, '');
+      processedLine = processedLine.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, '""');
+
+      const identifierPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+      let match;
+
+      while ((match = identifierPattern.exec(processedLine)) !== null) {
+        const name = match[1];
+        const lowerName = name.toLowerCase();
+        const beforeChar = processedLine[match.index - 1];
+
+        if (beforeChar === '.') {
+          continue;
+        }
+
+        if (allKnownNames.has(lowerName)) {
+          const correctName = allKnownNames.get(lowerName);
+          if (name !== correctName && name.toLowerCase() === correctName.toLowerCase()) {
+            errors.push({
+              line: lineIndex + 1 + cellOffset,
+              msg: `Possible capitalization typo: '${name}' should be '${correctName}'`,
+              severity: 'warning'
+            });
+          }
+        }
+      }
+    });
+
+    return errors;
+  }
+
+  return { run };
+})();
+
+if (typeof window !== 'undefined') {
+  window.CapitalizationTyposRule = CapitalizationTyposRule;
+}
