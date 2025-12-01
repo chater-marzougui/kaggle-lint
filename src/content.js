@@ -1,6 +1,6 @@
 /**
  * Kaggle Python Linter - Content Script
- * Main entry point for the Chrome extension
+ * Uses JupyterLab API for reliable notebook detection
  */
 
 (function () {
@@ -9,25 +9,18 @@
   let isInitialized = false;
   let observer = null;
   let linterSettings = null;
-  const DEBUG = false; // Set to true for debugging
+  const DEBUG = true;
 
-  /**
-   * Debug logging helper
-   * @param {...any} args - Arguments to log
-   */
   function log(...args) {
     if (DEBUG) {
       console.log("[Kaggle Linter]", ...args);
     }
   }
 
-  /**
-   * Load settings from Chrome storage
-   */
   async function loadSettings() {
     return new Promise((resolve) => {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['linterSettings'], (result) => {
+      if (typeof chrome !== "undefined" && chrome.storage) {
+        chrome.storage.sync.get(["linterSettings"], (result) => {
           if (result.linterSettings) {
             linterSettings = result.linterSettings;
             log("Loaded settings:", linterSettings);
@@ -40,39 +33,55 @@
     });
   }
 
-  /**
-   * Listen for messages from popup
-   */
   function setupMessageListener() {
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
+    if (typeof chrome !== "undefined" && chrome.runtime) {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         log("Received message:", message);
-        
-        if (message.type === 'runLinter') {
+
+        if (message.type === "runLinter") {
           runLinter();
           sendResponse({ success: true });
-        } else if (message.type === 'toggleOverlay') {
+        } else if (message.type === "toggleOverlay") {
           if (LintOverlay.isOverlayVisible()) {
             LintOverlay.hideOverlay();
           } else {
             LintOverlay.showOverlay();
           }
           sendResponse({ success: true });
-        } else if (message.type === 'settingsChanged') {
+        } else if (message.type === "settingsChanged") {
           linterSettings = message.settings;
           log("Settings updated:", linterSettings);
           runLinter();
           sendResponse({ success: true });
         }
-        
-        return true; // Keep message channel open for async response
+
+        return true;
       });
     }
   }
 
-  /**
-   * Initializes the linter
-   */
+  function forceRenderAllCells() {
+    log("🔄 Forcing cells to render...");
+
+    const cells = document.querySelectorAll(".jp-Cell");
+    log(`Found ${cells.length} .jp-Cell elements`);
+
+    if (cells.length === 0) {
+      log("⚠️ No cells found to render");
+      return;
+    }
+
+    cells.forEach((cell, i) => {
+      cell.scrollIntoView({ block: "nearest", behavior: "instant" });
+    });
+
+    if (cells[0]) {
+      cells[0].scrollIntoView({ block: "start", behavior: "instant" });
+    }
+
+    log("✅ Finished forcing cell renders");
+  }
+
   async function initialize() {
     if (isInitialized) {
       return;
@@ -80,12 +89,8 @@
 
     log("Initializing...");
 
-    // Load settings first
     await loadSettings();
-
-    // Setup message listener for popup communication
     setupMessageListener();
-
     LintEngine.initializeRules();
 
     const metadata = KaggleDomParser.getNotebookMetadata();
@@ -93,66 +98,70 @@
 
     LintOverlay.setTheme(metadata.theme);
 
-    runLinter();
+    forceRenderAllCells();
 
-    setupMutationObserver();
+    setTimeout(() => {
+      runLinter();
+      setupMutationObserver();
+      setupKeyboardShortcuts();
 
-    setupKeyboardShortcuts();
-
-    isInitialized = true;
-    log("Initialized successfully");
+      isInitialized = true;
+      log("Initialized successfully");
+    }, 500);
   }
 
-  /**
-   * Runs the linter on all code cells
-   */
   function runLinter() {
     log("Running lint...");
 
-    const cells = KaggleDomParser.getAllCodeCells();
-    log(`Found ${cells.length} code cells`);
-
-    if (cells.length === 0) {
-      log("No code cells found");
-      LintOverlay.displayErrors([], { bySeverity: {} });
-      return;
-    }
-
-    let errors = LintEngine.lintNotebook(cells);
-    
-    // Filter errors based on settings
-    if (linterSettings && linterSettings.rules) {
-      const enabledRules = linterSettings.rules;
-      errors = errors.filter(error => {
-        const isEnabled = enabledRules[error.rule] !== false;
-        if (!isEnabled) {
-          log(`Filtering out error from disabled rule: ${error.rule}`);
-        }
-        return isEnabled;
+    const cells = document.querySelectorAll(".jp-Cell");
+    if (cells.length > 0) {
+      cells.forEach((cell) => {
+        cell.scrollIntoView({ block: "nearest", behavior: "instant" });
       });
+      if (cells[0]) {
+        cells[0].scrollIntoView({ block: "start", behavior: "instant" });
+      }
     }
 
-    errors.sort((a, b) => {
-      const severityOrder = { error: 0, warning: 1, info: 2 };
-      const sevDiff = severityOrder[a.severity] - severityOrder[b.severity];
-      if (sevDiff !== 0) return sevDiff;
-      return a.line - b.line;
-    });
+    setTimeout(() => {
+      const codeCells = KaggleDomParser.getAllCodeCells(document);
+      log(`Found ${codeCells.length} code cells`);
 
-    const stats = LintEngine.getStats(errors);
+      if (codeCells.length === 0) {
+        log("No code cells found");
+        LintOverlay.displayErrors([], { bySeverity: {} });
+        return;
+      }
 
-    log(`Found ${errors.length} issues:`, stats);
+      let errors = LintEngine.lintNotebook(codeCells);
 
-    LintOverlay.displayErrors(errors, stats);
+      if (linterSettings && linterSettings.rules) {
+        const enabledRules = linterSettings.rules;
+        errors = errors.filter((error) => {
+          const isEnabled = enabledRules[error.rule] !== false;
+          if (!isEnabled) {
+            log(`Filtering out error from disabled rule: ${error.rule}`);
+          }
+          return isEnabled;
+        });
+      }
 
-    LintOverlay.addInlineMarkers(errors);
+      errors.sort((a, b) => {
+        const severityOrder = { error: 0, warning: 1, info: 2 };
+        const sevDiff = severityOrder[a.severity] - severityOrder[b.severity];
+        if (sevDiff !== 0) return sevDiff;
+        return a.line - b.line;
+      });
 
-    LintOverlay.showOverlay();
+      const stats = LintEngine.getStats(errors);
+      log(`Found ${errors.length} issues:`, stats);
+
+      LintOverlay.displayErrors(errors, stats);
+      LintOverlay.addInlineMarkers(errors);
+      LintOverlay.showOverlay();
+    }, 200);
   }
 
-  /**
-   * Sets up mutation observer to watch for DOM changes
-   */
   function setupMutationObserver() {
     if (observer) {
       observer.disconnect();
@@ -181,12 +190,24 @@
         if (mutation.type === "childList") {
           const addedRelevant = Array.from(mutation.addedNodes).some((node) => {
             if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+            if (node.classList?.contains("cm-editor")) {
+              log("✨ New .cm-editor detected!");
+              return true;
+            }
+
+            if (
+              node.querySelectorAll &&
+              node.querySelectorAll(".cm-editor").length > 0
+            ) {
+              log("✨ Container with .cm-editor added!");
+              return true;
+            }
+
             return (
               node.matches &&
               (node.matches('[class*="cell"]') ||
                 node.matches('[class*="code"]') ||
-                node.matches('[class*="CodeMirror"]') ||
-                node.matches('[class*="monaco"]') ||
                 node.matches('[class*="jp-"]') ||
                 node.matches('[class*="cm-"]'))
             );
@@ -219,13 +240,10 @@
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
-    
+
     log("Mutation observer set up");
   }
 
-  /**
-   * Sets up keyboard shortcuts
-   */
   function setupKeyboardShortcuts() {
     document.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === "L") {
@@ -242,17 +260,78 @@
         }
       }
     });
-    
+
     log("Keyboard shortcuts set up");
   }
 
   window.runLinter = runLinter;
 
-  if (document.readyState === "complete") {
-    setTimeout(initialize, 500);
-  } else {
-    window.addEventListener("load", () => {
-      setTimeout(initialize, 500);
+  /**
+   * FINAL FIX: Wait for JupyterLab app OR notebook panel
+   */
+  function waitForNotebook() {
+    log("🔍 Waiting for Kaggle/JupyterLab to initialize...");
+
+    let attemptCount = 0;
+    const maxAttempts = 60; // 60 seconds
+
+    const checkInterval = setInterval(() => {
+      attemptCount++;
+
+      // Method 1: Check for JupyterLab app in window
+      const hasJupyterApp = window.jupyterapp || window.jupyterlab;
+
+      // Method 2: Check for notebook panel
+      const notebookPanel = document.querySelector(".jp-NotebookPanel");
+
+      // Method 3: Check for notebook container + cells
+      const notebook = document.querySelector(".jp-Notebook");
+      const cells = document.querySelectorAll(".jp-Cell");
+
+      // Method 4: Check for editors directly
+      const editors = document.querySelectorAll(".cm-editor");
+
+      log(`Attempt ${attemptCount}/${maxAttempts}:`, {
+        jupyterApp: !!hasJupyterApp,
+        notebookPanel: !!notebookPanel,
+        notebook: !!notebook,
+        cells: cells.length,
+        editors: editors.length,
+      });
+
+      // Success criteria: editors exist OR (notebook + cells exist)
+      if (editors.length > 0 || (notebook && cells.length > 0)) {
+        log(
+          `✅ Notebook ready! Editors: ${editors.length}, Cells: ${cells.length}`
+        );
+        clearInterval(checkInterval);
+
+        // Wait a bit longer for everything to stabilize
+        setTimeout(initialize, 1500);
+      } else if (attemptCount >= maxAttempts) {
+        log(`❌ Timeout after ${maxAttempts} attempts`);
+        log("Debug info:", {
+          jupyterApp: !!hasJupyterApp,
+          notebookPanel: !!notebookPanel,
+          url: window.location.href,
+        });
+        clearInterval(checkInterval);
+      }
+    }, 1000);
+  }
+
+  // Start detection
+  log("🚀 Kaggle Linter extension loaded");
+  log("URL:", window.location.href);
+
+  if (document.readyState === "loading") {
+    log("Document still loading...");
+    document.addEventListener("DOMContentLoaded", () => {
+      log("DOMContentLoaded fired");
+      waitForNotebook();
     });
+  } else {
+    log("Document already loaded");
+    waitForNotebook();
   }
 })();

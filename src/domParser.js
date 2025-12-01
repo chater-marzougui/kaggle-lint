@@ -1,50 +1,41 @@
 /**
  * Kaggle DOM Parser
- * Extracts Python code from Kaggle notebook cells
- * Handles different DOM configurations: themes, collapsible on/off, notebook modes
+ * Extracts Python code from Kaggle notebook cells (JupyterLab/CodeMirror 6)
+ * Handles windowed/virtualized rendering
  */
 
 const KaggleDomParser = (function () {
   "use strict";
 
-  /**
-   * Detects current Kaggle theme
-   * @returns {'light'|'dark'} Current theme
-   */
+  const DEBUG = true;
+
+  function log(...args) {
+    if (DEBUG) console.log("[KaggleDomParser]", ...args);
+  }
+
+  // ---- Theme helpers ----
+
   function detectTheme() {
     const body = document.body;
-    if (body.classList.contains("theme--dark")) {
-      return "dark";
-    }
-    if (body.getAttribute("data-theme") === "dark") {
-      return "dark";
-    }
+    if (!body) return "light";
+
+    if (body.classList.contains("theme--dark")) return "dark";
+    if (body.getAttribute("data-theme") === "dark") return "dark";
+
     const bgColor = getComputedStyle(body).backgroundColor;
-    if (bgColor && isDarkColor(bgColor)) {
-      return "dark";
-    }
+    if (bgColor && isDarkColor(bgColor)) return "dark";
+
     return "light";
   }
 
-  /**
-   * Check if a color is dark
-   * @param {string} color - CSS color value
-   * @returns {boolean}
-   */
   function isDarkColor(color) {
     const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (match) {
-      const [, r, g, b] = match.map(Number);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      return luminance < 0.5;
-    }
-    return false;
+    if (!match) return false;
+    const [, r, g, b] = match.map(Number);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
   }
 
-  /**
-   * Detects if collapsible mode is enabled
-   * @returns {boolean}
-   */
   function isCollapsibleEnabled() {
     const collapsibleToggles = document.querySelectorAll(
       '[data-testid="cell-collapse-toggle"], .cell-collapse-toggle, [aria-label*="collapse"]'
@@ -52,250 +43,224 @@ const KaggleDomParser = (function () {
     return collapsibleToggles.length > 0;
   }
 
-  /**
-   * Detects notebook mode
-   * @returns {'edit'|'view'|'run'}
-   */
   function detectNotebookMode() {
     const url = window.location.href;
-    if (url.includes("/edit")) {
-      return "edit";
-    }
-    if (url.includes("/run")) {
-      return "run";
-    }
+    if (url.includes("/edit")) return "edit";
+    if (url.includes("/run")) return "run";
+
     const editButton = document.querySelector(
       '[data-testid="edit-button"], [aria-label="Edit"]'
     );
-    if (editButton) {
-      return "view";
-    }
+    if (editButton) return "view";
+
     return "edit";
   }
 
-  let cachedSelector = null;
-  let selectorCacheTime = 0;
-  const CACHE_TTL = 5000;
-  const DEBUG = false; // Set to true for debugging
+  // ---- Core extraction logic ----
 
   /**
-   * Debug logging helper
-   * @param {...any} args - Arguments to log
+   * Force a cell to render by scrolling it into view
    */
-  function log(...args) {
-    if (DEBUG) {
-      console.log("[KaggleDomParser]", ...args);
-    }
+  function forceRenderCell(cell) {
+    cell.scrollIntoView({ block: "nearest", behavior: "instant" });
   }
 
   /**
-   * Gets all code cell containers
-   * @returns {NodeListOf<Element>}
+   * Get all cells (whether rendered or not)
    */
-  function getCodeCellContainers() {
-    const now = Date.now();
-
-    if (cachedSelector && now - selectorCacheTime < CACHE_TTL) {
-      const cells = document.querySelectorAll(cachedSelector);
-      if (cells.length > 0) {
-        log(`Using cached selector: ${cachedSelector}, found ${cells.length} cells`);
-        return cells;
-      }
-    }
-
-    // Selectors for Kaggle notebook cells - JupyterLab based
-    // Priority order: most specific first
-    const selectors = [
-      // JupyterLab selectors (Kaggle uses JupyterLab)
-      ".jp-CodeCell",
-      ".jp-Cell.jp-CodeCell",
-      // Generic cell selectors
-      '.cell-content[data-cell-type="code"]',
-      '[data-testid="code-cell"]',
-      ".code-cell",
-      ".cell--code",
-      '.cell[data-cell-type="code"]',
-      // Fallback: any jp-Cell that might contain code
-      ".jp-Cell",
-    ];
-
-    log("Searching for code cells with selectors:", selectors);
-
-    for (const selector of selectors) {
-      const cells = document.querySelectorAll(selector);
-      log(`Selector "${selector}" found ${cells.length} elements`);
-      if (cells.length > 0) {
-        cachedSelector = selector;
-        selectorCacheTime = now;
-        log(`Using selector: ${selector}`);
-        return cells;
-      }
-    }
-
-    // Final fallback: look for any element that contains cm-content (CodeMirror)
-    const cmContents = document.querySelectorAll(".cm-content");
-    if (cmContents.length > 0) {
-      log(`Found ${cmContents.length} cm-content elements, using parent cells`);
-      // Return parent cells that contain cm-content
-      const parentCells = [];
-      cmContents.forEach((cm) => {
-        // Walk up to find a suitable parent cell container
-        let parent = cm.closest(".jp-Cell, .cell, [class*='cell']");
-        if (parent && !parentCells.includes(parent)) {
-          parentCells.push(parent);
-        }
-      });
-      if (parentCells.length > 0) {
-        log(`Found ${parentCells.length} parent cells from cm-content`);
-        return parentCells;
-      }
-    }
-
-    log("No cells found with any selector");
-    cachedSelector = ".cell-content, .cell, .jp-Cell";
-    selectorCacheTime = now;
-    return document.querySelectorAll(cachedSelector);
+  function getAllCells(root = document) {
+    const cells = root.querySelectorAll(".jp-Cell");
+    log(`Found ${cells.length} .jp-Cell elements`);
+    return Array.from(cells);
   }
 
   /**
-   * Extracts code content from a cell element
-   * @param {Element} cellElement - Cell DOM element
-   * @returns {string|null} Code content or null if not a code cell
+   * Get the editor from a cell, forcing render if needed
    */
-  function extractCodeFromCell(cellElement) {
-    // Check if this is a Markdown cell - skip it
-    if (cellElement.classList.contains("jp-MarkdownCell")) {
-      log("Skipping Markdown cell");
+  function getEditorFromCell(cell) {
+    // First try: check if editor already exists
+    let editor = cell.querySelector(".cm-editor");
+
+    if (editor) {
+      return editor;
+    }
+
+    // Force render by scrolling into view
+    log("  Forcing cell render...");
+    forceRenderCell(cell);
+
+    // Try again after a brief moment
+    editor = cell.querySelector(".cm-editor");
+    return editor;
+  }
+
+  /**
+   * Determine if cell is a code cell (not markdown)
+   */
+  function isCodeCell(cell) {
+    // Check if it's a markdown cell
+    if (cell.classList.contains("jp-MarkdownCell")) {
+      // Check if markdown is being edited (editor visible)
+      const editorWrapper = cell.querySelector(".jp-InputArea-editor");
+      if (editorWrapper && !editorWrapper.classList.contains("lm-mod-hidden")) {
+        return false; // Editing markdown, skip for now
+      }
+      return false; // Rendered markdown, skip
+    }
+
+    // It's a code cell
+    return cell.classList.contains("jp-CodeCell");
+  }
+
+  /**
+   * Extract code from CodeMirror 6 editor
+   */
+  function extractFromCodeMirror(editorElement) {
+    if (!editorElement) {
+      log("  ⚠️ No editor element");
       return null;
     }
 
-    const codeSelectors = [
-      // CodeMirror 6 (used by JupyterLab 4.x / Kaggle)
-      ".cm-content",
-      // CodeMirror 5
-      ".CodeMirror-code",
-      // Monaco editor
-      ".monaco-editor .view-lines",
-      // Standard code elements
-      "pre code",
-      "textarea.code-input",
-      '[data-testid="code-content"]',
-      ".ace_content",
-      "pre",
-      "code",
-    ];
-
-    log("Extracting code from cell:", cellElement.className);
-
-    for (const selector of codeSelectors) {
-      const codeElement = cellElement.querySelector(selector);
-      if (codeElement) {
-        const code = extractTextContent(codeElement);
-        log(`Found code with selector "${selector}":`, code.substring(0, 100) + (code.length > 100 ? "..." : ""));
+    // Method 1: Try CodeMirror 6 API (most reliable)
+    const view =
+      editorElement.cmView || editorElement.view || editorElement.CodeMirror;
+    if (view && view.state && view.state.doc) {
+      const code = view.state.doc.toString();
+      if (code.trim().length > 0) {
+        log(`  ✅ Extracted ${code.length} chars via CM6 API`);
         return code;
       }
     }
 
-    log("No code content found in cell");
+    // Method 2: Extract from rendered DOM
+    const content = editorElement.querySelector(".cm-content");
+    if (!content) {
+      log("  ⚠️ No .cm-content found");
+      return null;
+    }
+
+    const lines = content.querySelectorAll(".cm-line");
+    if (lines.length === 0) {
+      // Try direct text content
+      const text = content.textContent || "";
+      if (text.trim().length > 0) {
+        log(`  ✅ Extracted ${text.length} chars from textContent`);
+        return text;
+      }
+      log("  ⚠️ No .cm-line elements and no text content");
+      return null;
+    }
+
+    const code = Array.from(lines)
+      .map((line) => {
+        // Handle empty lines (just <br> tags)
+        if (line.querySelector("br") && line.textContent.trim() === "") {
+          return "";
+        }
+        return line.textContent;
+      })
+      .join("\n");
+
+    if (code.trim().length > 0) {
+      log(`  ✅ Extracted ${code.length} chars from ${lines.length} lines`);
+      return code;
+    }
+
     return null;
   }
 
   /**
-   * Extracts text content handling different editor types
-   * @param {Element} element - Code element
-   * @returns {string}
+   * Extract code from a cell
    */
-  function extractTextContent(element) {
-    // CodeMirror 5
-    if (element.classList.contains("CodeMirror-code")) {
-      const lines = element.querySelectorAll(".CodeMirror-line");
-      const code = Array.from(lines)
-        .map((line) => line.textContent)
-        .join("\n");
-      log("Extracted CodeMirror-code content:", code.length, "chars");
-      return code;
+  function extractCodeFromCell(cell, cellIndex) {
+    if (!cell) return null;
+
+    log(`Processing cell ${cellIndex}...`);
+
+    // Check if this is a code cell
+    if (!isCodeCell(cell)) {
+      log(`  ⚠️ Skipping (not a code cell)`);
+      return null;
     }
 
-    // CodeMirror 6 (JupyterLab 4.x / Kaggle)
-    if (element.classList.contains("cm-content")) {
-      const lines = element.querySelectorAll(".cm-line");
-      if (lines.length > 0) {
-        const code = Array.from(lines)
-          .map((line) => {
-            // Handle empty lines (they contain just <br> elements)
-            if (line.querySelector("br") && line.textContent.trim() === "") {
-              return "";
-            }
-            return line.textContent;
-          })
-          .join("\n");
-        log("Extracted cm-content content:", code.length, "chars,", lines.length, "lines");
-        return code;
-      }
-      // Fallback for cm-content without cm-line
-      log("cm-content without cm-line, using textContent");
-      return element.textContent || "";
+    // Get the editor (force render if needed)
+    const editor = getEditorFromCell(cell);
+
+    if (!editor) {
+      log(`  ⚠️ No editor found`);
+      return null;
     }
 
-    // Monaco editor
-    if (element.classList.contains("view-lines")) {
-      const lines = element.querySelectorAll(".view-line");
-      const code = Array.from(lines)
-        .map((line) => line.textContent)
-        .join("\n");
-      log("Extracted Monaco view-lines content:", code.length, "chars");
-      return code;
+    const code = extractFromCodeMirror(editor);
+
+    if (!code || code.trim().length === 0) {
+      log(`  ⚠️ No code extracted`);
+      return null;
     }
 
-    // ACE editor
-    if (element.classList.contains("ace_content")) {
-      const lines = element.querySelectorAll(".ace_line");
-      const code = Array.from(lines)
-        .map((line) => line.textContent)
-        .join("\n");
-      log("Extracted ACE content:", code.length, "chars");
-      return code;
-    }
-
-    log("Using plain textContent extraction");
-    return element.textContent || "";
+    return code;
   }
 
   /**
    * Gets all code cells with their content
-   * @returns {Array<{element: Element, code: string, cellIndex: number}>}
    */
-  function getAllCodeCells() {
-    const cells = getCodeCellContainers();
+  function getAllCodeCells(root = document) {
+    log("=== Getting all code cells ===");
+
+    const cells = getAllCells(root);
+
+    if (cells.length === 0) {
+      log("⚠️ No cells found!");
+      return [];
+    }
+
     const codeCells = [];
-    let cellIndex = 0;
 
-    log(`Processing ${cells.length} potential cells`);
+    cells.forEach((cell, index) => {
+      const code = extractCodeFromCell(cell, index);
 
-    cells.forEach((cell) => {
-      const code = extractCodeFromCell(cell);
-      if (code !== null && code.trim().length > 0) {
+      if (code && code.trim().length > 0) {
+        // Get the editor again for the cell reference
+        const editor = cell.querySelector(".cm-editor");
+
         codeCells.push({
-          element: cell,
+          element: editor || cell, // Prefer editor, fallback to cell
           code: code,
-          cellIndex: cellIndex,
+          cellIndex: index,
         });
-        log(`Cell ${cellIndex}: ${code.length} chars of code`);
+        log(`Cell ${index}: ✅ Added (${code.length} chars)`);
       } else {
-        log(`Cell ${cellIndex}: skipped (no code or empty)`);
+        log(`Cell ${index}: ⚠️ Skipped`);
       }
-      cellIndex++;
     });
 
-    log(`Found ${codeCells.length} code cells with content`);
+    log(`=== Result: ${codeCells.length} code cells ===`);
     return codeCells;
   }
 
   /**
-   * Checks if a cell is collapsed
-   * @param {Element} cellElement - Cell DOM element
-   * @returns {boolean}
+   * Legacy: Get code cell containers (for compatibility)
    */
+  function getCodeCellContainers(root = document) {
+    log("getCodeCellContainers called (legacy method)");
+    const cells = getAllCells(root);
+
+    // Force render all cells
+    cells.forEach((cell) => forceRenderCell(cell));
+
+    // Return editors
+    const editors = [];
+    cells.forEach((cell) => {
+      const editor = cell.querySelector(".cm-editor");
+      if (editor && isCodeCell(cell)) {
+        editors.push(editor);
+      }
+    });
+
+    log(`Returning ${editors.length} editors`);
+    return editors;
+  }
+
   function isCellCollapsed(cellElement) {
     const collapsedIndicators = [
       '[aria-expanded="false"]',
@@ -311,20 +276,16 @@ const KaggleDomParser = (function () {
         return true;
       }
     }
-
     return false;
   }
 
-  /**
-   * Gets notebook metadata
-   * @returns {Object}
-   */
   function getNotebookMetadata() {
+    const cells = getAllCodeCells();
     return {
       theme: detectTheme(),
       collapsibleEnabled: isCollapsibleEnabled(),
       mode: detectNotebookMode(),
-      cellCount: getCodeCellContainers().length,
+      cellCount: cells.length,
     };
   }
 
@@ -337,6 +298,8 @@ const KaggleDomParser = (function () {
     getAllCodeCells,
     isCellCollapsed,
     getNotebookMetadata,
+    forceRenderCell, // Export for manual use
+    getAllCells, // Export for debugging
   };
 })();
 
