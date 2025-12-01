@@ -8,8 +8,7 @@
   "host_permissions": [
     "https://www.kaggle.com/*",
     "https://*.kaggleusercontent.com/*",
-    "https://*.jupyter-proxy.kaggle.net/*",
-    "*://*/*"
+    "https://*.jupyter-proxy.kaggle.net/*"
   ],
   "action": {
     "default_popup": "src/popup/popup.html",

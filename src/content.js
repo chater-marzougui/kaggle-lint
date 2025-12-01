@@ -69,22 +69,7 @@
    */
   function injectPageScript() {
     log("🔧 Injecting page script into MAIN world...");
-
-    // Method 1: Use chrome.scripting API if available (for MV3)
-    if (typeof chrome !== "undefined" && chrome.scripting) {
-      chrome.scripting
-        .executeScript({
-          target: { tabId: chrome.devtools?.inspectedWindow?.tabId },
-          world: "MAIN",
-          files: ["src/pageInjection.js"],
-        })
-        .catch((err) => {
-          log("⚠️ chrome.scripting failed, using fallback:", err.message);
-          injectPageScriptFallback();
-        });
-    } else {
-      injectPageScriptFallback();
-    }
+    injectPageScriptFallback();
   }
 
   /**
