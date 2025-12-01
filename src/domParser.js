@@ -76,7 +76,7 @@ const KaggleDomParser = (function () {
   let cachedSelector = null;
   let selectorCacheTime = 0;
   const CACHE_TTL = 5000;
-  const DEBUG = true; // Enable debug logging
+  const DEBUG = false; // Set to true for debugging
 
   /**
    * Debug logging helper

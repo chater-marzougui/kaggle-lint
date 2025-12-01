@@ -9,7 +9,7 @@
   let isInitialized = false;
   let observer = null;
   let linterSettings = null;
-  const DEBUG = true; // Enable debug logging
+  const DEBUG = false; // Set to true for debugging
 
   /**
    * Debug logging helper

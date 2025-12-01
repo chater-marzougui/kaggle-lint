@@ -91,15 +91,27 @@ async function renderRulesList() {
 
 /**
  * Send message to content script in active tab
+ * Returns a promise that resolves with the response or rejects on error
  */
 async function notifyContentScript(message) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, message);
+      return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tab.id, message, (response) => {
+          if (chrome.runtime.lastError) {
+            console.log('Could not send message to content script:', chrome.runtime.lastError.message);
+            resolve({ success: false, error: chrome.runtime.lastError.message });
+          } else {
+            resolve(response || { success: true });
+          }
+        });
+      });
     }
+    return { success: false, error: 'No active tab found' };
   } catch (e) {
     console.log('Could not notify content script:', e.message);
+    return { success: false, error: e.message };
   }
 }
 
