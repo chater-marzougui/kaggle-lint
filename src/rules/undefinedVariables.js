@@ -225,13 +225,45 @@ const UndefinedVariablesRule = (function () {
   }
 
   /**
+   * Removes all string literals from code while preserving line structure
+   * This handles multi-line strings (triple quotes) and f-strings properly
+   * @param {string} code - Python source code
+   * @returns {string} Code with strings replaced by placeholders
+   */
+  function removeAllStrings(code) {
+    let result = code;
+
+    // Remove triple-quoted strings (multi-line) first - both """ and '''
+    // Match optional f/r/b prefix, triple quotes, content, triple quotes
+    result = result.replace(/[fFrRbBuU]?"""[\s\S]*?"""/g, (match) => {
+      // Replace with empty string but preserve newlines for line numbers
+      const newlines = (match.match(/\n/g) || []).length;
+      return '""' + "\n".repeat(newlines);
+    });
+
+    result = result.replace(/[fFrRbBuU]?'''[\s\S]*?'''/g, (match) => {
+      const newlines = (match.match(/\n/g) || []).length;
+      return "''" + "\n".repeat(newlines);
+    });
+
+    // Remove single-line strings (both single and double quotes)
+    // This handles f-strings, r-strings, etc.
+    result = result.replace(/[fFrRbBuU]?(["'])(?:\\.|(?!\1)[^\\\n])*\1/g, '""');
+
+    return result;
+  }
+
+  /**
    * Extracts all defined names from Python code
    * @param {string} code - Python source code
    * @returns {Set<string>} Set of defined names
    */
   function extractDefinedNames(code) {
     const defined = new Set();
-    const lines = code.split("\n");
+
+    // Remove strings first to avoid false positives
+    const cleanedCode = removeAllStrings(code);
+    const lines = cleanedCode.split("\n");
 
     lines.forEach((line, idx) => {
       // Skip shell commands and magic commands
@@ -348,10 +380,10 @@ const UndefinedVariablesRule = (function () {
    */
   function extractUsedNames(code) {
     const used = [];
-    const lines = code.split("\n");
 
-    // String prefixes that should be ignored (f-strings, raw strings, etc.)
-    const STRING_PREFIXES = new Set(["f", "r", "b", "u", "fr", "rf", "br", "rb", "F", "R", "B", "U"]);
+    // Remove all strings first (including multi-line strings and f-strings)
+    const cleanedCode = removeAllStrings(code);
+    const lines = cleanedCode.split("\n");
 
     lines.forEach((line, lineIndex) => {
       // Skip comments
@@ -376,10 +408,6 @@ const UndefinedVariablesRule = (function () {
 
       // Remove comments from the line
       let processedLine = line.replace(/#.*$/, "");
-      // Remove string literals to avoid false positives
-      processedLine = processedLine.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, '""');
-      processedLine = processedLine.replace(/"""[\s\S]*?"""/g, '""');
-      processedLine = processedLine.replace(/'''[\s\S]*?'''/g, '""');
 
       const identifierPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
       let match;
@@ -387,20 +415,13 @@ const UndefinedVariablesRule = (function () {
       while ((match = identifierPattern.exec(processedLine)) !== null) {
         const name = match[1];
         const beforeChar = processedLine[match.index - 1];
-        const afterChar = processedLine[match.index + name.length];
 
         // Skip attributes (preceded by '.')
         if (beforeChar === ".") {
           continue;
         }
 
-        // Skip string prefixes (f, r, b, u, fr, rf, etc.) before quotes
-        if (STRING_PREFIXES.has(name) && (afterChar === '"' || afterChar === "'")) {
-          continue;
-        }
-
         // Skip keyword arguments (name followed by '=' without '==' in function call context)
-        // Pattern: identifier followed by '=' but not '=='
         const afterMatch = processedLine.substring(match.index + name.length);
         if (/^\s*=(?!=)/.test(afterMatch)) {
           // Check if we're in a function call context (has open paren before)
@@ -537,6 +558,7 @@ const UndefinedVariablesRule = (function () {
     getAccumulatedContext,
     addToContext,
     shouldSkipCell,
+    removeAllStrings, // Exposed for testing
   };
 })();
 

@@ -241,6 +241,10 @@
   z-index: 101;
 }
 
+.kaggle-lint-tooltip:hover {
+  display: block;
+}
+
 .kaggle-lint-theme-dark .kaggle-lint-tooltip {
   background: #2d2d2d;
   border-color: #3c3c3c;
@@ -251,6 +255,7 @@
   border-radius: 4px;
   margin-bottom: 4px;
   font-size: 12px;
+  color: firebrick;
 }
 
 .kaggle-lint-tooltip-item:last-child {

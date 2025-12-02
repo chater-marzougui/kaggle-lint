@@ -128,12 +128,18 @@ const LintOverlay = (function () {
    */
   function toggleMinimize(btn) {
     const content = document.getElementById('kaggle-lint-content');
+    const overlay = document.querySelector('.kaggle-lint-overlay');
+    const title = document.querySelector('.kaggle-lint-title');
     if (content.style.display === 'none') {
       content.style.display = 'block';
+      overlay.style.width = '400px';
+      title.style.display = 'inline';
       btn.textContent = '−';
       btn.title = 'Minimize';
     } else {
       content.style.display = 'none';
+      overlay.style.width = 'auto';
+      title.style.display = 'none';
       btn.textContent = '+';
       btn.title = 'Expand';
     }

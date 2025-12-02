@@ -3,6 +3,15 @@
   "name": "Kaggle Python Linter",
   "version": "1.0.1",
   "permissions": ["activeTab", "storage", "scripting"],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Kaggle Python Linter Options"
+  },
   "host_permissions": [
     "https://www.kaggle.com/*",
     "*://*.kaggle.com/*",
