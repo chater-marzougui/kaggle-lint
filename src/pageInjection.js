@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  const DEBUG = false;
+  const DEBUG = true;
 
   function log(...args) {
     if (DEBUG) {
@@ -32,6 +32,8 @@
       editorElement.editorView ||
       editorElement.CodeMirror;
 
+    log("⚠️✅  CM6 view found:", view);
+
     if (view && view.state && view.state.doc) {
       const code = view.state.doc.toString();
       if (code.length > 0) {
@@ -44,10 +46,7 @@
     let parent = editorElement.parentElement;
     while (parent) {
       const parentView =
-        parent.cmView ||
-        parent.view ||
-        parent.editorView ||
-        parent.CodeMirror;
+        parent.cmView || parent.view || parent.editorView || parent.CodeMirror;
       if (parentView && parentView.state && parentView.state.doc) {
         const code = parentView.state.doc.toString();
         if (code.length > 0) {
@@ -78,66 +77,46 @@
    * Extract all code from CodeMirror editors in the page
    * @returns {Array<{code: string, cellIndex: number, uuid: string|null}>}
    */
-  window.KAGGLE_LINTER_EXTRACT = function () {
-    log("🔍 Extracting code from page...");
+  window.KAGGLE_LINTER_EXTRACT = async function () {
+    log("🔍 Extracting code via DOM lines...");
 
     const results = [];
 
-    // Method 1: Find all .jp-Cell elements and extract from their editors
-    const cells = document.querySelectorAll(".jp-Cell");
-    log(`Found ${cells.length} .jp-Cell elements`);
+    // get all code editors that are actually code cells
+    const editors = document.querySelectorAll(".jp-CodeCell .cm-editor");
+    log(`Found ${editors.length} code editors`);
 
-    if (cells.length > 0) {
-      cells.forEach((cell, index) => {
-        if (!isCodeCell(cell)) {
-          log(`Cell ${index}: Skipping (not a code cell)`);
-          return;
-        }
+    for (let i = 0; i < editors.length; i++) {
+      let editor = editors[i];
 
-        const editor = cell.querySelector(".cm-editor");
-        if (editor) {
-          const code = extractFromCodeMirror(editor);
-          if (code && code.trim().length > 0) {
-            const uuid = cell.getAttribute("data-uuid") || null;
-            results.push({
-              code: code,
-              cellIndex: index,
-              uuid: uuid,
-            });
-            log(`Cell ${index}: ✅ Extracted ${code.length} chars`);
-          } else {
-            log(`Cell ${index}: ⚠️ No code extracted`);
-          }
-        } else {
-          log(`Cell ${index}: ⚠️ No editor found`);
-        }
-      });
-    }
+      // extract code via DOM
+      const lines = editor.querySelectorAll(".cm-line");
+      log(`Editor ${i}: ${lines.length} lines`);
 
-    // Method 2: If no cells found, try finding editors directly
-    if (results.length === 0) {
-      log("No cells found, trying direct editor search...");
-      const editors = document.querySelectorAll(".cm-editor");
-      log(`Found ${editors.length} .cm-editor elements`);
+      if (lines.length > 0) {
+        const code = [...lines].map((line) => line.textContent).join("\n");
 
-      editors.forEach((editor, index) => {
-        const code = extractFromCodeMirror(editor);
-        if (code && code.trim().length > 0) {
+        if (code.trim().length > 0) {
+          const cell = editor.closest(".jp-Cell");
+          const uuid = cell?.getAttribute("data-uuid") || null;
+
           results.push({
-            code: code,
-            cellIndex: index,
-            uuid: null,
+            code,
+            cellIndex: i,
+            uuid,
           });
-          log(`Editor ${index}: ✅ Extracted ${code.length} chars`);
+
+          log(`Editor ${i}: ✅ extracted ${code.length} chars`);
         } else {
-          log(`Editor ${index}: ⚠️ No code extracted`);
+          log(`Editor ${i}: ⚠️ empty`);
         }
-      });
+      } else {
+        log(`Editor ${i}: ⚠️ no .cm-line (not rendered yet)`);
+      }
     }
 
-    log(`📊 Total: ${results.length} code blocks extracted`);
+    log(`📊 DONE — extracted ${results.length} code blocks`);
 
-    // Send results back via postMessage
     window.postMessage(
       {
         type: "KAGGLE_LINTER_CODE",
@@ -183,10 +162,15 @@
 
   // Listen for extraction requests from content script
   window.addEventListener("message", function (event) {
-    // Only accept messages from the same window
-    if (event.source !== window) {
+    // Only accept messages from the window itself
+    if (event.data?.source === "pageInjection") {
       return;
     }
+    if (event.data?.postmate) {
+      return; // Ignore Postmate messages
+    }
+    
+    log("📩 PAGE INJECTION GOT MESSAGE:", event);
 
     if (event.data && event.data.type === "KAGGLE_LINTER_REQUEST") {
       log("📩 Received extraction request");
@@ -199,14 +183,40 @@
     }
   });
 
+  function sendReadyMessage() {
+    log("SENDING READY from ORIGIN:", window.origin);
+    window.postMessage(
+      {
+        type: "KAGGLE_LINTER_READY",
+        source: "pageInjection",
+      },
+      "*"
+    );
+    window.parent.postMessage(
+      {
+        type: "KAGGLE_LINTER_READY",
+        source: "pageInjection",
+      },
+      "*"
+    );
+  }
+
   log("✅ Page injection script loaded");
 
+  setTimeout(() => {
+    sendReadyMessage();
+  }, 6000);
+
+  setTimeout(() => {
+    sendReadyMessage();
+  }, 9000);
+
   // Announce that the script is ready
-  window.postMessage(
-    {
-      type: "KAGGLE_LINTER_READY",
-      source: "pageInjection",
-    },
-    "*"
-  );
+  // window.postMessage(
+  //   {
+  //     type: "KAGGLE_LINTER_READY",
+  //     source: "pageInjection",
+  //   },
+  //   "*"
+  // );
 })();

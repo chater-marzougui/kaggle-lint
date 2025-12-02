@@ -27,6 +27,7 @@
         "src/lintEngine.js",
         "src/domParser.js",
         "src/ui/overlay.js",
+        "src/pageInjection.js",
         "src/content.js"
       ],
       "css": ["src/ui/styles.css"],

@@ -165,7 +165,7 @@
    * Fallback method: Inject script tag into the page and all accessible iframes
    */
   function injectPageScriptFallback() {
-    return;
+    
     log("🔧 Using script tag injection fallback...");
 
     // Inject into the current document
@@ -339,41 +339,28 @@
    */
   function setupPageMessageListener() {
     window.addEventListener("message", function (event) {
-      // Accept messages from same window or from iframes
-      const isFromSameWindow = event.source === window;
-      const isFromIframe = isMessageFromIframe(event.source);
+      if (event.data?.postmate) return; // Ignore Postmate messages
+      if (event.data.source !== 'pageInjection') return; // Ignore messages from self
+      // ignore messages not coming from KAGGLE iframe
+      if (!event.origin.includes("jupyter-proxy.kaggle.net")) return;
 
-      if (!isFromSameWindow && !isFromIframe) {
-        return;
-      }
+      // ignore incorrect structures
+      if (!event.data || !event.data.type) return;
+      log("📨 MESSAGE:", event);
 
-      if (event.data && event.data.type === "KAGGLE_LINTER_READY") {
-        log(
-          "📩 Page injection script is ready",
-          isFromIframe ? "(from iframe)" : "(from main)"
-        );
+
+      if (event.data?.type === "KAGGLE_LINTER_READY") {
+        log("🔥 GOT READY from page injection!");
         pageInjectionReady = true;
-
-        // If there was a pending lint request, run it now
         if (pendingLintRequest) {
           pendingLintRequest = false;
           requestCodeFromPage();
         }
       }
 
-      if (event.data && event.data.type === "KAGGLE_LINTER_CODE") {
-        if (event.data.code.length === 0) { return; }
-        log(
-          "📩 Received code from page injection:",
-          event.data.code.length,
-          "cells",
-          isFromIframe ? "(from iframe)" : "(from main)"
-        );
+      if (event.data?.type === "KAGGLE_LINTER_CODE") {
+        log("📩 Received extracted code!", event.data.code);
         processExtractedCode(event.data.code);
-      }
-
-      if (event.data && event.data.type === "KAGGLE_LINTER_DIAGNOSTICS") {
-        log("📊 Diagnostics from page:", event.data.diagnostics);
       }
     });
   }
@@ -799,9 +786,7 @@
   }
 
   function setupMutationObserver() {
-    if (observer) {
-      observer.disconnect();
-    }
+    if (observer) observer.disconnect();
 
     const debounce = (fn, delay) => {
       let timeout;
@@ -812,72 +797,45 @@
     };
 
     const debouncedLint = debounce(() => {
-      const metadata = KaggleDomParser.getNotebookMetadata();
-      LintOverlay.setTheme(metadata.theme);
       runLinter();
-    }, 1000);
+    }, 1200);
 
     observer = new MutationObserver((mutations) => {
-      const relevantMutation = mutations.some((mutation) => {
+      const triggered = mutations.some((mutation) => {
+        // 1) Pure typing
         if (mutation.type === "characterData") {
-          return true;
-        }
-
-        if (mutation.type === "childList") {
-          const addedRelevant = Array.from(mutation.addedNodes).some((node) => {
-            if (node.nodeType !== Node.ELEMENT_NODE) return false;
-
-            if (node.classList?.contains("cm-editor")) {
-              log("✨ New .cm-editor detected!");
-              return true;
-            }
-
-            if (
-              node.querySelectorAll &&
-              node.querySelectorAll(".cm-editor").length > 0
-            ) {
-              log("✨ Container with .cm-editor added!");
-              return true;
-            }
-
-            return (
-              node.matches &&
-              (node.matches('[class*="cell"]') ||
-                node.matches('[class*="code"]') ||
-                node.matches('[class*="jp-"]') ||
-                node.matches('[class*="cm-"]'))
-            );
-          });
-
-          if (addedRelevant) return true;
-        }
-
-        if (mutation.type === "attributes") {
-          if (
-            mutation.attributeName === "class" ||
-            mutation.attributeName === "data-theme"
-          ) {
+          if (mutation.target.parentElement?.closest(".cm-editor")) {
+            // typing inside editor
             return true;
           }
+        }
+
+        // 2) A cell was added/removed
+        if (mutation.type === "childList") {
+          const added = Array.from(mutation.addedNodes).some(
+            (node) => node.nodeType === 1 && node.closest?.(".cm-editor")
+          );
+          if (added) return true;
+
+          const removed = Array.from(mutation.removedNodes).some(
+            (node) => node.nodeType === 1 && node.closest?.(".cm-editor")
+          );
+          if (removed) return true;
         }
 
         return false;
       });
 
-      if (relevantMutation) {
-        debouncedLint();
-      }
+      if (triggered) debouncedLint();
     });
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true,
-      attributes: true,
-      attributeFilter: ["class", "data-theme"],
     });
 
-    log("Mutation observer set up");
+    log("🔥 Mutation observer locked — now ONLY tracks typing/cell changes");
   }
 
   function setupKeyboardShortcuts() {
@@ -975,7 +933,7 @@
   log("🚀 Kaggle Linter extension loaded");
   log("URL:", window.location.href);
   log("Is in iframe:", window !== window.top);
-  if( window === window.top) return;
+  if (window === window.top) return;
   if (document.readyState === "loading") {
     log("Document still loading...");
     document.addEventListener("DOMContentLoaded", () => {
