@@ -7,6 +7,24 @@ const ImportIssuesRule = (function () {
   "use strict";
 
   /**
+   * Checks if a line is a shell command (starts with !)
+   * @param {string} line - Line of code
+   * @returns {boolean}
+   */
+  function isShellCommand(line) {
+    return /^\s*!/.test(line);
+  }
+
+  /**
+   * Checks if a line is a Jupyter magic command (starts with % or %%)
+   * @param {string} line - Line of code
+   * @returns {boolean}
+   */
+  function isMagicCommand(line) {
+    return /^\s*%%?[a-zA-Z]/.test(line);
+  }
+
+  /**
    * Runs the import issues rule
    * @param {string} code - Python source code
    * @param {number} cellOffset - Line offset for cell
@@ -22,7 +40,11 @@ const ImportIssuesRule = (function () {
     lines.forEach((line, lineIndex) => {
       const trimmedLine = line.trim();
 
+      // Skip empty lines, comments, shell commands, and magic commands
       if (trimmedLine === "" || trimmedLine.startsWith("#")) {
+        return;
+      }
+      if (isShellCommand(line) || isMagicCommand(line)) {
         return;
       }
 
@@ -49,6 +71,10 @@ const ImportIssuesRule = (function () {
     }
 
     lines.forEach((line, lineIndex) => {
+      // Skip shell commands and magic commands
+      if (isShellCommand(line) || isMagicCommand(line)) {
+        return;
+      }
       if (/^\s*from\s+\S+\s+import\s+\*/.test(line)) {
         errors.push({
           line: lineIndex + 1 + cellOffset,
@@ -61,6 +87,11 @@ const ImportIssuesRule = (function () {
     const importedNames = new Map();
 
     lines.forEach((line, lineIndex) => {
+      // Skip shell commands and magic commands
+      if (isShellCommand(line) || isMagicCommand(line)) {
+        return;
+      }
+
       let match;
 
       match =
@@ -108,6 +139,10 @@ const ImportIssuesRule = (function () {
 
     const usedNames = new Set();
     lines.forEach((line, lineIndex) => {
+      // Skip shell commands and magic commands for usage detection
+      if (isShellCommand(line) || isMagicCommand(line)) {
+        return;
+      }
       if (/^\s*(import|from)\s+/.test(line)) {
         return;
       }
