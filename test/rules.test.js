@@ -87,9 +87,19 @@ function assertContains(arr, predicate, msg = "") {
 // Undefined Variables Tests
 console.log("\n=== Undefined Variables Rule ===");
 
+// Helper function to extract errors from undefinedVariables rule result
+function getUndefinedVarErrors(result) {
+  // Handle both old format (array) and new format (object with errors)
+  if (Array.isArray(result)) {
+    return result;
+  }
+  return result.errors || [];
+}
+
 test("detects undefined variable", () => {
   const code = "x = y + 1";
-  const errors = UndefinedVariablesRule.run(code);
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
   assertContains(
     errors,
     (e) => e.msg.includes("'y'"),
@@ -99,20 +109,70 @@ test("detects undefined variable", () => {
 
 test("allows defined variable", () => {
   const code = "x = 1\ny = x + 1";
-  const errors = UndefinedVariablesRule.run(code);
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
   assertLength(errors, 0, "Should not report any errors");
 });
 
 test("allows Python builtins", () => {
   const code = "x = len([1, 2, 3])\nprint(x)";
-  const errors = UndefinedVariablesRule.run(code);
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
   assertLength(errors, 0, "Should not report errors for builtins");
 });
 
 test("allows common libraries", () => {
   const code = "df = pd.DataFrame()\narr = np.array([1])";
-  const errors = UndefinedVariablesRule.run(code);
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
   assertLength(errors, 0, "Should not report errors for pd/np");
+});
+
+test("ignores shell commands (! prefix)", () => {
+  const code = "!pip install numpy\n!pip install pandas";
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
+  assertLength(errors, 0, "Should not report errors for shell commands");
+});
+
+test("ignores magic commands (%%capture)", () => {
+  const code = "%%capture\nimport os\n!pip install torch";
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
+  assertLength(errors, 0, "Should skip cells with %%capture");
+});
+
+test("ignores f-string and r-string prefixes", () => {
+  const code = 'x = f"hello"\ny = r"\\n"\nz = fr"test"';
+  const result = UndefinedVariablesRule.run(code);
+  const errors = getUndefinedVarErrors(result);
+  // f, r, fr prefixes should not be reported as undefined
+  assertLength(errors, 0, "Should not report f/r/fr prefixes as undefined");
+});
+
+test("supports cross-cell context", () => {
+  const code1 = "my_var = 42\nmy_func = lambda x: x + 1";
+  const code2 = "result = my_var + 1\nresult2 = my_func(10)";
+  
+  // First cell defines variables
+  const result1 = UndefinedVariablesRule.run(code1, 0, {});
+  const defined1 = result1.definedNames;
+  
+  // Second cell uses context from first cell
+  const result2 = UndefinedVariablesRule.run(code2, 0, { previousContext: defined1 });
+  const errors2 = getUndefinedVarErrors(result2);
+  
+  assertLength(errors2, 0, "Should not report errors when context is shared");
+});
+
+test("extracts defined names from imports", () => {
+  const code = "from math import sqrt, pi\nimport json";
+  const result = UndefinedVariablesRule.run(code);
+  const definedNames = result.definedNames;
+  
+  assertEqual(definedNames.has("sqrt"), true, "Should extract sqrt from import");
+  assertEqual(definedNames.has("pi"), true, "Should extract pi from import");
+  assertEqual(definedNames.has("json"), true, "Should extract json from import");
 });
 
 // Capitalization Typos Tests
@@ -188,6 +248,24 @@ test("allows proper indentation", () => {
   const code = "if True:\n    x = 1";
   const errors = IndentationErrorsRule.run(code);
   assertLength(errors, 0);
+});
+
+test("allows multi-line function calls", () => {
+  const code = "result = SFTConfig(\n    output_dir='./output',\n    batch_size=16,\n)";
+  const errors = IndentationErrorsRule.run(code);
+  assertLength(errors, 0, "Should not report errors for multi-line function calls");
+});
+
+test("ignores shell commands", () => {
+  const code = "!pip install torch\n!pip install transformers";
+  const errors = IndentationErrorsRule.run(code);
+  assertLength(errors, 0, "Should not report errors for shell commands");
+});
+
+test("ignores magic commands", () => {
+  const code = "%%capture\nimport os\n!pip install numpy";
+  const errors = IndentationErrorsRule.run(code);
+  assertLength(errors, 0, "Should not report errors for magic commands");
 });
 
 // Empty Cells Tests

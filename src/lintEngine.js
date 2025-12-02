@@ -1,6 +1,7 @@
 /**
  * Lint Engine
  * Orchestrates running all lint rules and collecting results
+ * Supports cross-cell context sharing for Jupyter notebooks
  */
 
 const LintEngine = (function () {
@@ -8,19 +9,25 @@ const LintEngine = (function () {
 
   const rules = [];
 
+  // Rules that support context sharing
+  const CONTEXT_AWARE_RULES = new Set(["undefinedVariables"]);
+
   /**
    * Registers a lint rule
    * @param {string} name - Rule name
-   * @param {Function} ruleFunction - Rule function that returns {run: Function}
+   * @param {Object} ruleModule - Rule module with run function
    */
-  function registerRule(name, ruleFunction) {
-    rules.push({ name, run: ruleFunction.run });
+  function registerRule(name, ruleModule) {
+    rules.push({ name, module: ruleModule, run: ruleModule.run });
   }
 
   /**
    * Initializes all built-in rules
    */
   function initializeRules() {
+    // Clear existing rules to prevent duplicates on re-initialization
+    rules.length = 0;
+    
     if (typeof UndefinedVariablesRule !== "undefined") {
       registerRule("undefinedVariables", UndefinedVariablesRule);
     }
@@ -55,18 +62,38 @@ const LintEngine = (function () {
    * @param {string} code - Python source code
    * @param {number} cellOffset - Line offset for global line numbers
    * @param {number} cellIndex - Cell index for cell-specific rules
-   * @returns {Array<{line: number, msg: string, severity: string, rule: string}>}
+   * @param {Object} context - Cross-cell context (accumulated definitions)
+   * @returns {{errors: Array, newContext: Set}} Errors and new definitions for context
    */
-  function lintCell(code, cellOffset = 0, cellIndex = 0) {
+  function lintCell(code, cellOffset = 0, cellIndex = 0, context = {}) {
     const allErrors = [];
+    let cellDefinedNames = new Set();
 
-    rules.forEach(({ name, run }) => {
+    rules.forEach(({ name, module, run }) => {
       try {
-        let errors;
+        let result;
+
         if (name === "emptyCells") {
-          errors = run(code, cellOffset, cellIndex);
+          result = run(code, cellOffset, cellIndex);
+        } else if (CONTEXT_AWARE_RULES.has(name)) {
+          // Pass context to context-aware rules
+          result = run(code, cellOffset, { previousContext: context.definedNames || new Set() });
         } else {
-          errors = run(code, cellOffset);
+          result = run(code, cellOffset);
+        }
+
+        // Handle both old format (array) and new format (object with errors and definedNames)
+        let errors;
+        if (Array.isArray(result)) {
+          errors = result;
+        } else if (result && typeof result === 'object') {
+          errors = result.errors || [];
+          // Collect defined names for context accumulation
+          if (result.definedNames) {
+            result.definedNames.forEach((name) => cellDefinedNames.add(name));
+          }
+        } else {
+          errors = [];
         }
 
         errors.forEach((error) => {
@@ -83,11 +110,11 @@ const LintEngine = (function () {
       }
     });
 
-    return allErrors;
+    return { errors: allErrors, newContext: cellDefinedNames };
   }
 
   /**
-   * Runs all rules on multiple cells
+   * Runs all rules on multiple cells with cross-cell context sharing
    * @param {Array<{code: string, element: Element, cellIndex: number}>} cells
    * @returns {Array<{line: number, msg: string, severity: string, rule: string, cellIndex: number, element: Element}>}
    */
@@ -95,8 +122,25 @@ const LintEngine = (function () {
     const allErrors = [];
     let lineOffset = 0;
 
+    // Accumulated context across cells (variables, functions, imports defined in previous cells)
+    let accumulatedContext = {
+      definedNames: new Set(),
+    };
+
+    // Reset context in context-aware rules
+    rules.forEach(({ name, module }) => {
+      if (CONTEXT_AWARE_RULES.has(name) && module.resetContext) {
+        module.resetContext();
+      }
+    });
+
     cells.forEach((cell) => {
-      const errors = lintCell(cell.code, lineOffset, cell.cellIndex);
+      const { errors, newContext } = lintCell(
+        cell.code,
+        lineOffset,
+        cell.cellIndex,
+        accumulatedContext
+      );
 
       errors.forEach((error) => {
         allErrors.push({
@@ -106,6 +150,16 @@ const LintEngine = (function () {
           cellLine: error.line - lineOffset,
         });
       });
+
+      // Accumulate context from this cell for subsequent cells
+      newContext.forEach((name) => accumulatedContext.definedNames.add(name));
+
+      // Also extract definitions from this cell for context
+      // (in case some rules don't return definedNames)
+      if (typeof UndefinedVariablesRule !== "undefined") {
+        const additionalNames = UndefinedVariablesRule.extractDefinedNames(cell.code);
+        additionalNames.forEach((name) => accumulatedContext.definedNames.add(name));
+      }
 
       lineOffset += cell.code.split("\n").length;
     });

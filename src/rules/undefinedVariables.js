@@ -1,10 +1,14 @@
 /**
  * Undefined Variables Rule
  * Detects usage of variables that haven't been defined
+ * Supports cross-cell context sharing for Jupyter notebooks
  */
 
 const UndefinedVariablesRule = (function () {
   "use strict";
+
+  // Accumulated context from previous cells (for cross-cell variable tracking)
+  let accumulatedContext = new Set();
 
   const PYTHON_BUILTINS = new Set([
     "abs",
@@ -183,6 +187,44 @@ const UndefinedVariablesRule = (function () {
   ]);
 
   /**
+   * Checks if a cell should be skipped entirely (magic commands like %%capture)
+   * @param {string} code - Python source code
+   * @returns {boolean}
+   */
+  function shouldSkipCell(code) {
+    const lines = code.split("\n");
+    // Check if the first non-empty line is a Jupyter magic command
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed === "") continue;
+      // Skip cells starting with %%capture or other cell magic commands
+      if (trimmed.startsWith("%%")) {
+        return true;
+      }
+      break;
+    }
+    return false;
+  }
+
+  /**
+   * Checks if a line is a shell command (starts with !)
+   * @param {string} line - Line of code
+   * @returns {boolean}
+   */
+  function isShellCommand(line) {
+    return /^\s*!/.test(line);
+  }
+
+  /**
+   * Checks if a line is a Jupyter magic command (starts with % or %%)
+   * @param {string} line - Line of code
+   * @returns {boolean}
+   */
+  function isMagicCommand(line) {
+    return /^\s*%%?[a-zA-Z]/.test(line);
+  }
+
+  /**
    * Extracts all defined names from Python code
    * @param {string} code - Python source code
    * @returns {Set<string>} Set of defined names
@@ -192,6 +234,11 @@ const UndefinedVariablesRule = (function () {
     const lines = code.split("\n");
 
     lines.forEach((line, idx) => {
+      // Skip shell commands and magic commands
+      if (isShellCommand(line) || isMagicCommand(line)) {
+        return;
+      }
+
       let match;
 
       match = /^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/.exec(line);
@@ -303,24 +350,67 @@ const UndefinedVariablesRule = (function () {
     const used = [];
     const lines = code.split("\n");
 
+    // String prefixes that should be ignored (f-strings, raw strings, etc.)
+    const STRING_PREFIXES = new Set(["f", "r", "b", "u", "fr", "rf", "br", "rb", "F", "R", "B", "U"]);
+
     lines.forEach((line, lineIndex) => {
+      // Skip comments
       if (/^\s*#/.test(line)) {
         return;
       }
 
-      line = line.replace(/#.*$/, "");
-      line = line.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, '""');
-      line = line.replace(/"""[\s\S]*?"""/g, '""');
-      line = line.replace(/'''[\s\S]*?'''/g, '""');
+      // Skip shell commands (!)
+      if (isShellCommand(line)) {
+        return;
+      }
+
+      // Skip magic commands (% or %%)
+      if (isMagicCommand(line)) {
+        return;
+      }
+
+      // Skip import statements entirely (they don't use variables, they define them)
+      if (/^\s*(import|from)\s+/.test(line)) {
+        return;
+      }
+
+      // Remove comments from the line
+      let processedLine = line.replace(/#.*$/, "");
+      // Remove string literals to avoid false positives
+      processedLine = processedLine.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, '""');
+      processedLine = processedLine.replace(/"""[\s\S]*?"""/g, '""');
+      processedLine = processedLine.replace(/'''[\s\S]*?'''/g, '""');
 
       const identifierPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
       let match;
 
-      while ((match = identifierPattern.exec(line)) !== null) {
+      while ((match = identifierPattern.exec(processedLine)) !== null) {
         const name = match[1];
-        const beforeChar = line[match.index - 1];
+        const beforeChar = processedLine[match.index - 1];
+        const afterChar = processedLine[match.index + name.length];
+
+        // Skip attributes (preceded by '.')
         if (beforeChar === ".") {
           continue;
+        }
+
+        // Skip string prefixes (f, r, b, u, fr, rf, etc.) before quotes
+        if (STRING_PREFIXES.has(name) && (afterChar === '"' || afterChar === "'")) {
+          continue;
+        }
+
+        // Skip keyword arguments (name followed by '=' without '==' in function call context)
+        // Pattern: identifier followed by '=' but not '=='
+        const afterMatch = processedLine.substring(match.index + name.length);
+        if (/^\s*=(?!=)/.test(afterMatch)) {
+          // Check if we're in a function call context (has open paren before)
+          const beforePart = processedLine.substring(0, match.index);
+          const openParens = (beforePart.match(/\(/g) || []).length;
+          const closeParens = (beforePart.match(/\)/g) || []).length;
+          if (openParens > closeParens) {
+            // We're inside parentheses, this is likely a keyword argument
+            continue;
+          }
         }
 
         const keywords = new Set([
@@ -371,17 +461,31 @@ const UndefinedVariablesRule = (function () {
    * Runs the undefined variables rule
    * @param {string} code - Python source code
    * @param {number} cellOffset - Line offset for cell
+   * @param {Object} options - Additional options
+   * @param {Set<string>} options.previousContext - Names defined in previous cells
    * @returns {Array<{line: number, msg: string, severity: string}>}
    */
-  function run(code, cellOffset = 0) {
+  function run(code, cellOffset = 0, options = {}) {
     const errors = [];
+
+    // Skip cells that start with magic commands like %%capture
+    if (shouldSkipCell(code)) {
+      // Still extract defined names to pass to next cells
+      const defined = extractDefinedNames(code);
+      return { errors: [], definedNames: defined };
+    }
+
     const defined = extractDefinedNames(code);
     const used = extractUsedNames(code);
+
+    // Get context from previous cells if available
+    const previousContext = options.previousContext || new Set();
 
     const allKnown = new Set([
       ...PYTHON_BUILTINS,
       ...COMMON_LIBRARIES,
       ...defined,
+      ...previousContext,
     ]);
 
     const reported = new Set();
@@ -398,10 +502,42 @@ const UndefinedVariablesRule = (function () {
       }
     });
 
-    return errors;
+    // Return both errors and defined names for context accumulation
+    return { errors, definedNames: defined };
   }
 
-  return { run, extractDefinedNames, extractUsedNames };
+  /**
+   * Reset accumulated context (call at start of notebook linting)
+   */
+  function resetContext() {
+    accumulatedContext = new Set();
+  }
+
+  /**
+   * Get current accumulated context
+   * @returns {Set<string>}
+   */
+  function getAccumulatedContext() {
+    return new Set(accumulatedContext);
+  }
+
+  /**
+   * Add names to accumulated context
+   * @param {Set<string>} names - Names to add
+   */
+  function addToContext(names) {
+    names.forEach((name) => accumulatedContext.add(name));
+  }
+
+  return {
+    run,
+    extractDefinedNames,
+    extractUsedNames,
+    resetContext,
+    getAccumulatedContext,
+    addToContext,
+    shouldSkipCell,
+  };
 })();
 
 if (typeof window !== "undefined") {
