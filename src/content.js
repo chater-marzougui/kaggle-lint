@@ -12,6 +12,7 @@
   let linterSettings = null;
   let pageInjectionReady = false;
   let pendingLintRequest = false;
+  let isLinting = false;
   const DEBUG = true;
 
   function log(...args) {
@@ -61,15 +62,6 @@
         return true;
       });
     }
-  }
-
-  /**
-   * Inject the page script into the MAIN world to access CodeMirror state
-   * This bypasses the isolated world limitation of content scripts
-   */
-  function injectPageScript() {
-    log("🔧 Injecting page script into MAIN world...");
-    injectPageScriptFallback();
   }
 
   /**
@@ -165,7 +157,6 @@
    * Fallback method: Inject script tag into the page and all accessible iframes
    */
   function injectPageScriptFallback() {
-    
     log("🔧 Using script tag injection fallback...");
 
     // Inject into the current document
@@ -340,7 +331,7 @@
   function setupPageMessageListener() {
     window.addEventListener("message", function (event) {
       if (event.data?.postmate) return; // Ignore Postmate messages
-      if (event.data.source !== 'pageInjection') return; // Ignore messages from self
+      if (event.data.source !== "pageInjection") return; // Ignore messages from self
       // ignore messages not coming from KAGGLE iframe
       if (!event.origin.includes("jupyter-proxy.kaggle.net")) return;
 
@@ -348,10 +339,13 @@
       if (!event.data || !event.data.type) return;
       log("📨 MESSAGE:", event);
 
-
-      if (event.data?.type === "KAGGLE_LINTER_READY") {
+      if (
+        event.data?.type === "KAGGLE_LINTER_READY" &&
+        pageInjectionReady === false
+      ) {
         log("🔥 GOT READY from page injection!");
         pageInjectionReady = true;
+
         if (pendingLintRequest) {
           pendingLintRequest = false;
           requestCodeFromPage();
@@ -363,38 +357,6 @@
         processExtractedCode(event.data.code);
       }
     });
-  }
-
-  /**
-   * Check if a message source is from an iframe within our document
-   * @param {Window} source - The message source window
-   * @returns {boolean}
-   */
-  function isMessageFromIframe(source) {
-    try {
-      const iframes = document.querySelectorAll("iframe");
-      for (const iframe of iframes) {
-        if (iframe.contentWindow === source) {
-          return true;
-        }
-        // Also check nested iframes
-        try {
-          const nestedIframes = iframe.contentDocument
-            ? iframe.contentDocument.querySelectorAll("iframe")
-            : [];
-          for (const nested of nestedIframes) {
-            if (nested.contentWindow === source) {
-              return true;
-            }
-          }
-        } catch (e) {
-          // Cross-origin, ignore
-        }
-      }
-    } catch (e) {
-      // Error checking, ignore
-    }
-    return false;
   }
 
   /**
@@ -767,22 +729,20 @@
   function runLinter() {
     log("Running lint...");
 
+    isLinting = true; // Set flag before linting
+
     // Try page injection first for reliable CodeMirror access
     if (pageInjectionReady) {
       requestCodeFromPage();
     } else {
       log("Page injection not ready, marking pending request");
       pendingLintRequest = true;
-
-      // Also try DOM fallback after a delay
-      setTimeout(() => {
-        if (pendingLintRequest) {
-          log("Page injection still not ready, using DOM fallback");
-          pendingLintRequest = false;
-          runLinterWithDomFallback();
-        }
-      }, 1000);
     }
+
+    // Reset flag after a delay
+    setTimeout(() => {
+      isLinting = false;
+    }, 500);
   }
 
   function setupMutationObserver() {
@@ -798,27 +758,57 @@
 
     const debouncedLint = debounce(() => {
       runLinter();
-    }, 1200);
+    }, 1500); // Increased debounce time
+
+    isLinting = false; // Prevent re-triggering during lint
 
     observer = new MutationObserver((mutations) => {
+      // Skip if we're currently linting
+      if (isLinting) return;
+
       const triggered = mutations.some((mutation) => {
-        // 1) Pure typing
+        // Ignore changes to overlay elements
+        const target = mutation.target;
+        if (target.nodeType === Node.ELEMENT_NODE) {
+          if (target.closest?.("#kaggle-lint-overlay, .kaggle-lint-marker")) {
+            return false;
+          }
+        }
+        if (
+          target.parentElement?.closest?.(
+            "#kaggle-lint-overlay, .kaggle-lint-marker"
+          )
+        ) {
+          return false;
+        }
+
+        // 1) Pure typing inside CodeMirror
         if (mutation.type === "characterData") {
-          if (mutation.target.parentElement?.closest(".cm-editor")) {
-            // typing inside editor
+          if (
+            mutation.target.parentElement?.closest(
+              ".cm-editor, .cm-line, .cm-content"
+            )
+          ) {
             return true;
           }
         }
 
-        // 2) A cell was added/removed
+        // 2) Cell structure changes (add/remove cells or editors)
         if (mutation.type === "childList") {
           const added = Array.from(mutation.addedNodes).some(
-            (node) => node.nodeType === 1 && node.closest?.(".cm-editor")
+            (node) =>
+              node.nodeType === 1 &&
+              (node.classList?.contains("jp-Cell") ||
+                node.classList?.contains("cm-editor") ||
+                node.closest?.(".jp-Notebook"))
           );
           if (added) return true;
 
           const removed = Array.from(mutation.removedNodes).some(
-            (node) => node.nodeType === 1 && node.closest?.(".cm-editor")
+            (node) =>
+              node.nodeType === 1 &&
+              (node.classList?.contains("jp-Cell") ||
+                node.classList?.contains("cm-editor"))
           );
           if (removed) return true;
         }
@@ -826,16 +816,24 @@
         return false;
       });
 
-      if (triggered) debouncedLint();
+      if (triggered) {
+        debouncedLint();
+      }
     });
 
-    observer.observe(document.body, {
+    // Only observe the notebook container, not the entire body
+    const notebookContainer =
+      document.querySelector(".jp-Notebook, .jp-NotebookPanel") ||
+      document.body;
+
+    observer.observe(notebookContainer, {
       childList: true,
       subtree: true,
       characterData: true,
+      characterDataOldValue: false, // Don't need old values
     });
 
-    log("🔥 Mutation observer locked — now ONLY tracks typing/cell changes");
+    log("🔥 Mutation observer set up with spam prevention");
   }
 
   function setupKeyboardShortcuts() {
