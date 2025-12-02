@@ -16,64 +16,6 @@
   }
 
   /**
-   * Extract code from a CodeMirror 6 editor element
-   * @param {Element} editorElement - The .cm-editor element
-   * @returns {string|null} - The code content or null if not accessible
-   */
-  function extractFromCodeMirror(editorElement) {
-    if (!editorElement) {
-      return null;
-    }
-
-    // Try to access CodeMirror 6 view state (most reliable method)
-    const view =
-      editorElement.cmView ||
-      editorElement.view ||
-      editorElement.editorView ||
-      editorElement.CodeMirror;
-
-    log("⚠️✅  CM6 view found:", view);
-
-    if (view && view.state && view.state.doc) {
-      const code = view.state.doc.toString();
-      if (code.length > 0) {
-        log(`✅ Extracted ${code.length} chars via CM6 API`);
-        return code;
-      }
-    }
-
-    // Fallback: Try to find view in parent elements
-    let parent = editorElement.parentElement;
-    while (parent) {
-      const parentView =
-        parent.cmView || parent.view || parent.editorView || parent.CodeMirror;
-      if (parentView && parentView.state && parentView.state.doc) {
-        const code = parentView.state.doc.toString();
-        if (code.length > 0) {
-          log(`✅ Extracted ${code.length} chars via parent CM6 API`);
-          return code;
-        }
-      }
-      parent = parent.parentElement;
-    }
-
-    log("⚠️ Could not access CodeMirror state");
-    return null;
-  }
-
-  /**
-   * Determine if a cell is a code cell (not markdown)
-   * @param {Element} cell - The .jp-Cell element
-   * @returns {boolean}
-   */
-  function isCodeCell(cell) {
-    if (cell.classList.contains("jp-MarkdownCell")) {
-      return false;
-    }
-    return cell.classList.contains("jp-CodeCell");
-  }
-
-  /**
    * Extract all code from CodeMirror editors in the page
    * @returns {Array<{code: string, cellIndex: number, uuid: string|null}>}
    */
@@ -192,13 +134,6 @@
       },
       "*"
     );
-    window.parent.postMessage(
-      {
-        type: "KAGGLE_LINTER_READY",
-        source: "pageInjection",
-      },
-      "*"
-    );
   }
 
   log("✅ Page injection script loaded");
@@ -206,17 +141,4 @@
   setTimeout(() => {
     sendReadyMessage();
   }, 6000);
-
-  setTimeout(() => {
-    sendReadyMessage();
-  }, 9000);
-
-  // Announce that the script is ready
-  // window.postMessage(
-  //   {
-  //     type: "KAGGLE_LINTER_READY",
-  //     source: "pageInjection",
-  //   },
-  //   "*"
-  // );
 })();

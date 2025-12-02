@@ -366,60 +366,28 @@
     log("📤 Requesting code extraction from page and iframes...");
 
     // Request from main window
-    window.postMessage({ type: "KAGGLE_LINTER_REQUEST" }, "*");
-
-    // Also request from all accessible iframes
-    requestCodeFromIframes(document);
-  }
-
-  /**
-   * Recursively request code extraction from all accessible iframes
-   * @param {Document} rootDocument
-   */
-  function requestCodeFromIframes(rootDocument) {
-    const iframes = rootDocument.querySelectorAll("iframe");
-
-    iframes.forEach((iframe) => {
-      try {
-        const iframeWindow = iframe.contentWindow;
-        if (iframeWindow) {
-          log(
-            `📤 Requesting code from iframe: ${
-              iframe.name || iframe.id || "unnamed"
-            }`
-          );
-          iframeWindow.postMessage({ type: "KAGGLE_LINTER_REQUEST" }, "*");
-
-          // Recursively request from nested iframes
-          const iframeDoc = iframe.contentDocument;
-          if (iframeDoc) {
-            requestCodeFromIframes(iframeDoc);
-          }
-        }
-      } catch (e) {
-        // Cross-origin iframe - try to post message anyway
-        log(`⚠️ Cross-origin iframe, attempting postMessage: ${e.message}`);
-        try {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.postMessage(
-              { type: "KAGGLE_LINTER_REQUEST" },
-              "*"
-            );
-          }
-        } catch (e2) {
-          log(`⚠️ Cannot post message to iframe: ${e2.message}`);
-        }
-      }
-    });
+    window.postMessage(
+      { type: "KAGGLE_LINTER_REQUEST", source: "requestCodeFromPage" },
+      "*"
+    );
   }
 
   /**
    * Process code extracted from the page injection script
    * @param {Array<{code: string, cellIndex: number, uuid: string|null}>} extractedCode
    */
+
+  let code_hash = null;
+  let last_processed_time = 0;
   function processExtractedCode(extractedCode) {
     log("Processing extracted code:", extractedCode.length, "cells");
-
+    const new_hash = JSON.stringify(extractedCode);
+    const now = Date.now();
+    if (new_hash === code_hash && now - last_processed_time < 600) {
+      return;
+    }
+    code_hash = new_hash;
+    last_processed_time = now;
     if (extractedCode.length === 0) {
       log("No code cells found from page injection");
       // Fall back to DOM-based extraction
@@ -712,7 +680,11 @@
     LintOverlay.setTheme(metadata.theme);
 
     // Inject page script for CodeMirror access
-    injectPageScriptFallback();
+    if (window !== window.top) {
+      // injectPageScriptFallback();
+    } else {
+      log("⚠️ Skipping page injection in main window");
+    }
 
     forceRenderAllCells();
 
@@ -727,6 +699,9 @@
   }
 
   function runLinter() {
+    if (isLinting) {
+      return;
+    }
     log("Running lint...");
 
     isLinting = true; // Set flag before linting
@@ -932,6 +907,7 @@
   log("URL:", window.location.href);
   log("Is in iframe:", window !== window.top);
   if (window === window.top) return;
+
   if (document.readyState === "loading") {
     log("Document still loading...");
     document.addEventListener("DOMContentLoaded", () => {
