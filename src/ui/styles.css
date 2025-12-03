@@ -13,6 +13,41 @@
     "Ubuntu", "Cantarell", sans-serif;
   font-size: 13px;
   overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kaggle-lint-overlay.kaggle-lint-minimized {
+  max-height: none;
+}
+
+.kaggle-lint-minimized .kaggle-lint-errors {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s ease,
+              padding 0.3s ease;
+}
+
+.kaggle-lint-minimized .kaggle-lint-success {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s ease,
+              padding 0.3s ease;
+}
+
+.kaggle-lint-minimized .kaggle-lint-summary {
+  border-bottom: none;
 }
 
 /* Light theme */
@@ -48,7 +83,7 @@
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-btn {
-  background: #3c3c3c;
+  background: transparent;
   color: #d4d4d4;
 }
 
@@ -60,50 +95,132 @@
 .kaggle-lint-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
+  align-items: start;
+  padding: 0;
   user-select: none;
 }
 
 .kaggle-lint-title {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  margin: 10px;
+  gap: 6px;
+}
+
+.kaggle-lint-title-text {
   font-weight: 500;
   font-size: 13px;
   letter-spacing: 0.5px;
+  vertical-align: middle;
+  transition: opacity 0.2s ease;
+  margin: 0;
+}
+
+.kaggle-lint-title-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 12px;
 }
 
 .kaggle-lint-controls {
   display: flex;
-  gap: 8px;
+  gap: 0;
 }
 
 .kaggle-lint-btn {
   background: transparent;
   border: none;
-  border-radius: 3px;
-  width: 28px;
-  height: 28px;
+  border-radius: 0;
+  width: 46px;
+  height: 32px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
-  color: #888;
+  transition: all 0.3s ease;
+  color: #000;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+.kaggle-lint-btn-icon {
+  width: 46px;
+}
+
+.kaggle-lint-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.kaggle-lint-theme-light .kaggle-lint-btn {
+  color: #000;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn {
+  color: #fff;
 }
 
 .kaggle-lint-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ccc;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.kaggle-lint-close:hover {
-  background: #e81828 !important;
+.kaggle-lint-btn:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kaggle-lint-btn-close {
+  width: 46px;
+  font-size: 10px;
+  font-weight: 400;
+  font-family: "Segoe MDL2 Assets", "Segoe UI", sans-serif;
+}
+
+.kaggle-lint-btn-close:hover {
+  background: #c42b1c !important;
   color: white !important;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn-close:hover {
+  background: #c42b1c !important;
+  color: white !important;
+}
+
+.kaggle-lint-btn-close:active {
+  background: #a52313 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Spinning animation for refresh button */
+.kaggle-lint-spinning svg {
+  animation: kaggle-lint-spin 1s linear infinite;
+}
+
+.kaggle-lint-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@keyframes kaggle-lint-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Content */
@@ -120,6 +237,13 @@
   padding: 12px 16px;
   margin: 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: border-bottom 0.3s ease;
+}
+
+.kaggle-lint-errors {
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s ease,
+              padding 0.3s ease;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-summary {
@@ -133,6 +257,11 @@
   font-weight: 500;
   font-size: 12px;
   letter-spacing: 0.3px;
+}
+
+.kaggle-lint-stat svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Success message */

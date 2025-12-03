@@ -3,6 +3,14 @@
  * Displays lint errors in the Kaggle notebook interface
  */
 
+const ALL_ICONS = {
+  chevron: null,
+  refresh: null,
+  bug: null,
+  info: null,
+  warning: null,
+};
+
 const LintOverlay = (function () {
   "use strict";
 
@@ -15,6 +23,31 @@ const LintOverlay = (function () {
     warning: "⚠️",
     info: "ℹ️",
   };
+
+  /**
+   *  Load SVG icons
+   */
+  async function loadSvgIcons() {
+    for (const [iconName, value] of Object.entries(ALL_ICONS)) {
+      if (!value) {
+        try {
+          const response = await fetch(
+            chrome.runtime.getURL(`svgs/${iconName}.svg`)
+          );
+          const svgText = await response.text();
+          ALL_ICONS[iconName] = svgText;
+        } catch (error) {
+          console.error("Failed to load SVG:", error);
+          ALL_ICONS[iconName] = ""; // Fallback
+        }
+      }
+    }
+
+    // update SEVERITY_ICONS with SVGs
+    SEVERITY_ICONS.error = ALL_ICONS["bug"];
+    SEVERITY_ICONS.warning = ALL_ICONS["warning"];
+    SEVERITY_ICONS.info = ALL_ICONS["info"];
+  }
 
   /**
    * Creates the main overlay container
@@ -32,31 +65,48 @@ const LintOverlay = (function () {
     header.className = "kaggle-lint-header";
 
     const title = document.createElement("span");
+    // make title with image from ./icons/icon48
     title.className = "kaggle-lint-title";
-    title.textContent = "🔍 Python Linter";
+    const iconImg = document.createElement("img");
+    const titleText = document.createElement("span");
+    iconImg.src = chrome.runtime.getURL("icons/icon48.png");
+    iconImg.alt = "Kaggle Linter";
+    iconImg.className = "kaggle-lint-title-icon";
+    titleText.className = "kaggle-lint-title-text";
+    title.appendChild(iconImg);
+    title.appendChild(titleText);
+    titleText.textContent = "Python Linter";
 
     const controls = document.createElement("div");
     controls.className = "kaggle-lint-controls";
 
     const refreshBtn = document.createElement("button");
-    refreshBtn.className = "kaggle-lint-btn";
-    refreshBtn.textContent = "🔄";
+    refreshBtn.className = "kaggle-lint-btn kaggle-lint-btn-icon";
+    refreshBtn.innerHTML = ALL_ICONS["refresh"];
     refreshBtn.title = "Refresh lint";
-    refreshBtn.onclick = () => {
+    refreshBtn.id = "kaggle-lint-refresh-btn";
+    refreshBtn.onclick = async () => {
       if (typeof runLinter === "function") {
-        runLinter();
+        refreshBtn.classList.add("kaggle-lint-spinning");
+        refreshBtn.disabled = true;
+        await runLinter();
+        await new Promise((resolve) => setTimeout(resolve, 200)); // Small delay for UX
+        refreshBtn.classList.remove("kaggle-lint-spinning");
+        refreshBtn.disabled = false;
       }
     };
 
     const toggleBtn = document.createElement("button");
-    toggleBtn.className = "kaggle-lint-btn";
-    toggleBtn.textContent = "−";
+    toggleBtn.className = "kaggle-lint-btn kaggle-lint-btn-icon";
+    toggleBtn.innerHTML = ALL_ICONS["chevron"];
     toggleBtn.title = "Minimize";
+    toggleBtn.style.transform = "rotate(0deg)";
+    toggleBtn.style.transition = "transform 0.3s ease";
     toggleBtn.onclick = () => toggleMinimize(toggleBtn);
 
     const closeBtn = document.createElement("button");
-    closeBtn.className = "kaggle-lint-btn kaggle-lint-close";
-    closeBtn.textContent = "×";
+    closeBtn.className = "kaggle-lint-btn kaggle-lint-btn-close";
+    closeBtn.innerHTML = "✕";
     closeBtn.title = "Close";
     closeBtn.onclick = hideOverlay;
 
@@ -123,24 +173,65 @@ const LintOverlay = (function () {
   }
 
   /**
+   *  Load SVG icons
+   */
+  async function loadSvgIcon(iconName) {
+    try {
+      const response = await fetch(
+        chrome.runtime.getURL(`svgs/${iconName}.svg`)
+      );
+      const svgText = await response.text();
+      return svgText;
+    } catch (error) {
+      console.error("Failed to load SVG:", error);
+      return ""; // Fallback
+    }
+  }
+
+  // // Usage
+  // const svgContent =
+  // btn.innerHTML = svgContent;
+
+  /**
    * Toggles minimize state
    * @param {Element} btn - Toggle button
    */
   function toggleMinimize(btn) {
-    const content = document.getElementById("kaggle-lint-content");
     const overlay = document.querySelector(".kaggle-lint-overlay");
-    const title = document.querySelector(".kaggle-lint-title");
-    if (content.style.display === "none") {
-      content.style.display = "block";
-      overlay.style.width = "400px";
-      title.style.display = "inline";
-      btn.textContent = "−";
+    const titleText = document.querySelector(".kaggle-lint-title-text");
+
+    if (overlay.classList.contains("kaggle-lint-minimized")) {
+      // Expanding
+      overlay.classList.remove("kaggle-lint-minimized");
+      overlay.style.width = "450px";
+      titleText.style.opacity = "0";
+
+      setTimeout(() => {
+        titleText.style.display = "inline";
+        setTimeout(() => {
+          titleText.style.opacity = "1";
+        }, 10);
+      }, 150);
+
+      btn.style.transform = "rotate(0deg)";
       btn.title = "Minimize";
     } else {
-      content.style.display = "none";
-      overlay.style.width = "auto";
-      title.style.display = "none";
-      btn.textContent = "+";
+      // Minimizing
+      overlay.classList.add("kaggle-lint-minimized");
+      titleText.style.opacity = "0";
+
+      // Move to bottom right
+      overlay.style.right = "20px";
+      overlay.style.bottom = "20px";
+      overlay.style.left = "auto";
+      overlay.style.top = "auto";
+      overlay.style.width = "200px";
+
+      setTimeout(() => {
+        titleText.style.display = "none";
+      }, 200);
+
+      btn.style.transform = "rotate(180deg)";
       btn.title = "Expand";
     }
   }
@@ -148,7 +239,8 @@ const LintOverlay = (function () {
   /**
    * Shows the overlay
    */
-  function showOverlay() {
+  async function showOverlay() {
+    await loadSvgIcons();
     createOverlay();
     overlayContainer.style.display = "block";
     isVisible = true;
@@ -180,8 +272,8 @@ const LintOverlay = (function () {
    * @param {Array} errors - Lint errors
    * @param {Object} stats - Error statistics
    */
-  function displayErrors(errors, stats) {
-    createOverlay();
+  async function displayErrors(errors, stats) {
+    await showOverlay();
     const content = document.getElementById("kaggle-lint-content");
 
     let html = '<div class="kaggle-lint-summary">';
@@ -203,7 +295,7 @@ const LintOverlay = (function () {
       errors.forEach((error, idx) => {
         const severityClass = `kaggle-lint-severity-${error.severity}`;
         html += `<li class="kaggle-lint-error-item ${severityClass}" data-error-index="${idx}">`;
-        html += `<span class="kaggle-lint-icon">${
+        html += `<span class="kaggle-lint-icon kaggle-lint-${error.severity}">${
           SEVERITY_ICONS[error.severity]
         }</span>`;
         html += `<span class="kaggle-lint-location">Cell ${
