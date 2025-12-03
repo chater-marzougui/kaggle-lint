@@ -121,7 +121,7 @@ def lint_code(code):
         # Clean up temp file
         try:
             os.unlink(temp_path)
-        except:
+        except OSError:
             pass
 
 def lint_code_simple(code):
