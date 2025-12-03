@@ -53,6 +53,7 @@
         "src/pyodide/pyodide.js",
         "src/flake8Engine.js",
         "src/domParser.js",
+        "src/codeMirror.js",
         "src/ui/overlay.js",
         "src/pageInjection.js",
         "src/content.js"
