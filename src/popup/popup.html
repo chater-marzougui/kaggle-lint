@@ -1,57 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kaggle Python Linter Options</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <div class="popup-container">
-    <img src="/icons/icon128.png" alt="Kaggle Linter Icon" class="icon">
-    <h1>Kaggle Linter</h1>
-    <p class="subtitle">Toggle linting rules</p>
-    
-    <div id="kaggle-content">
-      <div class="linter-switch-container">
-        <span class="linter-switch-label">Linter Engine:</span>
-        <div class="linter-switch">
-          <label class="linter-option">
-            <input type="radio" name="linter-engine" value="handmade" checked>
-            <span class="linter-option-text">Built-in</span>
-          </label>
-          <label class="linter-option">
-            <input type="radio" name="linter-engine" value="flake8">
-            <span class="linter-option-text">Flake8</span>
-          </label>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kaggle Python Linter Options</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <img src="/icons/icon128.png" alt="Kaggle Linter Icon" class="icon" />
+      <h1>Kaggle Linter</h1>
+      <p class="subtitle">Toggle linting rules</p>
+
+      <div id="kaggle-content">
+        <div class="linter-switch-container">
+          <span class="linter-switch-label">Linter Engine:</span>
+          <div class="linter-switch">
+            <label class="linter-option">
+              <input
+                type="radio"
+                name="linter-engine"
+                value="handmade"
+                checked
+              />
+              <span class="linter-option-text">Built-in</span>
+            </label>
+            <label class="linter-option">
+              <input type="radio" name="linter-engine" value="flake8" />
+              <span class="linter-option-text">Flake8</span>
+            </label>
+          </div>
+          <div
+            id="flake8-status"
+            class="flake8-status"
+            style="display: none"
+          ></div>
         </div>
-        <div id="flake8-status" class="flake8-status" style="display: none;"></div>
+
+        <div class="rules-list" id="rules-list">
+          <!-- Rules will be populated by JavaScript -->
+        </div>
+
+        <div class="actions">
+          <button id="refresh-btn" class="btn btn-primary">
+            🔄 Re-lint Now
+          </button>
+          <button id="toggle-overlay-btn" class="btn btn-secondary">
+            👁️ Toggle Overlay
+          </button>
+        </div>
       </div>
-      
-      <div class="rules-list" id="rules-list">
-        <!-- Rules will be populated by JavaScript -->
+
+      <div
+        id="not-kaggle-content"
+        class="not-kaggle-container"
+        style="display: none"
+      >
+        <div class="not-kaggle-message">
+          <div class="not-kaggle-icon">📝</div>
+          <h2>Not in Kaggle Notebook</h2>
+          <p class="not-kaggle-text">
+            This extension only works on Kaggle Notebooks.
+          </p>
+          <a
+            href="https://www.kaggle.com/code"
+            target="_blank"
+            class="kaggle-link"
+            >Go to Kaggle</a
+          >
+        </div>
       </div>
-      
-      <div class="actions">
-        <button id="refresh-btn" class="btn btn-primary">🔄 Re-lint Now</button>
-        <button id="toggle-overlay-btn" class="btn btn-secondary">👁️ Toggle Overlay</button>
+
+      <div class="footer">
+        <span id="version-id">v1.0.0</span>
+        <a
+          href="https://github.com/chater-marzougui/kaggle-lint"
+          target="_blank"
+          class="github-link"
+        >
+
+          <img
+            src="/icons/github.png"
+            alt="GitHub Logo"
+            class="github-icon"
+          />
+          GitHub</a
+        >
       </div>
     </div>
-    
-    <div id="not-kaggle-content" class="not-kaggle-container" style="display: none;">
-      <div class="not-kaggle-message">
-        <div class="not-kaggle-icon">📝</div>
-        <h2>Not in Kaggle Notebook</h2>
-        <p class="not-kaggle-text">This extension only works on Kaggle Notebooks.</p>
-        <a href="https://www.kaggle.com/code" target="_blank" class="kaggle-link">Go to Kaggle</a>
-      </div>
-    </div>
-    
-    <div class="footer">
-      <span id="version-id">v1.0.0</span>
-      <a href="https://github.com/chater-marzougui/kaggle-lint" target="_blank">GitHub</a>
-    </div>
-  </div>
-  <script src="popup.js"></script>
-</body>
+    <script src="popup.js"></script>
+  </body>
 </html>

@@ -173,26 +173,6 @@ const LintOverlay = (function () {
   }
 
   /**
-   *  Load SVG icons
-   */
-  async function loadSvgIcon(iconName) {
-    try {
-      const response = await fetch(
-        chrome.runtime.getURL(`svgs/${iconName}.svg`)
-      );
-      const svgText = await response.text();
-      return svgText;
-    } catch (error) {
-      console.error("Failed to load SVG:", error);
-      return ""; // Fallback
-    }
-  }
-
-  // // Usage
-  // const svgContent =
-  // btn.innerHTML = svgContent;
-
-  /**
    * Toggles minimize state
    * @param {Element} btn - Toggle button
    */

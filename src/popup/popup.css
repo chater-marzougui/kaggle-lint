@@ -131,7 +131,7 @@ h1 {
 }
 
 .rules-list {
-  max-height: 300px;
+  max-height: 250px;
   overflow-y: auto;
   margin-bottom: 16px;
 }
@@ -266,10 +266,10 @@ input:focus + .toggle-slider {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 8px;
   border-top: 1px solid #333;
   font-size: 11px;
   color: #666;
+  padding-top: 8px;
 }
 
 .footer a {
@@ -367,4 +367,20 @@ input:focus + .toggle-slider {
 
 .kaggle-link:active {
   transform: translateY(0);
+}
+
+.github-link {
+  display: flex;
+  color: #888;
+  text-decoration: none;
+  font-size: 12px;
+  margin: 0;
+}
+
+.github-icon {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  margin-right: 6px;
+  filter: invert(70%) sepia(10%) saturate(0%) hue-rotate(180deg) brightness(90%) contrast(85%);
 }
