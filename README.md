@@ -26,6 +26,7 @@ The extension handles different Kaggle notebook configurations:
 - **Themes**: Light and dark mode detection and styling
 - **Collapsible cells**: Works with collapsed/expanded cell states
 - **Notebook modes**: Edit, view, and run modes
+- **Lazy Loading**: Uses a local code mirror to handle Kaggle's lazy loading of cells
 
 ## Installation
 
@@ -48,7 +49,9 @@ The linter runs automatically when you open a Kaggle notebook. You can also:
 src/
 ├── content.js          # Main entry point
 ├── domParser.js        # Kaggle DOM extraction
+├── codeMirror.js       # Local cell storage for lazy loading
 ├── lintEngine.js       # Rule orchestration
+├── flake8Engine.js     # Flake8 linting via Pyodide
 ├── rules/
 │   ├── undefinedVariables.js
 │   ├── capitalizationTypos.js
@@ -96,6 +99,13 @@ const MyRule = (function () {
 ### Testing
 
 Open a Kaggle notebook and check the browser console for debug output.
+
+## Acknowledgments
+
+Special thanks to the following projects that make this extension possible:
+
+- **[Pyodide](https://pyodide.org/)** - Python runtime compiled to WebAssembly, enabling Python code execution in the browser
+- **[Flake8](https://flake8.pycqa.org/)** - The Python linting tool that provides comprehensive code style and error checking
 
 ## License
 

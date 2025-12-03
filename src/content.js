@@ -374,6 +374,8 @@
 
   /**
    * Process code extracted from the page injection script
+   * Uses CodeMirror to maintain local copies of cells for reliable linting
+   * even when Kaggle lazy-loads or unloads cells
    * @param {Array<{code: string, cellIndex: number, uuid: string|null}>} extractedCode
    */
 
@@ -381,14 +383,27 @@
   let last_processed_time = 0;
   function processExtractedCode(extractedCode) {
     log("Processing extracted code:", extractedCode.length, "cells");
-    const new_hash = JSON.stringify(extractedCode);
+    
+    // Use CodeMirror to merge extracted cells with stored cells
+    // This handles cases where Kaggle has unloaded some cells
+    let cellsToLint = extractedCode;
+    
+    if (typeof CodeMirror !== "undefined" && typeof CodeMirror.getMergedCells === "function") {
+      // Merge extracted cells with stored cells from CodeMirror
+      // This ensures we still have code from cells that may have been unloaded
+      cellsToLint = CodeMirror.getMergedCells(extractedCode);
+      log(`CodeMirror: ${CodeMirror.getCellCount()} cells stored, ${cellsToLint.length} cells to lint`);
+    }
+    
+    const new_hash = JSON.stringify(cellsToLint);
     const now = Date.now();
     if (new_hash === code_hash && now - last_processed_time < 600) {
       return;
     }
     code_hash = new_hash;
     last_processed_time = now;
-    if (extractedCode.length === 0) {
+    
+    if (cellsToLint.length === 0) {
       log("No code cells found from page injection");
       // Fall back to DOM-based extraction
       runLinterWithDomFallback();
@@ -396,7 +411,7 @@
     }
 
     // Convert to the format expected by LintEngine
-    const codeCells = extractedCode.map((item) => ({
+    const codeCells = cellsToLint.map((item) => ({
       code: item.code,
       cellIndex: item.cellIndex,
       element: findCellElement(item.cellIndex, item.uuid),
