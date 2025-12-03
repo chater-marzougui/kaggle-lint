@@ -63,6 +63,7 @@ const RULES = [
 
 // Default settings
 const DEFAULT_SETTINGS = {
+  linterEngine: "handmade", // "handmade" or "flake8"
   rules: RULES.reduce((acc, rule) => {
     acc[rule.id] = rule.enabled;
     return acc;
@@ -99,34 +100,78 @@ async function saveSettings(settings) {
 async function renderRulesList() {
   const container = document.getElementById("rules-list");
   const settings = await loadSettings();
+  const isFlake8 = settings.linterEngine === "flake8";
 
-  container.innerHTML = RULES.map((rule) => {
-    const isEnabled = settings.rules[rule.id] !== false; // Default to enabled
-    return `
-      <div class="rule-item">
-        <label class="rule-toggle">
-          <input type="checkbox" 
-                 data-rule-id="${rule.id}" 
-                 ${isEnabled ? "checked" : ""}>
-          <span class="toggle-slider"></span>
-        </label>
-        <div class="rule-info">
-          <span class="rule-name">${rule.name}</span>
-          <span class="rule-description">${rule.description}</span>
-        </div>
+  // Show/hide rules based on linter engine
+  if (isFlake8) {
+    container.innerHTML = `
+      <div class="flake8-info">
+        <p>Flake8 uses its own set of rules. The built-in rule toggles are disabled when using Flake8.</p>
       </div>
     `;
-  }).join("");
+  } else {
+    container.innerHTML = RULES.map((rule) => {
+      const isEnabled = settings.rules[rule.id] !== false; // Default to enabled
+      return `
+        <div class="rule-item">
+          <label class="rule-toggle">
+            <input type="checkbox" 
+                   data-rule-id="${rule.id}" 
+                   ${isEnabled ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+          <div class="rule-info">
+            <span class="rule-name">${rule.name}</span>
+            <span class="rule-description">${rule.description}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
 
-  // Add event listeners to toggles
-  container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-    checkbox.addEventListener("change", async (e) => {
-      const ruleId = e.target.dataset.ruleId;
-      const isEnabled = e.target.checked;
+    // Add event listeners to toggles
+    container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.addEventListener("change", async (e) => {
+        const ruleId = e.target.dataset.ruleId;
+        const isEnabled = e.target.checked;
 
+        const currentSettings = await loadSettings();
+        currentSettings.rules[ruleId] = isEnabled;
+        await saveSettings(currentSettings);
+
+        // Notify content script of settings change
+        notifyContentScript({
+          type: "settingsChanged",
+          settings: currentSettings,
+        });
+      });
+    });
+  }
+}
+
+/**
+ * Set up linter engine switch
+ */
+async function setupLinterEngineSwitch() {
+  const settings = await loadSettings();
+  const currentEngine = settings.linterEngine || "handmade";
+
+  // Set the current radio button
+  const radioButtons = document.querySelectorAll('input[name="linter-engine"]');
+  radioButtons.forEach((radio) => {
+    radio.checked = radio.value === currentEngine;
+  });
+
+  // Add event listeners
+  radioButtons.forEach((radio) => {
+    radio.addEventListener("change", async (e) => {
+      const newEngine = e.target.value;
       const currentSettings = await loadSettings();
-      currentSettings.rules[ruleId] = isEnabled;
+      currentSettings.linterEngine = newEngine;
       await saveSettings(currentSettings);
+
+      // Update UI
+      await renderRulesList();
+      updateFlake8Status(newEngine);
 
       // Notify content script of settings change
       notifyContentScript({
@@ -135,6 +180,23 @@ async function renderRulesList() {
       });
     });
   });
+
+  // Initial status update
+  updateFlake8Status(currentEngine);
+}
+
+/**
+ * Update Flake8 status display
+ */
+function updateFlake8Status(engine) {
+  const statusEl = document.getElementById("flake8-status");
+  if (engine === "flake8") {
+    statusEl.style.display = "block";
+    statusEl.textContent = "Flake8 will be loaded on first lint";
+    statusEl.className = "flake8-status";
+  } else {
+    statusEl.style.display = "none";
+  }
 }
 
 /**
@@ -189,7 +251,7 @@ async function isInKaggle() {
     active: true,
     currentWindow: true,
   });
-  return tab.url.includes("kaggle.com") && tab.url.includes("/edit/");
+  return tab.url.includes("kaggle.com") && tab.url.includes("/edit");
 }
 
 /**
@@ -205,6 +267,7 @@ async function init() {
     return;
   }
 
+  await setupLinterEngineSwitch();
   await renderRulesList();
 
   // Refresh button
