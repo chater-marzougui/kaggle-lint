@@ -489,7 +489,7 @@
    * Run the linter on extracted code cells
    * @param {Array<{code: string, cellIndex: number, element: Element|null}>} codeCells
    */
-  function runLinterOnCells(codeCells) {
+  async function runLinterOnCells(codeCells) {
     log(`Running linter on ${codeCells.length} code cells`);
 
     if (codeCells.length === 0) {
@@ -498,17 +498,43 @@
       return;
     }
 
-    let errors = LintEngine.lintNotebook(codeCells);
-
-    if (linterSettings && linterSettings.rules) {
-      const enabledRules = linterSettings.rules;
-      errors = errors.filter((error) => {
-        const isEnabled = enabledRules[error.rule] !== false;
-        if (!isEnabled) {
-          log(`Filtering out error from disabled rule: ${error.rule}`);
+    // Check which linter engine to use
+    const useFlake8 = linterSettings && linterSettings.linterEngine === "flake8";
+    
+    let errors;
+    let stats;
+    
+    if (useFlake8 && typeof Flake8Engine !== "undefined") {
+      log("Using Flake8 linter engine");
+      try {
+        // Show loading indicator
+        if (!Flake8Engine.getIsReady()) {
+          log("Loading Flake8 engine...");
         }
-        return isEnabled;
-      });
+        
+        errors = await Flake8Engine.lintNotebook(codeCells);
+        stats = Flake8Engine.getStats(errors);
+      } catch (error) {
+        log("Flake8 error, falling back to built-in:", error);
+        errors = LintEngine.lintNotebook(codeCells);
+        stats = LintEngine.getStats(errors);
+      }
+    } else {
+      log("Using built-in linter engine");
+      errors = LintEngine.lintNotebook(codeCells);
+      
+      if (linterSettings && linterSettings.rules) {
+        const enabledRules = linterSettings.rules;
+        errors = errors.filter((error) => {
+          const isEnabled = enabledRules[error.rule] !== false;
+          if (!isEnabled) {
+            log(`Filtering out error from disabled rule: ${error.rule}`);
+          }
+          return isEnabled;
+        });
+      }
+      
+      stats = LintEngine.getStats(errors);
     }
 
     errors.sort((a, b) => {
@@ -518,7 +544,6 @@
       return a.line - b.line;
     });
 
-    const stats = LintEngine.getStats(errors);
     log(`Found ${errors.length} issues:`, stats);
 
     LintOverlay.displayErrors(errors, stats);

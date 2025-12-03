@@ -49,6 +49,7 @@
         "src/rules/redefinedVariables.js",
         "src/rules/missingReturn.js",
         "src/lintEngine.js",
+        "src/flake8Engine.js",
         "src/domParser.js",
         "src/ui/overlay.js",
         "src/pageInjection.js",

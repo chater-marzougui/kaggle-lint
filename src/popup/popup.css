@@ -39,6 +39,97 @@ h1 {
   margin-bottom: 16px;
 }
 
+/* Linter Engine Switch */
+.linter-switch-container {
+  background: #252538;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.linter-switch-label {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.linter-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.linter-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.linter-option input[type="radio"] {
+  display: none;
+}
+
+.linter-option-text {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: center;
+  background: #333;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
+  transition: all 0.2s;
+}
+
+.linter-option input[type="radio"]:checked + .linter-option-text {
+  background: #4CAF50;
+  color: #fff;
+}
+
+.linter-option-text:hover {
+  background: #444;
+}
+
+.linter-option input[type="radio"]:checked + .linter-option-text:hover {
+  background: #45a049;
+}
+
+.flake8-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+}
+
+.flake8-status.loading {
+  color: #FFC107;
+}
+
+.flake8-status.ready {
+  color: #4CAF50;
+}
+
+.flake8-status.error {
+  color: #f44336;
+}
+
+.flake8-info {
+  padding: 16px;
+  background: #252538;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.flake8-info p {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+  line-height: 1.5;
+}
+
 .rules-list {
   max-height: 300px;
   overflow-y: auto;

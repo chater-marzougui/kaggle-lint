@@ -13,6 +13,21 @@
     <p class="subtitle">Toggle linting rules</p>
     
     <div id="kaggle-content">
+      <div class="linter-switch-container">
+        <span class="linter-switch-label">Linter Engine:</span>
+        <div class="linter-switch">
+          <label class="linter-option">
+            <input type="radio" name="linter-engine" value="handmade" checked>
+            <span class="linter-option-text">Built-in</span>
+          </label>
+          <label class="linter-option">
+            <input type="radio" name="linter-engine" value="flake8">
+            <span class="linter-option-text">Flake8</span>
+          </label>
+        </div>
+        <div id="flake8-status" class="flake8-status" style="display: none;"></div>
+      </div>
+      
       <div class="rules-list" id="rules-list">
         <!-- Rules will be populated by JavaScript -->
       </div>
