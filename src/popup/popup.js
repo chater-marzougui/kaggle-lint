@@ -124,21 +124,36 @@ async function renderLintMode() {
   const settings = await loadSettings();
   const currentMode = settings.lintMode || "standard";
 
-  // Set the correct radio button
+  // Set the correct radio button and add selected class
   const standardRadio = document.getElementById("mode-standard");
   const smartRadio = document.getElementById("mode-smart");
+  const standardOption = standardRadio.closest(".mode-option");
+  const smartOption = smartRadio.closest(".mode-option");
+
+  function updateSelectedClass(mode) {
+    if (mode === "smart") {
+      smartOption.classList.add("selected");
+      standardOption.classList.remove("selected");
+    } else {
+      standardOption.classList.add("selected");
+      smartOption.classList.remove("selected");
+    }
+  }
 
   if (currentMode === "smart") {
     smartRadio.checked = true;
   } else {
     standardRadio.checked = true;
   }
+  updateSelectedClass(currentMode);
 
   // Add event listeners
   [standardRadio, smartRadio].forEach((radio) => {
     radio.addEventListener("change", async (e) => {
       if (e.target.checked) {
         const newMode = e.target.value;
+        updateSelectedClass(newMode);
+
         const currentSettings = await loadSettings();
         currentSettings.lintMode = newMode;
         await saveSettings(currentSettings);

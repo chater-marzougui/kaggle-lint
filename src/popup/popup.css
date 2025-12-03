@@ -69,7 +69,8 @@ h1 {
   background: #2a2a4a;
 }
 
-.mode-option:has(input:checked) {
+/* Selected state - using class toggled by JS for browser compatibility */
+.mode-option.selected {
   border-color: #4CAF50;
   background: #1e3a1e;
 }
