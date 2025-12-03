@@ -498,7 +498,18 @@
       return;
     }
 
-    let errors = LintEngine.lintNotebook(codeCells);
+    // Check lint mode setting
+    const lintMode = linterSettings?.lintMode || "standard";
+    log(`Lint mode: ${lintMode}`);
+
+    let errors;
+    if (lintMode === "smart" && typeof SmartLinter !== "undefined") {
+      log("Using Smart Linter (whole notebook analysis)");
+      errors = SmartLinter.lintNotebook(codeCells);
+    } else {
+      log("Using Standard Linter (cell-by-cell analysis)");
+      errors = LintEngine.lintNotebook(codeCells);
+    }
 
     if (linterSettings && linterSettings.rules) {
       const enabledRules = linterSettings.rules;

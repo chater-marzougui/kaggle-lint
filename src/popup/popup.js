@@ -61,8 +61,23 @@ const RULES = [
   },
 ];
 
+// Available lint modes
+const LINT_MODES = {
+  standard: {
+    id: "standard",
+    name: "Standard Mode",
+    description: "Cell-by-cell analysis (lighter)",
+  },
+  smart: {
+    id: "smart",
+    name: "Smart Mode",
+    description: "Whole notebook analysis (better context)",
+  },
+};
+
 // Default settings
 const DEFAULT_SETTINGS = {
+  lintMode: "standard", // Default to standard mode
   rules: RULES.reduce((acc, rule) => {
     acc[rule.id] = rule.enabled;
     return acc;
@@ -76,7 +91,16 @@ async function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(["linterSettings"], (result) => {
       if (result.linterSettings) {
-        resolve(result.linterSettings);
+        // Merge with defaults to ensure all properties exist
+        const settings = {
+          ...DEFAULT_SETTINGS,
+          ...result.linterSettings,
+          rules: {
+            ...DEFAULT_SETTINGS.rules,
+            ...(result.linterSettings.rules || {}),
+          },
+        };
+        resolve(settings);
       } else {
         resolve(DEFAULT_SETTINGS);
       }
@@ -90,6 +114,42 @@ async function loadSettings() {
 async function saveSettings(settings) {
   return new Promise((resolve) => {
     chrome.storage.sync.set({ linterSettings: settings }, resolve);
+  });
+}
+
+/**
+ * Render the lint mode section
+ */
+async function renderLintMode() {
+  const settings = await loadSettings();
+  const currentMode = settings.lintMode || "standard";
+
+  // Set the correct radio button
+  const standardRadio = document.getElementById("mode-standard");
+  const smartRadio = document.getElementById("mode-smart");
+
+  if (currentMode === "smart") {
+    smartRadio.checked = true;
+  } else {
+    standardRadio.checked = true;
+  }
+
+  // Add event listeners
+  [standardRadio, smartRadio].forEach((radio) => {
+    radio.addEventListener("change", async (e) => {
+      if (e.target.checked) {
+        const newMode = e.target.value;
+        const currentSettings = await loadSettings();
+        currentSettings.lintMode = newMode;
+        await saveSettings(currentSettings);
+
+        // Notify content script of settings change
+        notifyContentScript({
+          type: "settingsChanged",
+          settings: currentSettings,
+        });
+      }
+    });
   });
 }
 
@@ -186,6 +246,7 @@ async function loadExtensionVersion() {
  */
 async function init() {
   loadExtensionVersion();
+  await renderLintMode();
   await renderRulesList();
 
   // Refresh button

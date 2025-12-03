@@ -50,6 +50,7 @@
         "src/rules/missingReturn.js",
         "dist/linter.bundle.js",
         "src/lintEngine.js",
+        "src/smartLinter.js",
         "src/domParser.js",
         "src/ui/overlay.js",
         "src/pageInjection.js",

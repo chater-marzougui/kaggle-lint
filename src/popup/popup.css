@@ -31,6 +31,74 @@ h1 {
   margin-bottom: 16px;
 }
 
+/* Lint Mode Section */
+.lint-mode-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #333;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4CAF50;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lint-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #252542;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  border: 2px solid transparent;
+}
+
+.mode-option:hover {
+  background: #2a2a4a;
+}
+
+.mode-option:has(input:checked) {
+  border-color: #4CAF50;
+  background: #1e3a1e;
+}
+
+.mode-option input[type="radio"] {
+  margin-top: 2px;
+  accent-color: #4CAF50;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.mode-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.mode-description {
+  font-size: 11px;
+  color: #888;
+}
+
 .rules-list {
   max-height: 300px;
   overflow-y: auto;

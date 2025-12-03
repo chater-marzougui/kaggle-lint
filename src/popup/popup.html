@@ -12,6 +12,26 @@
     <h1>Kaggle Linter</h1>
     <p class="subtitle">Toggle linting rules</p>
     
+    <div class="lint-mode-section">
+      <h2 class="section-title">Lint Mode</h2>
+      <div class="lint-mode-options">
+        <label class="mode-option">
+          <input type="radio" name="lintMode" value="standard" id="mode-standard">
+          <span class="mode-label">
+            <span class="mode-name">Standard Mode</span>
+            <span class="mode-description">Cell-by-cell analysis (lighter)</span>
+          </span>
+        </label>
+        <label class="mode-option">
+          <input type="radio" name="lintMode" value="smart" id="mode-smart">
+          <span class="mode-label">
+            <span class="mode-name">Smart Mode</span>
+            <span class="mode-description">Whole notebook analysis (better context)</span>
+          </span>
+        </label>
+      </div>
+    </div>
+    
     <div class="rules-list" id="rules-list">
       <!-- Rules will be populated by JavaScript -->
     </div>
