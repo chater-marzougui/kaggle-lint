@@ -182,10 +182,29 @@ async function loadExtensionVersion() {
 }
 
 /**
+ * Check if the extension is running in Kaggle
+ */
+async function isInKaggle() {
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+  return tab.url.includes("kaggle.com") && tab.url.includes("/edit/");
+}
+
+/**
  * Initialize popup
  */
 async function init() {
   loadExtensionVersion();
+  const inKaggle = await isInKaggle();
+  if (!inKaggle) {
+    document.getElementById('kaggle-content').style.display = "none";
+    document.querySelectorAll('.subtitle').forEach(el => el.style.display = "none");
+    document.getElementById('not-kaggle-content').style.display = "flex";
+    return;
+  }
+
   await renderRulesList();
 
   // Refresh button

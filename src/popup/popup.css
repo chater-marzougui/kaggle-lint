@@ -18,8 +18,16 @@ body {
   padding: 16px;
 }
 
+img {
+  width: 48px;
+  height: 48px;
+  display: block;
+  margin: 0 auto 8px auto;
+}
+
 h1 {
   font-size: 18px;
+  text-align: center;
   font-weight: 600;
   margin-bottom: 4px;
   color: #fff;
@@ -199,4 +207,73 @@ input:focus + .toggle-slider {
 
 .rules-list::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Not in Kaggle Styles */
+.not-kaggle-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 24px;
+  padding-block: 16px;
+  height: 240px;
+  text-align: center;
+}
+
+.not-kaggle-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.not-kaggle-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.not-kaggle-container h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.not-kaggle-text {
+  font-size: 13px;
+  color: #bbb;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.not-kaggle-subtext {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.kaggle-link {
+  display: inline-block;
+  padding: 10px 24px;
+  margin-top: 12px;
+  background: #4CAF50;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.kaggle-link:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.kaggle-link:active {
+  transform: translateY(0);
 }

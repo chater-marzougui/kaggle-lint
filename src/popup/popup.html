@@ -12,13 +12,24 @@
     <h1>Kaggle Linter</h1>
     <p class="subtitle">Toggle linting rules</p>
     
-    <div class="rules-list" id="rules-list">
-      <!-- Rules will be populated by JavaScript -->
+    <div id="kaggle-content">
+      <div class="rules-list" id="rules-list">
+        <!-- Rules will be populated by JavaScript -->
+      </div>
+      
+      <div class="actions">
+        <button id="refresh-btn" class="btn btn-primary">🔄 Re-lint Now</button>
+        <button id="toggle-overlay-btn" class="btn btn-secondary">👁️ Toggle Overlay</button>
+      </div>
     </div>
     
-    <div class="actions">
-      <button id="refresh-btn" class="btn btn-primary">🔄 Re-lint Now</button>
-      <button id="toggle-overlay-btn" class="btn btn-secondary">👁️ Toggle Overlay</button>
+    <div id="not-kaggle-content" class="not-kaggle-container" style="display: none;">
+      <div class="not-kaggle-message">
+        <div class="not-kaggle-icon">📝</div>
+        <h2>Not in Kaggle Notebook</h2>
+        <p class="not-kaggle-text">This extension only works on Kaggle Notebooks.</p>
+        <a href="https://www.kaggle.com/code" target="_blank" class="kaggle-link">Go to Kaggle</a>
+      </div>
     </div>
     
     <div class="footer">
