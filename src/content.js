@@ -547,7 +547,7 @@
     log(`Found ${errors.length} issues:`, stats);
 
     LintOverlay.displayErrors(errors, stats);
-    LintOverlay.addInlineMarkers(errors);
+    LintOverlay.addInlineMarkers(errors, codeCells.map(cell => cell.element));
     LintOverlay.showOverlay();
   }
 

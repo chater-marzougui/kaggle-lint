@@ -4,46 +4,47 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  width: 400px;
-  max-height: 60vh;
+  width: 450px;
+  max-height: 65vh;
   z-index: 10000;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", sans-serif;
   font-size: 13px;
   overflow: hidden;
 }
 
 /* Light theme */
 .kaggle-lint-theme-light {
-  background: #ffffff;
+  background: #f3f3f3;
   color: #333333;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #d0d0d0;
 }
 
 .kaggle-lint-theme-light .kaggle-lint-header {
-  background: #f5f5f5;
+  background: #f3f3f3;
   border-bottom: 1px solid #e0e0e0;
 }
 
 .kaggle-lint-theme-light .kaggle-lint-error-item:hover {
-  background: #f0f0f0;
+  background: #e8e8e8;
 }
 
 /* Dark theme */
 .kaggle-lint-theme-dark {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  border: 1px solid #3c3c3c;
+  background: #2d2d30;
+  color: #cccccc;
+  border: 1px solid #3e3e42;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-header {
-  background: #2d2d2d;
-  border-bottom: 1px solid #3c3c3c;
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-error-item:hover {
-  background: #2a2a2a;
+  background: #3e3e42;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-btn {
@@ -60,73 +61,90 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 16px;
   user-select: none;
 }
 
 .kaggle-lint-title {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.5px;
 }
 
 .kaggle-lint-controls {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .kaggle-lint-btn {
-  background: #e0e0e0;
+  background: transparent;
   border: none;
-  border-radius: 4px;
-  width: 24px;
-  height: 24px;
+  border-radius: 3px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.15s;
+  color: #888;
 }
 
 .kaggle-lint-btn:hover {
-  background: #d0d0d0;
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
 }
 
 .kaggle-lint-close:hover {
-  background: #ff6b6b;
-  color: white;
+  background: #e81828 !important;
+  color: white !important;
 }
 
 /* Content */
 .kaggle-lint-content {
-  padding: 12px;
+  padding: 0;
   overflow-y: auto;
-  max-height: calc(60vh - 50px);
+  max-height: calc(65vh - 50px);
 }
 
 /* Summary */
 .kaggle-lint-summary {
   display: flex;
-  gap: 16px;
-  padding: 8px 0;
-  margin-bottom: 12px;
-  border-bottom: 1px solid currentColor;
-  opacity: 0.7;
+  gap: 24px;
+  padding: 12px 16px;
+  margin: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-summary {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .kaggle-lint-stat {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.3px;
 }
 
 /* Success message */
 .kaggle-lint-success {
   text-align: center;
-  padding: 20px;
-  font-size: 15px;
+  padding: 32px 16px;
+  font-size: 13px;
   color: #4caf50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* Error list */
@@ -134,94 +152,142 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-errors {
+  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 .kaggle-lint-error-item {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 4px;
+  align-items: stretch;
+  gap: 0;
+  padding: 12px 16px;
+  border-radius: 0;
   cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 4px;
+  transition: background 0.15s;
+  margin: 0;
+  border-left: 3px solid #999;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-error-item {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.kaggle-lint-error-item:last-child {
+  border-bottom: none;
 }
 
 .kaggle-lint-icon {
   flex-shrink: 0;
   width: 18px;
   text-align: center;
+  margin-right: 8px;
+  font-size: 16px;
 }
 
 .kaggle-lint-location {
   flex-shrink: 0;
-  font-family: monospace;
+  font-family: "Monaco", "Courier New", monospace;
   font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.1);
+  color: #666;
+  margin-right: 8px;
+  padding: 0 6px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-location {
+  color: #888;
 }
 
 .kaggle-lint-message {
   flex: 1;
   word-break: break-word;
+  font-size: 12px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .kaggle-lint-rule {
   flex-shrink: 0;
-  font-size: 10px;
-  opacity: 0.6;
+  font-size: 11px;
+  opacity: 0.5;
+  margin-left: 8px;
 }
 
 /* Severity colors */
 .kaggle-lint-severity-error {
-  border-left: 3px solid #f44336;
+  border-left-color: #f48771 !important;
 }
 
 .kaggle-lint-severity-warning {
-  border-left: 3px solid #ff9800;
+  border-left-color: #deb887 !important;
 }
 
 .kaggle-lint-severity-info {
-  border-left: 3px solid #2196f3;
+  border-left-color: #6a9fb5 !important;
 }
 
 .kaggle-lint-error {
-  color: #f44336;
+  color: #f48771;
 }
 
 .kaggle-lint-warning {
-  color: #ff9800;
+  color: #deb887;
 }
 
 .kaggle-lint-info {
-  color: #2196f3;
+  color: #6a9fb5;
 }
 
 /* Inline markers */
 .kaggle-lint-inline-marker {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 8px;
+  right: 8px;
   display: flex;
   gap: 6px;
   padding: 4px 8px;
   background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-inline-marker {
-  background: rgba(30, 30, 30, 0.95);
+  background: rgba(45, 45, 48, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .kaggle-lint-inline-marker span {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  font-size: 11px;
+}
+
+/* Inline marker states */
+.kaggle-lint-inline-marker.kaggle-lint-no-errors {
+  background: rgba(76, 175, 80, 0.15);
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.kaggle-lint-inline-marker.kaggle-lint-no-errors span {
+  color: #4caf50;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-inline-marker.kaggle-lint-no-errors {
+  background: rgba(76, 175, 80, 0.15);
+  border-color: rgba(76, 175, 80, 0.25);
 }
 
 /* Tooltip */
@@ -231,10 +297,10 @@
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  background: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   padding: 8px;
   min-width: 280px;
   max-width: 400px;
@@ -245,17 +311,35 @@
   display: block;
 }
 
-.kaggle-lint-theme-dark .kaggle-lint-tooltip {
-  background: #2d2d2d;
-  border-color: #3c3c3c;
+.kaggle-lint-theme-light .kaggle-lint-tooltip {
+  background: #f3f3f3;
+  border-color: #e0e0e0;
+  color: #333;
 }
 
 .kaggle-lint-tooltip-item {
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: 3px;
   margin-bottom: 4px;
   font-size: 12px;
-  color: firebrick;
+  color: #cccccc;
+  border-left: 2px solid #999;
+}
+
+.kaggle-lint-theme-light .kaggle-lint-tooltip-item {
+  color: #333;
+}
+
+.kaggle-lint-tooltip-item.kaggle-lint-severity-error {
+  border-left-color: #f48771;
+}
+
+.kaggle-lint-tooltip-item.kaggle-lint-severity-warning {
+  border-left-color: #deb887;
+}
+
+.kaggle-lint-tooltip-item.kaggle-lint-severity-info {
+  border-left-color: #6a9fb5;
 }
 
 .kaggle-lint-tooltip-item:last-child {
@@ -268,17 +352,18 @@
 }
 
 @keyframes kaggle-lint-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.4);
+    box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
   }
 }
 
 /* Scrollbar styling */
 .kaggle-lint-content::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 
 .kaggle-lint-content::-webkit-scrollbar-track {
@@ -286,11 +371,18 @@
 }
 
 .kaggle-lint-content::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
+  background: #c0c0c0;
+  border-radius: 5px;
 }
 
 .kaggle-lint-content::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: #a8a8a8;
 }
-  
+
+.kaggle-lint-theme-dark .kaggle-lint-content::-webkit-scrollbar-thumb {
+  background: #464646;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-content::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
