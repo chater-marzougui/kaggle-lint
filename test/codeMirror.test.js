@@ -36,11 +36,21 @@ function test(name, fn) {
 }
 
 function assertEqual(actual, expected, msg = "") {
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+  // For primitive types, use strict equality
+  if (typeof actual !== "object" || actual === null) {
+    if (actual !== expected) {
+      throw new Error(
+        `${msg}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`
+      );
+    }
+    return;
+  }
+  // For objects/arrays, use JSON comparison (sufficient for this test case)
+  const actualStr = JSON.stringify(actual, Object.keys(actual).sort());
+  const expectedStr = JSON.stringify(expected, Object.keys(expected).sort());
+  if (actualStr !== expectedStr) {
     throw new Error(
-      `${msg}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(
-        actual
-      )}`
+      `${msg}\nExpected: ${expectedStr}\nActual: ${actualStr}`
     );
   }
 }

@@ -8,7 +8,7 @@
 const CodeMirror = (function () {
   "use strict";
 
-  const DEBUG = true;
+  const DEBUG = false;
 
   function log(...args) {
     if (DEBUG) {

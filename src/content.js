@@ -388,7 +388,9 @@
     // This handles cases where Kaggle has unloaded some cells
     let cellsToLint = extractedCode;
     
-    if (typeof CodeMirror !== "undefined") {
+    // Use CodeMirror to merge extracted cells with stored cells
+    // This handles cases where Kaggle has unloaded some cells
+    if (typeof CodeMirror !== "undefined" && typeof CodeMirror.getMergedCells === "function") {
       // Merge extracted cells with stored cells from CodeMirror
       // This ensures we still have code from cells that may have been unloaded
       cellsToLint = CodeMirror.getMergedCells(extractedCode);
