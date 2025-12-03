@@ -35,7 +35,8 @@
     {
       "matches": [
         "https://www.kaggle.com/code/*/*/edit",
-        "https://kkb-production.jupyter-proxy.kaggle.net/*"
+        "https://kkb-production.jupyter-proxy.kaggle.net/*",
+        "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/*"
       ],
 
       "js": [
@@ -49,6 +50,7 @@
         "src/rules/redefinedVariables.js",
         "src/rules/missingReturn.js",
         "src/lintEngine.js",
+        "src/pyodide/pyodide.js",
         "src/flake8Engine.js",
         "src/domParser.js",
         "src/ui/overlay.js",

@@ -1,6 +1,7 @@
 /**
  * Flake8 Linter Engine using Pyodide
  * Provides Python linting using Flake8 running in WebAssembly via Pyodide
+ * WITH NOTEBOOK CONTEXT TRACKING
  */
 
 const Flake8Engine = (function () {
@@ -10,8 +11,6 @@ const Flake8Engine = (function () {
   let isLoading = false;
   let isReady = false;
   let loadPromise = null;
-
-  const PYODIDE_CDN = "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/";
 
   /**
    * Load Pyodide and install Flake8
@@ -31,124 +30,147 @@ const Flake8Engine = (function () {
       try {
         console.log("[Flake8Engine] Loading Pyodide...");
 
-        // Load Pyodide script dynamically
-        if (typeof loadPyodide === "undefined") {
-          await loadPyodideScript();
+        // Get the correct extension URL for pyodide files
+        let pyodideIndexURL;
+        if (
+          typeof chrome !== "undefined" &&
+          chrome.runtime &&
+          chrome.runtime.getURL
+        ) {
+          pyodideIndexURL = chrome.runtime.getURL("src/pyodide/");
+          console.log(
+            "[Flake8Engine] Using local Pyodide from:",
+            pyodideIndexURL
+          );
+        } else {
+          pyodideIndexURL = "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/";
+          console.log("[Flake8Engine] Using CDN Pyodide:", pyodideIndexURL);
+        }
+
+        // Load Pyodide script
+        if (!window.loadPyodide) {
+          await loadPyodideScript(pyodideIndexURL);
         }
 
         // Initialize Pyodide
-        pyodide = await loadPyodide({
-          indexURL: PYODIDE_CDN,
+        pyodide = await window.loadPyodide({
+          indexURL: pyodideIndexURL,
         });
 
         console.log("[Flake8Engine] Pyodide loaded, installing micropip...");
-
-        // Load micropip for package installation
         await pyodide.loadPackage("micropip");
 
         console.log("[Flake8Engine] Installing Flake8...");
-
-        // Install Flake8 using micropip
         await pyodide.runPythonAsync(`
 import micropip
 await micropip.install('flake8')
         `);
 
-        // Set up the linting function in Python
+        // Set up the notebook-aware linting function
         await pyodide.runPythonAsync(`
 import sys
+import ast
 from io import StringIO
-import flake8.api.legacy as flake8
 
-def lint_code(code):
+def extract_imports_and_names(code):
     """
-    Lint Python code using Flake8 and return errors as a list of dicts.
+    Extract all imported names and defined names from code.
+    Returns: (imports_set, defined_names_set)
     """
-    import tempfile
-    import os
-    
-    # Create a temporary file with the code
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-        f.write(code)
-        temp_path = f.name
+    imports = set()
+    defined = set()
     
     try:
-        # Capture stdout/stderr
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        sys.stdout = StringIO()
-        sys.stderr = StringIO()
+        tree = ast.parse(code)
         
-        try:
-            # Run Flake8 style guide
-            style_guide = flake8.get_style_guide(
-                max_line_length=120,
-                ignore=['W503', 'E501'],  # Common ignores for notebooks
-            )
-            report = style_guide.check_files([temp_path])
+        for node in ast.walk(tree):
+            # Track imports
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.asname if alias.asname else alias.name
+                    imports.add(name.split('.')[0])
             
-            # Get results
-            results = []
-            if hasattr(report, '_application'):
-                for checker in report._application.file_checker_manager.checkers:
-                    for error in checker.results:
-                        line_number, column, text, check = error
-                        # Parse error code from text
-                        parts = text.split(' ', 1)
-                        code = parts[0] if parts else ''
-                        msg = parts[1] if len(parts) > 1 else text
-                        
-                        # Determine severity based on error code
-                        severity = 'error'
-                        if code.startswith('W'):
-                            severity = 'warning'
-                        elif code.startswith('E1') or code.startswith('E2'):
-                            severity = 'warning'
-                        
-                        results.append({
-                            'line': line_number,
-                            'column': column,
-                            'code': code,
-                            'msg': f"[{code}] {msg}",
-                            'severity': severity
-                        })
+            elif isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name == '*':
+                        # Can't track * imports precisely
+                        continue
+                    name = alias.asname if alias.asname else alias.name
+                    imports.add(name)
             
-            return results
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-    finally:
-        # Clean up temp file
-        try:
-            os.unlink(temp_path)
-        except OSError:
-            pass
+            # Track assignments
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        defined.add(target.id)
+                    elif isinstance(target, ast.Tuple) or isinstance(target, ast.List):
+                        for elt in target.elts:
+                            if isinstance(elt, ast.Name):
+                                defined.add(elt.id)
+            
+            elif isinstance(node, ast.AnnAssign):
+                if isinstance(node.target, ast.Name):
+                    defined.add(node.target.id)
+            
+            # Track function definitions
+            elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+                defined.add(node.name)
+            
+            # Track class definitions
+            elif isinstance(node, ast.ClassDef):
+                defined.add(node.name)
+                
+    except SyntaxError:
+        pass
+    
+    return imports, defined
 
-def lint_code_simple(code):
+def lint_code_with_context(code, known_names=None):
     """
-    Simple linting approach that doesn't rely on file-based checking.
-    Uses pyflakes directly for AST-based analysis.
+    Lint Python code with awareness of previously defined names.
+    known_names: set of variable/function/class names defined in previous cells
     """
     import ast
     results = []
     
+    if known_names is None:
+        known_names = set()
+    
     # Check for syntax errors first
     try:
-        ast.parse(code)
+        tree = ast.parse(code)
     except SyntaxError as e:
         results.append({
             'line': e.lineno or 1,
             'column': e.offset or 0,
             'code': 'E999',
-            'msg': f"[E999] SyntaxError: {e.msg}",
+            'msg': f"SyntaxError: {e.msg}",
             'severity': 'error'
         })
-        return results
+        return results, set()
     
-    # Try pyflakes for undefined names, etc.
+    # Extract what this cell defines
+    imports, defined = extract_imports_and_names(code)
+    new_names = imports | defined
+    
+    # Use pyflakes for undefined name checking
     try:
         from pyflakes import api as pyflakes_api
-        from pyflakes import reporter as pyflakes_reporter
+        from pyflakes import checker
+        
+        class ContextAwareChecker(checker.Checker):
+            """Custom checker that knows about notebook context."""
+            
+            def __init__(self, tree, filename='<input>', known_context=None):
+                super().__init__(tree, filename)
+                self.known_context = known_context or set()
+            
+            def report(self, messageClass, *args, **kwargs):
+                # Filter out undefined name errors for known context
+                if messageClass.__name__ == 'UndefinedName':
+                    if args and args[1] in self.known_context:
+                        return  # Skip this error
+                super().report(messageClass, *args, **kwargs)
         
         class CollectingReporter:
             def __init__(self):
@@ -162,39 +184,86 @@ def lint_code_simple(code):
                     'line': lineno or 1,
                     'column': offset or 0,
                     'code': 'E999',
-                    'msg': f"[E999] {msg}",
+                    'msg': msg,
                     'severity': 'error'
                 })
             
             def flake(self, message):
-                # Get message code
                 code = message.__class__.__name__
+                
+                # Skip undefined name errors for known context
+                if code == 'UndefinedName':
+                    # Extract the undefined name
+                    msg_str = str(message)
+                    if "'" in msg_str:
+                        name = msg_str.split("'")[1]
+                        if name in known_names:
+                            return  # Skip - it's defined in a previous cell
+                
                 severity = 'warning'
                 if 'Undefined' in code or 'Import' in code:
                     severity = 'error'
+                
+                msg_text = str(message).split(':', 1)[-1].strip()
                 
                 self.messages.append({
                     'line': message.lineno,
                     'column': getattr(message, 'col', 0),
                     'code': code,
-                    'msg': f"[{code}] {str(message).split(':', 1)[-1].strip()}",
+                    'msg': msg_text,
                     'severity': severity
                 })
         
         reporter = CollectingReporter()
-        pyflakes_api.check(code, '<input>', reporter)
+        
+        # Create a context-aware checker
+        w = ContextAwareChecker(tree, '<input>', known_names)
+        
+        # Collect messages
+        for message in w.messages:
+            reporter.flake(message)
+        
         results.extend(reporter.messages)
+        
     except ImportError:
         pass
     except Exception as e:
-        pass
+        print(f"Linting error: {e}")
     
+    return results, new_names
+
+# Store for global context
+_notebook_context = set()
+
+def reset_notebook_context():
+    """Reset the global notebook context."""
+    global _notebook_context
+    _notebook_context = set()
+
+def get_notebook_context():
+    """Get current notebook context."""
+    return _notebook_context.copy()
+
+def update_notebook_context(new_names):
+    """Update notebook context with new names."""
+    global _notebook_context
+    _notebook_context.update(new_names)
+
+def lint_cell_with_notebook_context(code):
+    """
+    Lint a single cell with full notebook context.
+    Automatically updates context with names defined in this cell.
+    """
+    results, new_names = lint_code_with_context(code, _notebook_context)
+    update_notebook_context(new_names)
     return results
         `);
 
         isReady = true;
         isLoading = false;
-        console.log("[Flake8Engine] Flake8 ready!");
+        console.log(
+          "[Flake8Engine] Flake8 ready with notebook context support!"
+        );
       } catch (error) {
         isLoading = false;
         isReady = false;
@@ -207,67 +276,62 @@ def lint_code_simple(code):
   }
 
   /**
-   * Load Pyodide script from CDN
+   * Load the Pyodide script dynamically
    */
-  async function loadPyodideScript() {
+  function loadPyodideScript(indexURL) {
     return new Promise((resolve, reject) => {
+      if (window.loadPyodide) {
+        resolve();
+        return;
+      }
+
       const script = document.createElement("script");
-      script.src = PYODIDE_CDN + "pyodide.js";
-      script.onload = resolve;
-      script.onerror = () => reject(new Error("Failed to load Pyodide"));
+      script.src = indexURL + "pyodide.js";
+      script.onload = () => {
+        console.log("[Flake8Engine] Pyodide script loaded");
+        resolve();
+      };
+      script.onerror = (error) => {
+        console.error("[Flake8Engine] Failed to load Pyodide script:", error);
+        reject(new Error("Failed to load Pyodide script"));
+      };
       document.head.appendChild(script);
     });
   }
 
-  /**
-   * Check if the engine is ready
-   * @returns {boolean}
-   */
   function getIsReady() {
     return isReady;
   }
 
-  /**
-   * Check if the engine is loading
-   * @returns {boolean}
-   */
   function getIsLoading() {
     return isLoading;
   }
 
   /**
    * Lint a single cell's code
-   * @param {string} code - Python source code
-   * @param {number} cellOffset - Line offset for global line numbers
-   * @param {number} cellIndex - Cell index
-   * @returns {Promise<{errors: Array, newContext: Set}>}
    */
   async function lintCell(code, cellOffset = 0, cellIndex = 0) {
     if (!isReady) {
       await load();
     }
 
-    // Skip empty code
     if (!code || code.trim().length === 0) {
       return { errors: [], newContext: new Set() };
     }
 
-    // Skip magic commands and shell commands
     if (code.trim().startsWith("%%") || code.trim().startsWith("!")) {
       return { errors: [], newContext: new Set() };
     }
 
     try {
-      // Run Flake8 linting
       const results = await pyodide.runPythonAsync(`
 import json
-results = lint_code_simple(${JSON.stringify(code)})
+results = lint_cell_with_notebook_context(${JSON.stringify(code)})
 json.dumps(results)
       `);
 
       const errors = JSON.parse(results);
 
-      // Adjust line numbers with offset
       const adjustedErrors = errors.map((error) => ({
         ...error,
         line: error.line + cellOffset,
@@ -282,14 +346,15 @@ json.dumps(results)
   }
 
   /**
-   * Lint multiple cells (notebook)
-   * @param {Array<{code: string, element: Element, cellIndex: number}>} cells
-   * @returns {Promise<Array>}
+   * Lint multiple cells (notebook) with full context tracking
    */
   async function lintNotebook(cells) {
     if (!isReady) {
       await load();
     }
+
+    // Reset context before linting entire notebook
+    await pyodide.runPythonAsync(`reset_notebook_context()`);
 
     const allErrors = [];
     let lineOffset = 0;
@@ -314,8 +379,6 @@ json.dumps(results)
 
   /**
    * Get error statistics
-   * @param {Array} errors
-   * @returns {Object}
    */
   function getStats(errors) {
     const stats = {

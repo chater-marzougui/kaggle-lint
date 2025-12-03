@@ -251,7 +251,7 @@ async function isInKaggle() {
     active: true,
     currentWindow: true,
   });
-  return tab.url.includes("kaggle.com") && tab.url.includes("/edit/");
+  return tab.url.includes("kaggle.com") && tab.url.includes("/edit");
 }
 
 /**
