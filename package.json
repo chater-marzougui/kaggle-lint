@@ -1,8 +1,32 @@
 {
   "devDependencies": {
-    "jsdom": "^27.2.0"
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "babel-loader": "^10.0.0",
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^13.0.1",
+    "cross-env": "^10.1.0",
+    "css-loader": "^7.1.2",
+    "dotenv": "^17.2.3",
+    "html-loader": "^5.1.0",
+    "jsdom": "^27.2.0",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2",
+    "webpack-merge": "^6.0.1"
   },
   "scripts": {
-    "build": "webpack"
+    "predev": "node scripts/build-manifest.js",
+    "dev": "cross-env NODE_ENV=development webpack --config config/webpack.dev.js --watch",
+    "prebuild": "node scripts/build-manifest.js",
+    "build": "cross-env NODE_ENV=production webpack --config config/webpack.prod.js",
+    "build:dev": "cross-env NODE_ENV=development webpack --config config/webpack.dev.js",
+    "watch": "npm run dev",
+    "clean": "if exist dist rmdir /s /q dist",
+    "zip": "npm run build && powershell Compress-Archive -Path dist\\* -DestinationPath kaggle-linter.zip -Force",
+    "serve": "webpack serve --config config/webpack.dev.js",
+    "lint": "echo 'Add ESLint if needed'",
+    "test": "echo 'Add tests if needed'"
   }
 }

@@ -18,6 +18,14 @@ npm-debug.log*
 # Build artifacts
 dist/
 build/
+*.zip
+kaggle-linter.zip
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
 
 # Temp files
 *.tmp
