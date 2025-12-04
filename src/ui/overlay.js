@@ -337,9 +337,9 @@ const LintOverlay = (function () {
   /**
    * Adds inline markers to cells (errors or success)
    * @param {Array} errors - Lint errors
-   * @param {Array} allCells - All notebook cells
+   * @param {Array<{element: Element, cellIndex: number}>} codeCells - All code cells with their indices
    */
-  function addInlineMarkers(errors, allCells = []) {
+  function addInlineMarkers(errors, codeCells = []) {
     removeInlineMarkers();
 
     const errorsByCell = new Map();
@@ -397,8 +397,12 @@ const LintOverlay = (function () {
     });
 
     // Add success checkmarks for cells without errors
-    allCells.forEach((cell, index) => {
-      if (!errorsByCell.has(index) && cell) {
+    // Use cellIndex from each codeCell to properly match with errorsByCell
+    codeCells.forEach((codeCell) => {
+      const cellIndex = codeCell.cellIndex;
+      const element = codeCell.element;
+      
+      if (!errorsByCell.has(cellIndex) && element) {
         const marker = document.createElement("div");
         marker.className = "kaggle-lint-inline-marker kaggle-lint-no-errors";
         marker.innerHTML = "<span>✓ No errors</span>";
@@ -417,8 +421,8 @@ const LintOverlay = (function () {
           tooltip.style.display = "none";
         });
 
-        cell.style.position = "relative";
-        cell.appendChild(marker);
+        element.style.position = "relative";
+        element.appendChild(marker);
       }
     });
   }
