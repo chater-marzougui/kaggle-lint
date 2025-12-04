@@ -24,7 +24,18 @@
 
     const results = [];
 
-    // get all code editors that are actually code cells
+    // First get ALL cells to establish proper indices
+    // This is important for Kaggle's virtualized rendering
+    const allCells = document.querySelectorAll(".jp-Cell");
+    log(`Found ${allCells.length} total cells in notebook`);
+    
+    // Create a map of cell elements to their actual index
+    const cellIndexMap = new Map();
+    allCells.forEach((cell, index) => {
+      cellIndexMap.set(cell, index);
+    });
+
+    // Get all code editors that are actually code cells
     const editors = document.querySelectorAll(".jp-CodeCell .cm-editor");
     log(`Found ${editors.length} code editors`);
 
@@ -41,14 +52,18 @@
         if (code.trim().length > 0) {
           const cell = editor.closest(".jp-Cell");
           const uuid = cell?.getAttribute("data-uuid") || null;
+          
+          // Get the actual cell index from the notebook structure
+          // This ensures proper indexing even with virtualized rendering
+          const actualCellIndex = cellIndexMap.has(cell) ? cellIndexMap.get(cell) : i;
 
           results.push({
             code,
-            cellIndex: i,
+            cellIndex: actualCellIndex,
             uuid,
           });
 
-          log(`Editor ${i}: ✅ extracted ${code.length} chars`);
+          log(`Editor ${i}: ✅ extracted ${code.length} chars (cellIndex: ${actualCellIndex})`);
         } else {
           log(`Editor ${i}: ⚠️ empty`);
         }
