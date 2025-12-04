@@ -13,7 +13,7 @@
   let pageInjectionReady = false;
   let pendingLintRequest = false;
   let isLinting = false;
-  const DEBUG = true;
+  const DEBUG = false;
 
   function log(...args) {
     if (DEBUG) {

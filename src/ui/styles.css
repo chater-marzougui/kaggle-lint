@@ -123,7 +123,9 @@
   width: 16px;
   height: 16px;
   vertical-align: middle;
-  margin-right: 12px;
+  padding-left: 3px;
+  margin-right: 10px;
+  scale: 1.6;
 }
 
 .kaggle-lint-controls {
@@ -390,6 +392,17 @@
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
+}
+
+.kaggle-lint-error-line {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.kaggle-lint-error-line svg {
+  vertical-align: middle;
+  width: 18px;
+  height: 18px;
 }
 
 .kaggle-lint-theme-dark .kaggle-lint-inline-marker {

@@ -191,6 +191,8 @@ const LintOverlay = (function () {
         setTimeout(() => {
           titleText.style.opacity = "1";
         }, 10);
+        overlay.style.bottom = "20px";
+        overlay.style.right = "20px";
       }, 150);
 
       btn.style.transform = "rotate(0deg)";
@@ -325,11 +327,11 @@ const LintOverlay = (function () {
   /**
    * Error line
    */
-  function scrollToErrorLine(hexColor, countOfErrors) {
+  function scrollToErrorLine(hexColor, countOfErrors, icon) {
     if (countOfErrors === 0) {
       return "";
     }
-    return `<span style="color: #333333;"><span style="color: ${hexColor};">●</span> ${countOfErrors}</span>`;
+    return `<span class="kaggle-lint-error-line" style="color: #0f0f0fff; font-weight: bold; font-size: 14px;"><span style="color: ${hexColor}">${icon}</span> ${countOfErrors}</span>`;
   }
 
   /**
@@ -362,9 +364,9 @@ const LintOverlay = (function () {
       cellErrors.forEach((e) => counts[e.severity]++);
 
       let markerHtml = "";
-      markerHtml += `${scrollToErrorLine("#f48771", counts.error)}`;
-      markerHtml += `${scrollToErrorLine("#deb887", counts.warning)}`;
-      markerHtml += `${scrollToErrorLine("#6a9fb5", counts.info)}`;
+      markerHtml += `${scrollToErrorLine("#f48771", counts.error, SEVERITY_ICONS.error)}`;
+      markerHtml += `${scrollToErrorLine("#deb887", counts.warning, SEVERITY_ICONS.warning)}`;
+      markerHtml += `${scrollToErrorLine("#6a9fb5", counts.info, SEVERITY_ICONS.info)}`;
 
       marker.innerHTML = markerHtml;
 

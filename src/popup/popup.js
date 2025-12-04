@@ -99,31 +99,29 @@ async function saveSettings(settings) {
  */
 async function renderRulesList() {
   const container = document.getElementById("rules-list");
+  const rulesSection = document.getElementById("rules-section");
   const settings = await loadSettings();
   const isFlake8 = settings.linterEngine === "flake8";
 
-  // Show/hide rules based on linter engine
+  // Show/hide rules section based on linter engine
   if (isFlake8) {
-    container.innerHTML = `
-      <div class="flake8-info">
-        <p>Flake8 uses its own set of rules. The built-in rule toggles are disabled when using Flake8.</p>
-      </div>
-    `;
+    rulesSection.style.display = "none";
   } else {
+    rulesSection.style.display = "block";
     container.innerHTML = RULES.map((rule) => {
       const isEnabled = settings.rules[rule.id] !== false; // Default to enabled
       return `
         <div class="rule-item">
+          <div class="rule-info">
+            <span class="rule-name">${rule.name}</span>
+            <span class="rule-description">${rule.description}</span>
+          </div>
           <label class="rule-toggle">
             <input type="checkbox" 
                    data-rule-id="${rule.id}" 
                    ${isEnabled ? "checked" : ""}>
             <span class="toggle-slider"></span>
           </label>
-          <div class="rule-info">
-            <span class="rule-name">${rule.name}</span>
-            <span class="rule-description">${rule.description}</span>
-          </div>
         </div>
       `;
     }).join("");
@@ -193,10 +191,31 @@ function updateFlake8Status(engine) {
   if (engine === "flake8") {
     statusEl.style.display = "block";
     statusEl.textContent = "Flake8 will be loaded on first lint";
-    statusEl.className = "flake8-status";
+    statusEl.className = "status-message";
   } else {
     statusEl.style.display = "none";
   }
+}
+
+/**
+ * Detect and apply theme based on system preferences
+ */
+function applyTheme() {
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (!prefersDark) {
+    document.body.classList.add("light-theme");
+  }
+}
+
+// Listen for theme changes
+if (window.matchMedia) {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    if (e.matches) {
+      document.body.classList.remove("light-theme");
+    } else {
+      document.body.classList.add("light-theme");
+    }
+  });
 }
 
 /**
@@ -258,11 +277,12 @@ async function isInKaggle() {
  * Initialize popup
  */
 async function init() {
+  applyTheme();
   loadExtensionVersion();
   const inKaggle = await isInKaggle();
   if (!inKaggle) {
     document.getElementById('kaggle-content').style.display = "none";
-    document.querySelectorAll('.subtitle').forEach(el => el.style.display = "none");
+    document.querySelector('.header').style.borderBottom = "none";
     document.getElementById('not-kaggle-content').style.display = "flex";
     return;
   }

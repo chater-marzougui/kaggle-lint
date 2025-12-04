@@ -17,7 +17,6 @@ const KaggleDomParser = (function () {
 
   function detectTheme() {
     const body = document.body;
-    return 'light';
     if (!body) return "light";
 
     if (body.classList.contains("theme--dark")) return "dark";
