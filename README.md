@@ -98,6 +98,44 @@ const MyRule = (function () {
 
 ### Testing
 
+#### Unit Tests
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+This runs both rule tests and CodeMirror tests:
+- `test/rules.test.js` - Tests for all linting rules (62 tests)
+- `test/codeMirror.test.js` - Tests for cell storage system (17 tests)
+
+#### Standalone Demo Page
+
+Test the linter without installing the extension:
+
+1. Start the demo server:
+   ```bash
+   npm run test:demo
+   ```
+   Or manually:
+   ```bash
+   cd test && python3 -m http.server 8000
+   ```
+
+2. Open http://localhost:8000/linter-demo.html in your browser
+
+3. Upload a `.ipynb` file to see the linter in action
+
+The demo page (`test/linter-demo.html`) provides:
+- Drag-and-drop or click-to-browse file upload
+- Visual display of all code cells
+- Real-time linting results with severity indicators
+- Click-to-scroll error navigation
+- Summary statistics (errors, warnings, info)
+
+#### Browser Testing
+
 Open a Kaggle notebook and check the browser console for debug output.
 
 ## Acknowledgments

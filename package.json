@@ -27,6 +27,7 @@
     "zip": "npm run build && powershell Compress-Archive -Path dist\\* -DestinationPath kaggle-linter.zip -Force",
     "serve": "webpack serve --config config/webpack.dev.js",
     "lint": "echo 'Add ESLint if needed'",
-    "test": "echo 'Add tests if needed'"
+    "test": "node test/rules.test.js && node test/codeMirror.test.js",
+    "test:demo": "cd test && python3 -m http.server 8000"
   }
 }
