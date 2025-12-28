@@ -250,10 +250,22 @@ const LintEngine = (function () {
     return rules.map((r) => ({ name: r.name }));
   }
 
+  /**
+   * Convenience function to lint a single piece of code
+   * @param {string} code - Python source code
+   * @param {number} cellOffset - Line offset
+   * @returns {Array} Array of errors
+   */
+  function lintCode(code, cellOffset = 0) {
+    const { errors } = lintCell(code, cellOffset, 0, {});
+    return errors;
+  }
+
   return {
     registerRule,
     initializeRules,
     lintCell,
+    lintCode,
     lintNotebook,
     filterBySeverity,
     groupByCell,
