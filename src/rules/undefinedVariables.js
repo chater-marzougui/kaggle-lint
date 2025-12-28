@@ -234,21 +234,21 @@ const UndefinedVariablesRule = (function () {
     let result = code;
 
     // Remove triple-quoted strings (multi-line) first - both """ and '''
-    // Match optional f/r/b prefix, triple quotes, content, triple quotes
-    result = result.replace(/[fFrRbBuU]?"""[\s\S]*?"""/g, (match) => {
+    // Match optional f/r/b prefix (can be combined like fr, rf, br), triple quotes, content, triple quotes
+    result = result.replace(/[fFrRbBuU]{0,2}"""[\s\S]*?"""/g, (match) => {
       // Replace with empty string but preserve newlines for line numbers
       const newlines = (match.match(/\n/g) || []).length;
       return '""' + "\n".repeat(newlines);
     });
 
-    result = result.replace(/[fFrRbBuU]?'''[\s\S]*?'''/g, (match) => {
+    result = result.replace(/[fFrRbBuU]{0,2}'''[\s\S]*?'''/g, (match) => {
       const newlines = (match.match(/\n/g) || []).length;
       return "''" + "\n".repeat(newlines);
     });
 
     // Remove single-line strings (both single and double quotes)
-    // This handles f-strings, r-strings, etc.
-    result = result.replace(/[fFrRbBuU]?(["'])(?:\\.|(?!\1)[^\\\n])*\1/g, '""');
+    // This handles f-strings, r-strings, and combinations (fr, rf, br, etc.)
+    result = result.replace(/[fFrRbBuU]{0,2}(["'])(?:\\.|(?!\1)[^\\\n])*\1/g, '""');
 
     return result;
   }
