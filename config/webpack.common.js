@@ -3,6 +3,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const webpack = require('webpack');
 const dotenv = require('dotenv');
+const ManifestPlugin = require('../scripts/manifest-plugin');
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ module.exports = {
     'ui/overlay': './src/ui/overlay.js',
     'lintEngine': './src/lintEngine.js',
     'domParser': './src/domParser.js',
+    'codeMirror': './src/codeMirror.js',
     'pageInjection': './src/pageInjection.js',
     'flake8Engine': './src/flake8Engine.js',
   },
@@ -99,6 +101,7 @@ module.exports = {
       'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
       'process.env.EXTENSION_VERSION': JSON.stringify(process.env.EXTENSION_VERSION),
     }),
+    new ManifestPlugin(),
   ],
   resolve: {
     alias: {

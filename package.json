@@ -17,9 +17,7 @@
     "webpack-merge": "^6.0.1"
   },
   "scripts": {
-    "predev": "node scripts/build-manifest.js",
     "dev": "cross-env NODE_ENV=development webpack --config config/webpack.dev.js --watch",
-    "prebuild": "node scripts/build-manifest.js",
     "build": "cross-env NODE_ENV=production webpack --config config/webpack.prod.js",
     "build:dev": "cross-env NODE_ENV=development webpack --config config/webpack.dev.js",
     "watch": "npm run dev",
