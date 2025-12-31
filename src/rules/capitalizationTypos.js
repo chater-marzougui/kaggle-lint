@@ -6,6 +6,29 @@
 const CapitalizationTyposRule = (function () {
   "use strict";
 
+  // Names that should be excluded from capitalization checks
+  // (e.g., typing module types that are intentionally capitalized)
+  const EXCLUDED_NAMES = new Set([
+    "List",
+    "Dict",
+    "Set",
+    "Tuple",
+    "Optional",
+    "Union",
+    "Any",
+    "Callable",
+    "Sequence",
+    "Iterable",
+    "Mapping",
+    "Type",
+    "ClassVar",
+    "Final",
+    "Literal",
+    "TypeVar",
+    "Generic",
+    "Protocol",
+  ]);
+
   const COMMON_NAMES = {
     true: "True",
     false: "False",
@@ -148,7 +171,13 @@ const CapitalizationTyposRule = (function () {
         const lowerName = name.toLowerCase();
         const beforeChar = processedLine[match.index - 1];
 
+        // Skip names after a dot (method/attribute names)
         if (beforeChar === ".") {
+          continue;
+        }
+
+        // Skip excluded names (like typing module types)
+        if (EXCLUDED_NAMES.has(name)) {
           continue;
         }
 

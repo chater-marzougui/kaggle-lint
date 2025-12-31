@@ -95,11 +95,11 @@ const ImportIssuesRule = (function () {
       let match;
 
       match =
-        /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(
+        /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(
           line
         );
       if (match) {
-        const name = match[2] || match[1];
+        const name = match[2] || match[1].split(".")[0]; // Use alias or first part of dotted name
         if (importedNames.has(name)) {
           errors.push({
             line: lineIndex + 1 + cellOffset,
