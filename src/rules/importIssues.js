@@ -95,11 +95,13 @@ const ImportIssuesRule = (function () {
       let match;
 
       match =
-        /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(
+        /^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.]*)(?:\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*))?/.exec(
           line
         );
       if (match) {
-        const name = match[2] || match[1];
+        // Use alias if provided (match[2]), otherwise use the base module name from dotted import (match[1])
+        // Examples: "import matplotlib.pyplot as plt" -> "plt", "import numpy" -> "numpy"
+        const name = match[2] || match[1].split(".")[0];
         if (importedNames.has(name)) {
           errors.push({
             line: lineIndex + 1 + cellOffset,

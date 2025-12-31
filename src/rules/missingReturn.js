@@ -7,18 +7,36 @@ const MissingReturnRule = (function () {
   "use strict";
 
   /**
+   * Checks if a line contains a decorator
+   * @param {string} line - Line of code
+   * @returns {string|null} Decorator name or null
+   */
+  function extractDecorator(line) {
+    const decoratorMatch = /^(\s*)@([a-zA-Z_][a-zA-Z0-9_.]*)\s*/.exec(line);
+    return decoratorMatch ? decoratorMatch[2] : null;
+  }
+
+  /**
    * Extracts function definitions with their bodies
    * @param {string} code - Python source code
-   * @returns {Array<{name: string, startLine: number, endLine: number, body: string, hasReturn: boolean}>}
+   * @returns {Array<{name: string, startLine: number, endLine: number, body: string, hasReturn: boolean, decorators: Array<string>}>}
    */
   function extractFunctions(code) {
     const functions = [];
     const lines = code.split("\n");
     let currentFunc = null;
     let funcIndent = 0;
+    let pendingDecorators = [];
 
     lines.forEach((line, lineIndex) => {
       const lineNum = lineIndex + 1;
+
+      // Check for decorators
+      const decorator = extractDecorator(line);
+      if (decorator && !currentFunc) {
+        pendingDecorators.push(decorator);
+        return;
+      }
 
       const funcMatch =
         /^(\s*)def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/.exec(line);
@@ -37,7 +55,9 @@ const MissingReturnRule = (function () {
           params: funcMatch[3],
           indent: funcMatch[1].length,
           bodyIndent: null,
+          decorators: [...pendingDecorators],
         };
+        pendingDecorators = [];
         funcIndent = funcMatch[1].length;
         return;
       }
@@ -69,6 +89,12 @@ const MissingReturnRule = (function () {
           currentFunc.hasReturn = checkHasReturn(currentFunc.body);
           functions.push(currentFunc);
           currentFunc = null;
+          // Don't reset pendingDecorators here - they might be for the next function
+          // Check if this line is a decorator for the next function
+          const nextDecorator = extractDecorator(line);
+          if (nextDecorator) {
+            pendingDecorators.push(nextDecorator);
+          }
         }
       }
     });
@@ -156,11 +182,26 @@ const MissingReturnRule = (function () {
   }
 
   /**
-   * Checks if function is a special method that doesn't need return
-   * @param {string} name - Function name
+   * Checks if function is a property setter (has @*.setter decorator)
+   * Property setters in Python are in the form @property_name.setter
+   * @param {Array<string>} decorators - Function decorators
    * @returns {boolean}
    */
-  function isSpecialMethod(name) {
+  function isPropertySetter(decorators) {
+    if (!decorators || decorators.length === 0) {
+      return false;
+    }
+    // Only match decorators that end with .setter (e.g., @value.setter)
+    return decorators.some((dec) => dec.endsWith(".setter"));
+  }
+
+  /**
+   * Checks if function is a special method that doesn't need return
+   * @param {string} name - Function name
+   * @param {Array<string>} decorators - Function decorators
+   * @returns {boolean}
+   */
+  function isSpecialMethod(name, decorators = []) {
     const specialMethods = new Set([
       "__init__",
       "__del__",
@@ -178,7 +219,7 @@ const MissingReturnRule = (function () {
       "teardown",
       "main",
     ]);
-    return specialMethods.has(name);
+    return specialMethods.has(name) || isPropertySetter(decorators);
   }
 
   /**
@@ -192,7 +233,7 @@ const MissingReturnRule = (function () {
     const functions = extractFunctions(code);
 
     functions.forEach((func) => {
-      if (isSpecialMethod(func.name)) {
+      if (isSpecialMethod(func.name, func.decorators)) {
         return;
       }
 

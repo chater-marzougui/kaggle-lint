@@ -593,6 +593,36 @@ test("allows print/display functions without return", () => {
   assertLength(errors, 0, "Should allow print functions without return");
 });
 
+test("allows property setters without return", () => {
+  const code = "@property\ndef value(self):\n    return self._value\n\n@value.setter\ndef value(self, val):\n    self._value = val";
+  const errors = MissingReturnRule.run(code);
+  assertLength(errors, 0, "Should allow property setters without return");
+});
+
+// Additional tests for false positive fixes
+console.log("\n=== False Positive Regression Tests ===");
+
+test("handles matplotlib.pyplot import correctly", () => {
+  const code = "import matplotlib.pyplot as plt\nplt.figure(figsize=(10, 6))\nplt.show()";
+  const errors = ImportIssuesRule.run(code);
+  const unusedErrors = errors.filter(e => e.msg.includes('matplotlib') && e.msg.includes('unused'));
+  assertLength(unusedErrors, 0, "Should not flag matplotlib as unused when plt is used");
+});
+
+test("excludes typing module names from capitalization checks", () => {
+  const code = "from typing import List, Dict\ndef process(data: List[Dict]) -> int:\n    return len(data)";
+  const errors = CapitalizationTyposRule.run(code);
+  assertLength(errors, 0, "Should not flag typing module names like List, Dict");
+});
+
+test("allows self and cls in methods", () => {
+  const code = "class MyClass:\n    def method(self):\n        self.value = 42\n    @classmethod\n    def factory(cls):\n        return cls()";
+  const result = UndefinedVariablesRule.run(code);
+  const errors = result.errors || result;
+  const selfErrors = errors.filter(e => e.msg.includes("'self'") || e.msg.includes("'cls'"));
+  assertLength(selfErrors, 0, "Should not flag self or cls as undefined");
+});
+
 // Summary
 console.log("\n=== Summary ===");
 console.log(`Passed: ${passed}`);

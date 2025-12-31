@@ -502,11 +502,15 @@ const UndefinedVariablesRule = (function () {
     // Get context from previous cells if available
     const previousContext = options.previousContext || new Set();
 
+    // Add implicit names that are always available in class methods
+    const implicitNames = new Set(["self", "cls"]);
+
     const allKnown = new Set([
       ...PYTHON_BUILTINS,
       ...COMMON_LIBRARIES,
       ...defined,
       ...previousContext,
+      ...implicitNames,
     ]);
 
     const reported = new Set();
