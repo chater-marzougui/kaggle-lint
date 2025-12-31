@@ -25,6 +25,11 @@
     }
 
     function setupEventListeners() {
+        // Re-lint button
+        document.getElementById('relint-btn').addEventListener('click', () => {
+            relintNotebook();
+        });
+        
         // Click to upload
         uploadBox.addEventListener('click', () => {
             fileInput.click();
@@ -111,23 +116,58 @@
     function displayNotebook(codeCells) {
         notebookTitle.textContent = `Notebook (${codeCells.length} code cells)`;
         
-        let html = '';
+        notebookContent.innerHTML = '';
+        
         codeCells.forEach((cell, index) => {
             const code = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
-            const escapedCode = escapeHtml(code);
             
-            html += `
-                <div class="code-cell" id="cell-${index}">
-                    <div class="cell-header">
-                        <span class="cell-number">Cell ${index + 1}</span>
-                        <span class="cell-errors" id="cell-errors-${index}"></span>
-                    </div>
-                    <div class="cell-code">${escapedCode}</div>
+            const cellDiv = document.createElement('div');
+            cellDiv.className = 'code-cell';
+            cellDiv.id = `cell-${index}`;
+            
+            const lines = code.split('\n');
+            const lineNumbers = lines.map((_, i) => i + 1).join('\n');
+            
+            cellDiv.innerHTML = `
+                <div class="cell-header">
+                    <span class="cell-number">Cell ${index + 1}</span>
+                    <span class="cell-errors" id="cell-errors-${index}"></span>
+                </div>
+                <div class="cell-code">
+                    <div class="line-numbers" id="line-numbers-${index}">${lineNumbers}</div>
+                    <textarea class="code-editor" id="code-editor-${index}" spellcheck="false">${code}</textarea>
                 </div>
             `;
+            
+            notebookContent.appendChild(cellDiv);
+            
+            // Add input listener to update line numbers
+            const editor = document.getElementById(`code-editor-${index}`);
+            editor.addEventListener('input', () => updateLineNumbers(index));
+            editor.addEventListener('scroll', () => syncScroll(index));
         });
-
-        notebookContent.innerHTML = html;
+        
+        // Show re-lint button
+        document.getElementById('relint-btn').style.display = 'inline-block';
+    }
+    
+    function updateLineNumbers(cellIndex) {
+        const editor = document.getElementById(`code-editor-${cellIndex}`);
+        const lineNumbersDiv = document.getElementById(`line-numbers-${cellIndex}`);
+        
+        if (!editor || !lineNumbersDiv) return;
+        
+        const lines = editor.value.split('\n');
+        lineNumbersDiv.textContent = lines.map((_, i) => i + 1).join('\n');
+    }
+    
+    function syncScroll(cellIndex) {
+        const editor = document.getElementById(`code-editor-${cellIndex}`);
+        const lineNumbersDiv = document.getElementById(`line-numbers-${cellIndex}`);
+        
+        if (!editor || !lineNumbersDiv) return;
+        
+        lineNumbersDiv.scrollTop = editor.scrollTop;
     }
 
     function runLinter(codeCells) {
@@ -163,6 +203,43 @@
         console.log('Lint results:', lintResults);
         displayLintResults();
     }
+    
+    function relintNotebook() {
+        console.log('Re-linting notebook...');
+        
+        // Clear existing error highlights
+        document.querySelectorAll('.code-cell').forEach(cell => {
+            cell.classList.remove('has-errors');
+        });
+        
+        // Gather current code from editors
+        const codeCells = [];
+        let cellIndex = 0;
+        
+        while (true) {
+            const editor = document.getElementById(`code-editor-${cellIndex}`);
+            if (!editor) break;
+            
+            codeCells.push({
+                cell_type: 'code',
+                source: editor.value
+            });
+            cellIndex++;
+        }
+        
+        if (codeCells.length === 0) {
+            alert('No code cells to lint');
+            return;
+        }
+        
+        // Show loading state
+        lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Re-linting...</div></div>';
+        
+        // Run linter with slight delay to show loading
+        setTimeout(() => {
+            runLinter(codeCells);
+        }, 100);
+    }
 
     function displayLintResults() {
         // Count by severity
@@ -186,6 +263,12 @@
             const elem = document.getElementById(`cell-errors-${cellIndex}`);
             if (elem) {
                 elem.textContent = `${count} issue${count !== 1 ? 's' : ''}`;
+            }
+            
+            // Add visual indicator for cells with errors
+            const cell = document.getElementById(`cell-${cellIndex}`);
+            if (cell) {
+                cell.classList.add('has-errors');
             }
         });
 
