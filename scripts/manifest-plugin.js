@@ -9,11 +9,12 @@ class ManifestPlugin {
   apply(compiler) {
     compiler.hooks.afterEmit.tapAsync('ManifestPlugin', (compilation, callback) => {
       const isDev = process.env.NODE_ENV === 'development';
+      const version = '1.0.0';
       
       const baseManifest = {
         manifest_version: 2,
         name: "Kaggle Linter",
-        version: "1.0.0",
+        version: version,
         description: "A linter for Kaggle notebooks",
         permissions: ["activeTab", "storage"],
         browser_action: {
@@ -55,7 +56,6 @@ class ManifestPlugin {
       const prodManifest = {
         ...baseManifest,
         name: "Kaggle Linter",
-        version: "1.0.0",
         content_security_policy: "script-src 'self'; object-src 'self'"
       };
 
@@ -64,11 +64,15 @@ class ManifestPlugin {
       const outputPath = compiler.options.output.path;
       const manifestPath = path.resolve(outputPath, 'manifest.json');
       
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-      
-      console.log(`✓ Manifest generated for ${isDev ? 'development' : 'production'}`);
-      
-      callback();
+      fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), (err) => {
+        if (err) {
+          console.error('✗ Failed to generate manifest:', err);
+          callback(err);
+        } else {
+          console.log(`✓ Manifest generated for ${isDev ? 'development' : 'production'}`);
+          callback();
+        }
+      });
     });
   }
 }

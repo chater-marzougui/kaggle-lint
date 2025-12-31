@@ -236,22 +236,24 @@
             return;
         }
 
-        // Show loading state
-        lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading Flake8 (first time may take a while)...</div></div>';
-
         try {
-            // Load Flake8 if not ready
-            if (!Flake8Engine.getIsReady() && !flake8Loading) {
-                flake8Loading = true;
-                console.log('Loading Flake8 for the first time...');
-                await Flake8Engine.load();
-                flake8Ready = true;
-                flake8Loading = false;
-                console.log('Flake8 loaded successfully');
-            } else if (flake8Loading) {
-                // Wait for it to finish loading
-                lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Flake8 is loading, please wait...</div></div>';
-                return;
+            // Load Flake8 if not ready (this handles the loading synchronization internally)
+            if (!Flake8Engine.getIsReady()) {
+                lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading Flake8 (first time may take a while)...</div></div>';
+                
+                if (!flake8Loading) {
+                    flake8Loading = true;
+                    console.log('Loading Flake8 for the first time...');
+                    await Flake8Engine.load();
+                    flake8Ready = true;
+                    flake8Loading = false;
+                    console.log('Flake8 loaded successfully');
+                } else {
+                    // Another call is already loading, wait for it
+                    while (flake8Loading) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
             }
 
             // Show linting state
@@ -278,6 +280,7 @@
             displayLintResults();
         } catch (error) {
             console.error('Flake8 error:', error);
+            flake8Loading = false; // Reset on error
             lintErrors.innerHTML = `<div class="no-errors"><div style="color: #e74c3c;">Error running Flake8: ${error.message}</div></div>`;
         }
     }
