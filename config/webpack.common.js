@@ -64,11 +64,8 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: 'public',
-          to: '.',
-          globOptions: {
-            ignore: ['**/test/**'],
-          },
+          from: 'scripts/hot-reload.js',
+          to: 'hot-reload.js',
         },
         {
           from: 'src/popup/popup.html',
@@ -91,8 +88,12 @@ module.exports = {
           to: 'rules',
         },
         {
-          from: 'icons',
+          from: 'src/assets/icons',
           to: 'icons',
+        },
+        {
+          from: 'src/assets/svgs',
+          to: 'svgs',
         },
       ],
     }),
