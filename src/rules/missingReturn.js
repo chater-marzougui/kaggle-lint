@@ -7,6 +7,16 @@ const MissingReturnRule = (function () {
   "use strict";
 
   /**
+   * Checks if a line contains a decorator
+   * @param {string} line - Line of code
+   * @returns {string|null} Decorator name or null
+   */
+  function extractDecorator(line) {
+    const decoratorMatch = /^(\s*)@([a-zA-Z_][a-zA-Z0-9_.]*)\s*/.exec(line);
+    return decoratorMatch ? decoratorMatch[2] : null;
+  }
+
+  /**
    * Extracts function definitions with their bodies
    * @param {string} code - Python source code
    * @returns {Array<{name: string, startLine: number, endLine: number, body: string, hasReturn: boolean, decorators: Array<string>}>}
@@ -22,9 +32,9 @@ const MissingReturnRule = (function () {
       const lineNum = lineIndex + 1;
 
       // Check for decorators
-      const decoratorMatch = /^(\s*)@([a-zA-Z_][a-zA-Z0-9_.]*)\s*/.exec(line);
-      if (decoratorMatch && !currentFunc) {
-        pendingDecorators.push(decoratorMatch[2]);
+      const decorator = extractDecorator(line);
+      if (decorator && !currentFunc) {
+        pendingDecorators.push(decorator);
         return;
       }
 
@@ -81,9 +91,9 @@ const MissingReturnRule = (function () {
           currentFunc = null;
           // Don't reset pendingDecorators here - they might be for the next function
           // Check if this line is a decorator for the next function
-          const decoratorMatch = /^(\s*)@([a-zA-Z_][a-zA-Z0-9_.]*)\s*/.exec(line);
-          if (decoratorMatch) {
-            pendingDecorators.push(decoratorMatch[2]);
+          const nextDecorator = extractDecorator(line);
+          if (nextDecorator) {
+            pendingDecorators.push(nextDecorator);
           }
         }
       }
@@ -173,6 +183,7 @@ const MissingReturnRule = (function () {
 
   /**
    * Checks if function is a property setter (has @*.setter decorator)
+   * Property setters in Python are in the form @property_name.setter
    * @param {Array<string>} decorators - Function decorators
    * @returns {boolean}
    */
@@ -180,7 +191,8 @@ const MissingReturnRule = (function () {
     if (!decorators || decorators.length === 0) {
       return false;
     }
-    return decorators.some((dec) => dec.endsWith(".setter") || dec === "setter");
+    // Only match decorators that end with .setter (e.g., @value.setter)
+    return decorators.some((dec) => dec.endsWith(".setter"));
   }
 
   /**

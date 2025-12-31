@@ -99,7 +99,9 @@ const ImportIssuesRule = (function () {
           line
         );
       if (match) {
-        const name = match[2] || match[1].split(".")[0]; // Use alias or first part of dotted name
+        // Use alias if provided (match[2]), otherwise use the base module name from dotted import (match[1])
+        // Examples: "import matplotlib.pyplot as plt" -> "plt", "import numpy" -> "numpy"
+        const name = match[2] || match[1].split(".")[0];
         if (importedNames.has(name)) {
           errors.push({
             line: lineIndex + 1 + cellOffset,
