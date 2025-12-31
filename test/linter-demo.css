@@ -221,6 +221,33 @@ body {
     align-items: center;
 }
 
+.results-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.linter-select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    color: #333;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.linter-select:hover {
+    border-color: #667eea;
+}
+
+.linter-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .btn-relint {
     font-size: 12px;
     padding: 6px 12px;
