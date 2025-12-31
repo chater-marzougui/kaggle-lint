@@ -1,6 +1,7 @@
 /**
  * Standalone Linter Demo
  * Allows testing the linter with .ipynb files without Kaggle
+ * Supports both custom rules and Flake8
  */
 
 (function() {
@@ -8,6 +9,9 @@
 
     let currentNotebook = null;
     let lintResults = [];
+    let currentLinter = 'custom'; // 'custom' or 'flake8'
+    let flake8Ready = false;
+    let flake8Loading = false;
 
     // DOM elements
     const uploadBox = document.getElementById('upload-box');
@@ -17,6 +21,7 @@
     const notebookContent = document.getElementById('notebook-content');
     const lintSummary = document.getElementById('lint-summary');
     const lintErrors = document.getElementById('lint-errors');
+    const linterSelect = document.getElementById('linter-select');
 
     // Initialize
     function init() {
@@ -25,6 +30,17 @@
     }
 
     function setupEventListeners() {
+        // Linter selector
+        linterSelect.addEventListener('change', (e) => {
+            currentLinter = e.target.value;
+            console.log('Switched to', currentLinter, 'linter');
+            
+            // If there's a notebook loaded, re-lint it
+            if (currentNotebook) {
+                relintNotebook();
+            }
+        });
+
         // Re-lint button
         document.getElementById('relint-btn').addEventListener('click', () => {
             relintNotebook();
@@ -170,9 +186,17 @@
         lineNumbersDiv.scrollTop = editor.scrollTop;
     }
 
-    function runLinter(codeCells) {
-        console.log('Running linter on', codeCells.length, 'cells');
+    async function runLinter(codeCells) {
+        console.log('Running', currentLinter, 'linter on', codeCells.length, 'cells');
 
+        if (currentLinter === 'flake8') {
+            await runFlake8Linter(codeCells);
+        } else {
+            runCustomLinter(codeCells);
+        }
+    }
+
+    function runCustomLinter(codeCells) {
         // Initialize lint engine
         if (typeof LintEngine === 'undefined') {
             console.error('LintEngine not loaded');
@@ -203,8 +227,65 @@
         console.log('Lint results:', lintResults);
         displayLintResults();
     }
+
+    async function runFlake8Linter(codeCells) {
+        // Check if Flake8Engine is available
+        if (typeof Flake8Engine === 'undefined') {
+            console.error('Flake8Engine not loaded');
+            lintErrors.innerHTML = '<div class="no-errors"><div style="color: #e74c3c;">Error: Flake8 engine not loaded</div></div>';
+            return;
+        }
+
+        try {
+            // Load Flake8 if not ready (this handles the loading synchronization internally)
+            if (!Flake8Engine.getIsReady()) {
+                lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading Flake8 (first time may take a while)...</div></div>';
+                
+                if (!flake8Loading) {
+                    flake8Loading = true;
+                    console.log('Loading Flake8 for the first time...');
+                    await Flake8Engine.load();
+                    flake8Ready = true;
+                    flake8Loading = false;
+                    console.log('Flake8 loaded successfully');
+                } else {
+                    // Another call is already loading, wait for it
+                    while (flake8Loading) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+            }
+
+            // Show linting state
+            lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Running Flake8 linter...</div></div>';
+
+            // Prepare cells for Flake8
+            const cells = codeCells.map((cell, index) => ({
+                code: Array.isArray(cell.source) ? cell.source.join('') : cell.source,
+                cellIndex: index,
+            }));
+
+            // Run Flake8 on all cells
+            const errors = await Flake8Engine.lintNotebook(cells);
+            
+            // Convert Flake8 errors to our format
+            lintResults = errors.map(error => ({
+                line: error.line,
+                msg: error.msg,
+                severity: error.severity || 'warning',
+                cellIndex: error.cellIndex,
+            }));
+
+            console.log('Flake8 results:', lintResults);
+            displayLintResults();
+        } catch (error) {
+            console.error('Flake8 error:', error);
+            flake8Loading = false; // Reset on error
+            lintErrors.innerHTML = `<div class="no-errors"><div style="color: #e74c3c;">Error running Flake8: ${error.message}</div></div>`;
+        }
+    }
     
-    function relintNotebook() {
+    async function relintNotebook() {
         console.log('Re-linting notebook...');
         
         // Clear existing error highlights
@@ -235,10 +316,14 @@
         // Show loading state
         lintErrors.innerHTML = '<div class="loading"><div class="spinner"></div><div>Re-linting...</div></div>';
         
-        // Run linter with slight delay to show loading
-        setTimeout(() => {
-            runLinter(codeCells);
-        }, 100);
+        // Run linter (with delay for custom, immediate for flake8 since it has its own loading)
+        if (currentLinter === 'custom') {
+            setTimeout(() => {
+                runLinter(codeCells);
+            }, 100);
+        } else {
+            await runLinter(codeCells);
+        }
     }
 
     function displayLintResults() {
@@ -273,7 +358,11 @@
         });
 
         // Display summary
+        const linterName = currentLinter === 'flake8' ? 'Flake8' : 'Custom Rules';
         lintSummary.innerHTML = `
+            <div style="text-align: center; margin-bottom: 10px; color: #666; font-size: 12px;">
+                Using: ${linterName}
+            </div>
             <div class="results-summary">
                 <div class="summary-item errors">
                     <div class="summary-count">${counts.error}</div>

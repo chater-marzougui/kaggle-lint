@@ -39,7 +39,13 @@
             <div class="lint-results">
                 <div class="results-header">
                     <span>Lint Results</span>
-                    <button class="btn btn-relint" id="relint-btn" style="display: none;">🔄 Re-lint</button>
+                    <div class="results-controls">
+                        <select id="linter-select" class="linter-select">
+                            <option value="custom">Custom Rules</option>
+                            <option value="flake8">Flake8</option>
+                        </select>
+                        <button class="btn btn-relint" id="relint-btn" style="display: none;">🔄 Re-lint</button>
+                    </div>
                 </div>
                 <div id="lint-summary"></div>
                 <div id="lint-errors"></div>
@@ -48,6 +54,7 @@
     </div>
 
     <!-- Load linter modules -->
+    <script src="../src/pyodide/pyodide.js"></script>
     <script src="../src/rules/undefinedVariables.js"></script>
     <script src="../src/rules/capitalizationTypos.js"></script>
     <script src="../src/rules/duplicateFunctions.js"></script>
@@ -58,6 +65,7 @@
     <script src="../src/rules/redefinedVariables.js"></script>
     <script src="../src/rules/missingReturn.js"></script>
     <script src="../src/lintEngine.js"></script>
+    <script src="../src/flake8Engine.js"></script>
     <script src="linter-demo.js"></script>
 </body>
 </html>

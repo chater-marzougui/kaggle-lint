@@ -30,10 +30,28 @@ The extension handles different Kaggle notebook configurations:
 
 ## Installation
 
+### From Source (Development)
+
 1. Clone this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select the repository folder
+   ```bash
+   git clone https://github.com/chater-marzougui/kaggle-lint.git
+   cd kaggle-lint
+   ```
+
+2. Install dependencies and build
+   ```bash
+   npm install
+   npm run build
+   ```
+
+3. Load in Chrome
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" in the top right
+   - Click "Load unpacked" and select the `/dist` folder
+
+### From Release
+
+Download the latest release `.zip` file and load it as an unpacked extension in Chrome.
 
 ## Usage
 
@@ -45,14 +63,14 @@ The linter runs automatically when you open a Kaggle notebook. You can also:
 
 ## Architecture
 
+### Project Structure
+
 ```
 src/
-├── content.js          # Main entry point
-├── domParser.js        # Kaggle DOM extraction
-├── codeMirror.js       # Local cell storage for lazy loading
-├── lintEngine.js       # Rule orchestration
-├── flake8Engine.js     # Flake8 linting via Pyodide
-├── rules/
+├── assets/             # Static assets
+│   ├── icons/         # Extension icons (16px to 512px)
+│   └── svgs/          # SVG icons for UI
+├── rules/             # Linting rules (modular)
 │   ├── undefinedVariables.js
 │   ├── capitalizationTypos.js
 │   ├── duplicateFunctions.js
@@ -62,9 +80,55 @@ src/
 │   ├── unclosedBrackets.js
 │   ├── redefinedVariables.js
 │   └── missingReturn.js
-└── ui/
-    ├── overlay.js      # Error display UI
-    └── styles.css      # Styling
+├── ui/                # User interface components
+│   ├── overlay.js     # Error display overlay
+│   └── styles.css     # UI styling
+├── popup/             # Extension popup
+│   ├── popup.html
+│   ├── popup.css
+│   └── popup.js
+├── pyodide/           # Pyodide WASM runtime for Flake8
+├── content.js         # Main entry point
+├── domParser.js       # Kaggle DOM extraction
+├── codeMirror.js      # Local cell storage for lazy loading
+├── lintEngine.js      # Custom rules orchestration
+├── flake8Engine.js    # Flake8 linting via Pyodide
+└── pageInjection.js   # Page-level script injection
+
+config/                # Build configuration
+├── webpack.common.js  # Shared webpack config
+├── webpack.dev.js     # Development build config
+└── webpack.prod.js    # Production build config
+
+scripts/               # Build scripts
+├── manifest-plugin.js # Webpack plugin for manifest generation
+├── hot-reload.js      # Hot reload for development
+└── build-manifest.js  # Legacy manifest builder (deprecated)
+
+test/                  # Tests and demo
+├── rules.test.js      # Rule unit tests
+├── codeMirror.test.js # CodeMirror tests
+├── linter-demo.html   # Standalone demo page
+├── linter-demo.js     # Demo functionality
+├── linter-demo.css    # Demo styling
+└── notebook.ipynb     # Test notebook
+```
+
+### Build Process
+
+The project uses webpack to bundle the extension:
+
+1. **Development**: `npm run dev` - Watch mode with hot reload
+2. **Production**: `npm run build` - Optimized production build
+3. **Output**: All files bundled to `/dist` directory, ready to load as Chrome extension
+
+The build process:
+- Bundles JavaScript modules
+- Copies assets (icons, SVGs, pyodide runtime)
+- Generates manifest.json automatically
+- Handles CSS and static files
+- Outputs a complete, ready-to-load extension in `/dist`
+
 ```
 
 ## Rule API
@@ -114,25 +178,29 @@ This runs both rule tests and CodeMirror tests:
 
 Test the linter without installing the extension:
 
-1. Start the demo server:
+1. Start the demo server (from project root):
    ```bash
    npm run test:demo
    ```
    Or manually:
    ```bash
-   cd test && python3 -m http.server 8000
+   python3 -m http.server 8000
    ```
 
-2. Open http://localhost:8000/linter-demo.html in your browser
+2. Open http://localhost:8000/test/linter-demo.html in your browser
 
 3. Upload a `.ipynb` file to see the linter in action
 
 The demo page (`test/linter-demo.html`) provides:
+- **Linter Engine Selector**: Switch between custom rules and Flake8
 - Drag-and-drop or click-to-browse file upload
-- Visual display of all code cells
+- Visual display of all code cells with line numbers
 - Real-time linting results with severity indicators
 - Click-to-scroll error navigation
 - Summary statistics (errors, warnings, info)
+- Re-lint button to test code changes
+
+**Note**: Flake8 linting requires loading Pyodide (Python WASM runtime) which may take a few seconds on first use.
 
 #### Browser Testing
 
