@@ -7,13 +7,15 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "lint": "eslint packages/ --ext .ts,.tsx",
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
     "lint:fix": "eslint packages/ --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "type-check": "npm run type-check --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules/.cache"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.246",
@@ -25,10 +27,12 @@
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.2",
     "prettier": "^3.7.4",
+    "turbo": "^2.7.3",
     "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  }
+  },
+  "packageManager": "npm@10.2.0"
 }

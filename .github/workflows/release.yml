@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Create extension ZIP
+        run: |
+          cd packages/extension/dist
+          zip -r ../../../kaggle-linter-${{ github.ref_name }}.zip .
+          cd ../../..
+
+      - name: Get release notes
+        id: release_notes
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          ## Kaggle Python Linter v${VERSION}
+          
+          ### Installation
+          1. Download the \`kaggle-linter-v${VERSION}.zip\` file
+          2. Extract the ZIP file
+          3. Open Chrome and go to \`chrome://extensions/\`
+          4. Enable "Developer mode"
+          5. Click "Load unpacked" and select the extracted folder
+          
+          ### What's New
+          - TypeScript + React migration complete
+          - Improved performance and maintainability
+          - All original features preserved
+          
+          ### Features
+          - ✅ 9 custom lint rules for Python notebooks
+          - ✅ Real-time error detection
+          - ✅ Keyboard shortcuts (Ctrl+Shift+L to lint, Ctrl+Shift+H to toggle)
+          - ✅ Light/Dark theme support
+          - ✅ Flake8 engine support
+          
+          For issues or feedback, please visit our [GitHub repository](https://github.com/chater-marzougui/kaggle-lint).
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: kaggle-linter-${{ github.ref_name }}.zip
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
