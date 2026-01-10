@@ -1,0 +1,27 @@
+{
+  "name": "@kaggle-lint/ui-components",
+  "version": "2.0.0",
+  "description": "React UI components for Kaggle Python Linter",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "@kaggle-lint/core": "*"
+  },
+  "keywords": [
+    "linter",
+    "react",
+    "components"
+  ],
+  "author": "",
+  "license": "MIT"
+}
