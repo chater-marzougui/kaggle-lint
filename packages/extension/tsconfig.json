@@ -2,11 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "composite": true,
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "../core/src/**/*",
+    "../ui-components/src/**/*"
+  ],
   "exclude": ["node_modules", "dist"],
   "references": [
     { "path": "../core" },
