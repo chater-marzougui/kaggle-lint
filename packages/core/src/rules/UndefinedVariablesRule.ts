@@ -271,7 +271,7 @@ export class UndefinedVariablesRule extends BaseRule {
     const cleanedCode = this.removeAllStrings(code);
     const lines = cleanedCode.split('\n');
 
-    lines.forEach((line, idx) => {
+    lines.forEach((line) => {
       // Skip shell commands and magic commands
       if (this.isShellCommand(line) || this.isMagicCommand(line)) {
         return;
@@ -499,7 +499,6 @@ export class UndefinedVariablesRule extends BaseRule {
     // Skip cells that start with magic commands like %%capture
     if (this.shouldSkipCell(code)) {
       // Still extract defined names to pass to next cells
-      const defined = this.extractDefinedNames(code);
       // Note: In the new architecture, context should be managed by LintEngine
       // This is just preserving the logic structure
       return [];

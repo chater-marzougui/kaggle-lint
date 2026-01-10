@@ -63,7 +63,7 @@ export class DuplicateFunctionsRule extends BaseRule {
    * @param context - Lint context (unused in this rule)
    * @returns Array of lint errors
    */
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
+  run(code: string, cellOffset: number = 0, _context?: LintContext): LintError[] {
     const errors: LintError[] = [];
     const definitions = this.extractDefinitions(code);
 

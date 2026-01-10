@@ -16,7 +16,7 @@ export class EmptyCellsRule extends BaseRule {
    * @param context - Lint context (cell index can be derived from offset)
    * @returns Array of lint errors
    */
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
+  run(code: string, cellOffset: number = 0, _context?: LintContext): LintError[] {
     const errors: LintError[] = [];
     
     // Calculate cell index from offset (approximate)
