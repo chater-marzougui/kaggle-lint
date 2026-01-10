@@ -198,7 +198,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    npm install -D eslint-plugin-react eslint-plugin-react-hooks
    ```
 
-2. Create `.eslintrc.js` (or `.eslintrc.ts` for TypeScript consistency):
+2. Create `.eslintrc.js`:
    ```javascript
    module.exports = {
      root: true,
@@ -225,7 +225,36 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    };
    ```
    
-   **Note**: For full TypeScript consistency, consider using `.eslintrc.ts` instead of `.eslintrc.js`.
+   **Alternative TypeScript config** (`.eslintrc.ts`):
+   ```typescript
+   import type { Linter } from 'eslint';
+
+   const config: Linter.Config = {
+     root: true,
+     parser: '@typescript-eslint/parser',
+     extends: [
+       'eslint:recommended',
+       'plugin:@typescript-eslint/recommended',
+       'plugin:react/recommended',
+       'plugin:react-hooks/recommended',
+       'prettier'
+     ],
+     plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+     env: {
+       browser: true,
+       node: true,
+       es2020: true,
+       webextensions: true
+     },
+     settings: {
+       react: {
+         version: 'detect'
+       }
+     }
+   };
+
+   export default config;
+   ```
 
 3. Create `.prettierrc.json`:
    ```json
@@ -1387,11 +1416,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
          - uses: softprops/action-gh-release@v1
            with:
              files: kaggle-linter.zip
-           env:
-             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
    
-   **Note**: Using `softprops/action-gh-release` instead of the deprecated `actions/create-release`.
+   **Note**: Using `softprops/action-gh-release` instead of the deprecated `actions/create-release`. The action automatically uses `GITHUB_TOKEN` from the workflow context.
 
 **Validation**:
 - CI runs on every PR
