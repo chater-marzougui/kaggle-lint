@@ -102,8 +102,7 @@ config/                # Build configuration
 
 scripts/               # Build scripts
 ├── manifest-plugin.js # Webpack plugin for manifest generation
-├── hot-reload.js      # Hot reload for development
-└── build-manifest.js  # Legacy manifest builder (deprecated)
+└── hot-reload.js      # Hot reload for development
 
 test/                  # Tests and demo
 ├── rules.test.js      # Rule unit tests
