@@ -139,8 +139,10 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 
 3. Install TypeScript and related dependencies:
    ```bash
-   npm install -D typescript @types/node @types/chrome @types/react @types/react-dom
+   npm install -D typescript@^5.0.0 @types/node@^20.0.0 @types/chrome@^0.0.246 @types/react@^18.0.0 @types/react-dom@^18.0.0
    ```
+   
+   **Note**: Pinning specific versions ensures reproducible builds across different environments.
 
 **Validation**:
 - Run `npx tsc --noEmit` in each package without errors
@@ -196,7 +198,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    npm install -D eslint-plugin-react eslint-plugin-react-hooks
    ```
 
-2. Create `.eslintrc.js`:
+2. Create `.eslintrc.js` (or `.eslintrc.ts` for TypeScript consistency):
    ```javascript
    module.exports = {
      root: true,
@@ -222,6 +224,8 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      }
    };
    ```
+   
+   **Note**: For full TypeScript consistency, consider using `.eslintrc.ts` instead of `.eslintrc.js`.
 
 3. Create `.prettierrc.json`:
    ```json
@@ -1380,10 +1384,14 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
          - run: npm ci
          - run: npm run build
          - run: cd packages/extension/dist && zip -r ../../../kaggle-linter.zip .
-         - uses: actions/create-release@v1
+         - uses: softprops/action-gh-release@v1
            with:
              files: kaggle-linter.zip
+           env:
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
    ```
+   
+   **Note**: Using `softprops/action-gh-release` instead of the deprecated `actions/create-release`.
 
 **Validation**:
 - CI runs on every PR
