@@ -1,0 +1,24 @@
+{
+  "name": "@kaggle-lint/extension",
+  "version": "2.0.0",
+  "description": "Chrome extension for Kaggle Python Linter",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "dev": "webpack --config webpack.config.js --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kaggle-lint/core": "*",
+    "@kaggle-lint/ui-components": "*",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "keywords": [
+    "chrome-extension",
+    "linter",
+    "kaggle"
+  ],
+  "author": "",
+  "license": "MIT"
+}
