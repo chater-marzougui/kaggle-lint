@@ -1,7 +1,7 @@
 /**
  * Flake8 Engine
  * Integrates Pyodide and Flake8 for additional Python linting
- * 
+ *
  * NOTE: This is a placeholder for Phase 2.7
  * The full implementation will be migrated in a later step
  */

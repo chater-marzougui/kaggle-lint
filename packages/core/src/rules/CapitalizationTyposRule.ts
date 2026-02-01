@@ -146,13 +146,19 @@ export class CapitalizationTyposRule extends BaseRule {
    * @param context - Lint context (unused in this rule)
    * @returns Array of lint errors
    */
-  run(code: string, cellOffset: number = 0, _context?: LintContext): LintError[] {
+  run(
+    code: string,
+    cellOffset: number = 0,
+    _context?: LintContext
+  ): LintError[] {
     const errors: LintError[] = [];
     const lines = code.split('\n');
     const definedNames = this.buildDefinedNamesMap(code);
 
     const allKnownNames = new Map<string, string>([
-      ...Object.entries(this.COMMON_NAMES).map(([k, v]) => [k.toLowerCase(), v] as [string, string]),
+      ...Object.entries(this.COMMON_NAMES).map(
+        ([k, v]) => [k.toLowerCase(), v] as [string, string]
+      ),
       ...definedNames,
     ]);
 

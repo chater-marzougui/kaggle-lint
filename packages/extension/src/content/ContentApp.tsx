@@ -2,7 +2,7 @@
  * ContentApp Component
  * Main React component for the content script
  * Integrates linting and UI overlay
- * 
+ *
  * MIGRATION NOTE: Logic from old-linter/src/content.js
  * Converted to React component structure
  */
@@ -129,7 +129,11 @@ export const ContentApp: React.FC = () => {
    */
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.runtime) {
-      const messageListener = (message: any, _sender: any, sendResponse: any) => {
+      const messageListener = (
+        message: any,
+        _sender: any,
+        sendResponse: any
+      ) => {
         console.log('[Linter] Received message:', message);
 
         if (message.type === 'runLinter') {

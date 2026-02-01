@@ -1,7 +1,7 @@
 /**
  * Popup App Component
  * Simple settings panel for the extension
- * 
+ *
  * MIGRATION NOTE: Simplified version of old-linter/src/popup/popup.js
  * Core functionality preserved
  */
@@ -57,11 +57,15 @@ export const PopupApp: React.FC = () => {
       <h1>Kaggle Python Linter</h1>
 
       <div className="section">
-        <h3 style={{ fontSize: '13px', marginBottom: '8px' }}>Linting Engine</h3>
+        <h3 style={{ fontSize: '13px', marginBottom: '8px' }}>
+          Linting Engine
+        </h3>
         <select
           value={settings.engine}
           onChange={(e) =>
-            handleSettingsChange({ engine: e.target.value as 'custom' | 'flake8' })
+            handleSettingsChange({
+              engine: e.target.value as 'custom' | 'flake8',
+            })
           }
           style={{ width: '100%', padding: '4px' }}
         >
@@ -72,11 +76,15 @@ export const PopupApp: React.FC = () => {
 
       <div className="section" style={{ marginTop: '16px' }}>
         <h3 style={{ fontSize: '13px', marginBottom: '8px' }}>Options</h3>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px' }}>
+        <label
+          style={{ display: 'block', marginBottom: '8px', fontSize: '12px' }}
+        >
           <input
             type="checkbox"
             checked={settings.autoLint}
-            onChange={(e) => handleSettingsChange({ autoLint: e.target.checked })}
+            onChange={(e) =>
+              handleSettingsChange({ autoLint: e.target.checked })
+            }
           />
           <span style={{ marginLeft: '8px' }}>Auto-lint on code changes</span>
         </label>
@@ -84,7 +92,9 @@ export const PopupApp: React.FC = () => {
           <input
             type="checkbox"
             checked={settings.showInfo}
-            onChange={(e) => handleSettingsChange({ showInfo: e.target.checked })}
+            onChange={(e) =>
+              handleSettingsChange({ showInfo: e.target.checked })
+            }
           />
           <span style={{ marginLeft: '8px' }}>Show info-level messages</span>
         </label>

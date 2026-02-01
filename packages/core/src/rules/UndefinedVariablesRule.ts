@@ -329,9 +329,7 @@ export class UndefinedVariablesRule extends BaseRule {
         defined.add(match[1]);
       }
 
-      match = /^\s*except\s+\w+\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/.exec(
-        line
-      );
+      match = /^\s*except\s+\w+\s+as\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/.exec(line);
       if (match) {
         defined.add(match[1]);
       }
@@ -386,7 +384,9 @@ export class UndefinedVariablesRule extends BaseRule {
    * @param code - Python source code
    * @returns Array of used names with line numbers
    */
-  private extractUsedNames(code: string): Array<{ name: string; line: number }> {
+  private extractUsedNames(
+    code: string
+  ): Array<{ name: string; line: number }> {
     const used: Array<{ name: string; line: number }> = [];
 
     // Remove all strings first (including multi-line strings and f-strings)
@@ -493,7 +493,11 @@ export class UndefinedVariablesRule extends BaseRule {
    * @param context - Additional context from previous cells
    * @returns Array of lint errors
    */
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
+  run(
+    code: string,
+    cellOffset: number = 0,
+    context?: LintContext
+  ): LintError[] {
     const errors: LintError[] = [];
 
     // Skip cells that start with magic commands like %%capture
@@ -567,7 +571,9 @@ export class UndefinedVariablesRule extends BaseRule {
     return this.extractDefinedNames(code);
   }
 
-  public extractUsedNamesPublic(code: string): Array<{ name: string; line: number }> {
+  public extractUsedNamesPublic(
+    code: string
+  ): Array<{ name: string; line: number }> {
     return this.extractUsedNames(code);
   }
 

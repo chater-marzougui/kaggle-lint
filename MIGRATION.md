@@ -5,6 +5,7 @@
 This document outlines a comprehensive step-by-step plan to migrate the Kaggle Python Linter Chrome extension from vanilla JavaScript to a modern stack using **TypeScript**, **React**, and a **monorepo architecture**. The goal is to improve code maintainability, type safety, testability, and developer experience.
 
 ### Current Stack
+
 - **Language**: Vanilla JavaScript (ES6+)
 - **Build Tool**: Webpack 5
 - **Testing**: Node.js native test runner with jsdom
@@ -13,6 +14,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 - **Extension Type**: Chrome Extension (Manifest V3)
 
 ### Target Stack
+
 - **Language**: TypeScript 5.x
 - **Framework**: React 18+ with hooks
 - **Build Tool**: Webpack 5 or Vite (for better DX)
@@ -31,7 +33,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Create a monorepo structure that separates concerns and enables code sharing.
 
 **Actions**:
+
 1. Create a new directory structure:
+
    ```
    kaggle-lint/
    ├── packages/
@@ -75,13 +79,14 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Initialize the monorepo:
+
    ```bash
    # Option 1: Using Turborepo
    npx create-turbo@latest kaggle-lint-monorepo
-   
+
    # Option 2: Using Nx
    npx create-nx-workspace@latest kaggle-lint-monorepo
-   
+
    # Option 3: Manual setup with npm workspaces
    npm init -y
    # Add to root package.json:
@@ -91,6 +96,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 3. Create workspace package.json files for each package
 
 **Validation**:
+
 - Run `npm install` successfully at root
 - Verify workspace linking with `npm ls --workspaces`
 
@@ -101,7 +107,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Configure TypeScript with strict mode and proper module resolution.
 
 **Actions**:
+
 1. Create `tsconfig.base.json` at root:
+
    ```json
    {
      "compilerOptions": {
@@ -125,6 +133,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create package-specific `tsconfig.json` files that extend the base:
+
    ```json
    {
      "extends": "../../tsconfig.base.json",
@@ -138,13 +147,15 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 3. Install TypeScript and related dependencies:
+
    ```bash
    npm install -D typescript@^5.0.0 @types/node@^20.0.0 @types/chrome@^0.0.246 @types/react@^18.0.0 @types/react-dom@^18.0.0
    ```
-   
+
    **Note**: Pinning specific versions ensures reproducible builds across different environments.
 
 **Validation**:
+
 - Run `npx tsc --noEmit` in each package without errors
 
 ---
@@ -154,6 +165,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Configure build tools for development and production builds.
 
 **Actions**:
+
 1. **For Webpack** (keeping current tool):
    - Create shared webpack configs in `tools/webpack/`
    - Configure `ts-loader` or `babel-loader` with TypeScript preset
@@ -180,6 +192,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Run `npm run build` in each package
 - Verify output in `dist/` directories
 - Test hot reload in development mode
@@ -191,7 +204,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Enforce code quality and consistency.
 
 **Actions**:
+
 1. Install ESLint and Prettier:
+
    ```bash
    npm install -D eslint prettier eslint-config-prettier
    npm install -D @typescript-eslint/parser @typescript-eslint/eslint-plugin
@@ -199,6 +214,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create `.eslintrc.js`:
+
    ```javascript
    module.exports = {
      root: true,
@@ -208,24 +224,25 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
        'plugin:@typescript-eslint/recommended',
        'plugin:react/recommended',
        'plugin:react-hooks/recommended',
-       'prettier'
+       'prettier',
      ],
      plugins: ['@typescript-eslint', 'react', 'react-hooks'],
      env: {
        browser: true,
        node: true,
        es2020: true,
-       webextensions: true
+       webextensions: true,
      },
      settings: {
        react: {
-         version: 'detect'
-       }
-     }
+         version: 'detect',
+       },
+     },
    };
    ```
-   
+
    **Alternative TypeScript config** (`.eslintrc.ts`):
+
    ```typescript
    import type { Linter } from 'eslint';
 
@@ -237,26 +254,27 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
        'plugin:@typescript-eslint/recommended',
        'plugin:react/recommended',
        'plugin:react-hooks/recommended',
-       'prettier'
+       'prettier',
      ],
      plugins: ['@typescript-eslint', 'react', 'react-hooks'],
      env: {
        browser: true,
        node: true,
        es2020: true,
-       webextensions: true
+       webextensions: true,
      },
      settings: {
        react: {
-         version: 'detect'
-       }
-     }
+         version: 'detect',
+       },
+     },
    };
 
    export default config;
    ```
 
 3. Create `.prettierrc.json`:
+
    ```json
    {
      "semi": true,
@@ -279,6 +297,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Run `npm run lint` without errors
 - Run `npm run format` successfully
 
@@ -291,7 +310,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Create type definitions for all core entities.
 
 **Actions**:
+
 1. Create `packages/core/src/types/index.ts`:
+
    ```typescript
    export type Severity = 'error' | 'warning' | 'info';
 
@@ -342,6 +363,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - `packages/core/src/types/pyodide.ts` - Pyodide types
 
 **Validation**:
+
 - Types compile without errors
 - Export types from package entry point
 
@@ -352,7 +374,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Convert all lint rules from vanilla JS to TypeScript classes/modules.
 
 **Actions**:
+
 1. Create base rule class:
+
    ```typescript
    // packages/core/src/rules/BaseRule.ts
    import { LintError, LintContext } from '../types';
@@ -376,6 +400,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Migrate each rule (example for undefinedVariables):
+
    ```typescript
    // packages/core/src/rules/UndefinedVariablesRule.ts
    import { BaseRule } from './BaseRule';
@@ -386,7 +411,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      private accumulatedContext = new Set<string>();
 
      private readonly PYTHON_BUILTINS = new Set([
-       'abs', 'all', 'any', // ... etc
+       'abs',
+       'all',
+       'any', // ... etc
      ]);
 
      run(
@@ -413,6 +440,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - MissingReturnRule
 
 4. Create rule registry:
+
    ```typescript
    // packages/core/src/rules/index.ts
    import { BaseRule } from './BaseRule';
@@ -431,6 +459,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Each rule compiles without TypeScript errors
 - Run unit tests for each rule
 - Verify rule outputs match original behavior
@@ -442,7 +471,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Convert LintEngine to TypeScript with proper typing.
 
 **Actions**:
+
 1. Create `packages/core/src/engines/LintEngine.ts`:
+
    ```typescript
    import { LintError, LintContext, LintRule, CodeCell } from '../types';
    import { DEFAULT_RULES } from '../rules';
@@ -451,7 +482,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      private rules: Map<string, LintRule> = new Map();
 
      constructor(rules: LintRule[] = DEFAULT_RULES) {
-       rules.forEach(rule => this.registerRule(rule));
+       rules.forEach((rule) => this.registerRule(rule));
      }
 
      registerRule(rule: LintRule): void {
@@ -463,11 +494,11 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
        cellOffset: number = 0,
        cellIndex: number = 0,
        context: LintContext = {}
-     ): { errors: LintError[], newContext: LintContext } {
+     ): { errors: LintError[]; newContext: LintContext } {
        const allErrors: LintError[] = [];
        let cellDefinedNames = new Set<string>();
 
-       this.rules.forEach(rule => {
+       this.rules.forEach((rule) => {
          try {
            const result = rule.run(code, cellOffset, context);
            const errors = Array.isArray(result) ? result : result.errors;
@@ -481,14 +512,17 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
          }
        });
 
-       return { errors: allErrors, newContext: { definedNames: cellDefinedNames } };
+       return {
+         errors: allErrors,
+         newContext: { definedNames: cellDefinedNames },
+       };
      }
 
      lintCells(cells: CodeCell[]): LintError[] {
        const allErrors: LintError[] = [];
        let globalContext: LintContext = {};
 
-       cells.forEach(cell => {
+       cells.forEach((cell) => {
          const result = this.lintCell(
            cell.code,
            cell.offset,
@@ -509,6 +543,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - Add proper types for Pyodide
 
 **Validation**:
+
 - LintEngine compiles without errors
 - Test with sample Python code
 - Verify cross-cell context tracking works
@@ -520,13 +555,16 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Migrate tests to Jest with TypeScript support.
 
 **Actions**:
+
 1. Install Jest and dependencies:
+
    ```bash
    cd packages/core
    npm install -D jest @types/jest ts-jest
    ```
 
 2. Create `jest.config.js`:
+
    ```javascript
    module.exports = {
      preset: 'ts-jest',
@@ -536,8 +574,8 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      collectCoverageFrom: [
        'src/**/*.ts',
        '!src/**/*.d.ts',
-       '!src/**/__tests__/**'
-     ]
+       '!src/**/__tests__/**',
+     ],
    };
    ```
 
@@ -547,6 +585,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - Add type assertions
 
 4. Example test migration:
+
    ```typescript
    // packages/core/src/__tests__/UndefinedVariablesRule.test.ts
    import { UndefinedVariablesRule } from '../rules/UndefinedVariablesRule';
@@ -561,7 +600,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      it('should detect undefined variables', () => {
        const code = 'print(x)';
        const errors = rule.run(code, 0);
-       
+
        expect(errors).toHaveLength(1);
        expect(errors[0].msg).toContain('x');
        expect(errors[0].severity).toBe('error');
@@ -583,6 +622,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - All tests pass with `npm test`
 - Coverage reports generate correctly
 - Tests can import and use TypeScript code
@@ -596,7 +636,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Create reusable React components for the extension UI.
 
 **Actions**:
+
 1. Initialize `packages/ui-components`:
+
    ```bash
    cd packages/ui-components
    npm init -y
@@ -605,6 +647,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create component structure:
+
    ```
    packages/ui-components/src/
    ├── Overlay/
@@ -624,6 +667,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 3. Migrate overlay to React:
+
    ```typescript
    // packages/ui-components/src/Overlay/Overlay.tsx
    import React, { useState, useEffect } from 'react';
@@ -680,6 +724,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 4. Create ErrorList component:
+
    ```typescript
    // packages/ui-components/src/ErrorList/ErrorList.tsx
    import React from 'react';
@@ -715,6 +760,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Components compile without errors
 - Storybook stories work (optional)
 - Visual regression tests pass
@@ -726,8 +772,10 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Use CSS Modules for scoped styling.
 
 **Actions**:
+
 1. Configure CSS Modules in build tool
 2. Convert existing CSS to modular CSS:
+
    ```css
    /* packages/ui-components/src/Overlay/Overlay.module.css */
    .overlay {
@@ -758,6 +806,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Styles are scoped to components
 - Theme switching works
 - No style conflicts
@@ -769,13 +818,16 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Test React components thoroughly.
 
 **Actions**:
+
 1. Install testing libraries:
+
    ```bash
    npm install -D @testing-library/react @testing-library/jest-dom
    npm install -D @testing-library/user-event
    ```
 
 2. Create test file:
+
    ```typescript
    // packages/ui-components/src/Overlay/__tests__/Overlay.test.tsx
    import React from 'react';
@@ -799,7 +851,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      it('collapses when header button clicked', () => {
        render(<Overlay errors={mockErrors} />);
        const collapseButton = screen.getByRole('button');
-       
+
        fireEvent.click(collapseButton);
        expect(screen.queryByText('Test error')).not.toBeInTheDocument();
      });
@@ -807,7 +859,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      it('calls onErrorClick when error is clicked', () => {
        const handleClick = jest.fn();
        render(<Overlay errors={mockErrors} onErrorClick={handleClick} />);
-       
+
        fireEvent.click(screen.getByText('Test error'));
        expect(handleClick).toHaveBeenCalledWith(mockErrors[0]);
      });
@@ -815,6 +867,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - All component tests pass
 - Coverage > 80%
 - Accessibility tests pass
@@ -828,7 +881,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Integrate React into Chrome extension architecture.
 
 **Actions**:
+
 1. Setup extension package:
+
    ```bash
    cd packages/extension
    npm init -y
@@ -837,6 +892,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Update manifest.json for TypeScript build output:
+
    ```json
    {
      "manifest_version": 3,
@@ -867,6 +923,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - `packages/extension/src/content/ContentApp.tsx` - Main React component
 
 **Validation**:
+
 - Extension builds successfully
 - Can load unpacked extension in Chrome
 - React DevTools recognizes components
@@ -878,7 +935,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Convert content script to use React components.
 
 **Actions**:
+
 1. Create content script entry:
+
    ```typescript
    // packages/extension/src/content/index.tsx
    import React from 'react';
@@ -907,6 +966,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create main content app:
+
    ```typescript
    // packages/extension/src/content/ContentApp.tsx
    import React, { useState, useEffect } from 'react';
@@ -965,6 +1025,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 3. Create custom hooks:
+
    ```typescript
    // packages/extension/src/content/hooks/useLinting.ts
    import { useCallback } from 'react';
@@ -990,6 +1051,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Extension loads in Chrome
 - Overlay renders correctly
 - Linting runs on keyboard shortcut
@@ -1002,7 +1064,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Convert extension popup to React.
 
 **Actions**:
+
 1. Create popup entry:
+
    ```typescript
    // packages/extension/src/popup/index.tsx
    import React from 'react';
@@ -1014,6 +1078,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create popup app:
+
    ```typescript
    // packages/extension/src/popup/PopupApp.tsx
    import React, { useState, useEffect } from 'react';
@@ -1039,7 +1104,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      const handleSettingsChange = (newSettings: typeof settings) => {
        setSettings(newSettings);
        chrome.storage.sync.set({ linterSettings: newSettings });
-       
+
        // Notify content script
        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
          chrome.tabs.sendMessage(tabs[0].id!, {
@@ -1059,6 +1124,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Popup opens correctly
 - Settings save and load
 - Settings changes trigger re-linting
@@ -1070,7 +1136,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Convert utility modules to TypeScript.
 
 **Actions**:
+
 1. Create `packages/extension/src/utils/KaggleDomParser.ts`:
+
    ```typescript
    import { CodeCell } from '@kaggle-lint/core';
 
@@ -1080,14 +1148,14 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
      async extractCells(): Promise<CodeCell[]> {
        const cells: CodeCell[] = [];
        const cellElements = document.querySelectorAll(this.CELL_SELECTOR);
-       
+
        let offset = 0;
        cellElements.forEach((element, index) => {
          const code = this.extractCodeFromCell(element);
          cells.push({
            code,
            index,
-           offset
+           offset,
          });
          offset += code.split('\n').length;
        });
@@ -1111,6 +1179,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create `packages/extension/src/utils/CodeMirrorManager.ts`:
+
    ```typescript
    export class CodeMirrorManager {
      private cellStorage = new Map<number, string>();
@@ -1130,6 +1199,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Can extract cells from Kaggle notebooks
 - Handles lazy loading correctly
 - Scroll to line works
@@ -1141,21 +1211,26 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Migrate page injection for cross-origin iframe access.
 
 **Actions**:
+
 1. Keep as separate vanilla JS if needed for MAIN world injection
 2. Or migrate to TypeScript:
+
    ```typescript
    // packages/extension/src/page-injection/inject.ts
-   (function() {
+   (function () {
      'use strict';
 
      // Access CodeMirror from page context
      window.addEventListener('message', (event) => {
        if (event.data.type === 'KAGGLE_LINTER_EXTRACT_CELLS') {
          const cells = extractCellsFromCodeMirror();
-         window.postMessage({
-           type: 'KAGGLE_LINTER_CELLS_EXTRACTED',
-           cells
-         }, '*');
+         window.postMessage(
+           {
+             type: 'KAGGLE_LINTER_CELLS_EXTRACTED',
+             cells,
+           },
+           '*'
+         );
        }
      });
 
@@ -1166,6 +1241,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Can communicate with content script
 - Accesses CodeMirror correctly
 - Works in iframe context
@@ -1179,27 +1255,29 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Configure Jest to work across all packages.
 
 **Actions**:
+
 1. Create root `jest.config.js`:
+
    ```javascript
    module.exports = {
      projects: [
        '<rootDir>/packages/core',
        '<rootDir>/packages/ui-components',
-       '<rootDir>/packages/extension'
+       '<rootDir>/packages/extension',
      ],
      collectCoverageFrom: [
        'packages/*/src/**/*.{ts,tsx}',
        '!packages/*/src/**/*.d.ts',
-       '!packages/*/src/**/__tests__/**'
+       '!packages/*/src/**/__tests__/**',
      ],
      coverageThreshold: {
        global: {
          branches: 70,
          functions: 70,
          lines: 70,
-         statements: 70
-       }
-     }
+         statements: 70,
+       },
+     },
    };
    ```
 
@@ -1218,6 +1296,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Run tests from root
 - Coverage reports generate
 - Can run tests per package
@@ -1229,12 +1308,15 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Add end-to-end tests for extension.
 
 **Actions**:
+
 1. Install Playwright:
+
    ```bash
    npm install -D @playwright/test playwright-chromium
    ```
 
 2. Create E2E test config:
+
    ```typescript
    // playwright.config.ts
    import { defineConfig } from '@playwright/test';
@@ -1249,6 +1331,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 3. Create E2E test:
+
    ```typescript
    // e2e/extension.test.ts
    import { test, expect, chromium } from '@playwright/test';
@@ -1257,18 +1340,18 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    test.describe('Kaggle Linter Extension', () => {
      test('should load and show overlay', async () => {
        const extensionPath = path.join(__dirname, '../packages/extension/dist');
-       
+
        const browser = await chromium.launchPersistentContext('', {
          headless: false,
          args: [
            `--disable-extensions-except=${extensionPath}`,
-           `--load-extension=${extensionPath}`
-         ]
+           `--load-extension=${extensionPath}`,
+         ],
        });
 
        const page = await browser.newPage();
        await page.goto('https://www.kaggle.com/code/...');
-       
+
        // Wait for overlay
        const overlay = await page.locator('#kaggle-linter-root');
        await expect(overlay).toBeVisible();
@@ -1279,6 +1362,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - E2E tests run successfully
 - Can test extension in browser
 - Tests cover critical paths
@@ -1292,7 +1376,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Optimize build pipeline with caching and parallelization.
 
 **Actions**:
+
 1. Create `turbo.json`:
+
    ```json
    {
      "$schema": "https://turbo.build/schema.json",
@@ -1329,6 +1415,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 **Validation**:
+
 - Builds run in correct order
 - Caching works
 - Parallel execution speeds up builds
@@ -1340,7 +1427,9 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Automate testing and deployment.
 
 **Actions**:
+
 1. Create `.github/workflows/ci.yml`:
+
    ```yaml
    name: CI
 
@@ -1396,6 +1485,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    ```
 
 2. Create release workflow:
+
    ```yaml
    name: Release
 
@@ -1417,10 +1507,11 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
            with:
              files: kaggle-linter.zip
    ```
-   
+
    **Note**: Using `softprops/action-gh-release` instead of the deprecated `actions/create-release`. The action automatically uses `GITHUB_TOKEN` from the workflow context.
 
 **Validation**:
+
 - CI runs on every PR
 - Tests must pass before merge
 - Releases create artifacts
@@ -1434,6 +1525,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Document new architecture and development workflow.
 
 **Actions**:
+
 1. Update README.md with new architecture
 2. Create CONTRIBUTING.md with development guide
 3. Create API documentation for core package
@@ -1441,6 +1533,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 5. Add migration notes
 
 **Validation**:
+
 - Documentation is clear
 - Examples work
 - Setup instructions are accurate
@@ -1452,6 +1545,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Migrate incrementally without breaking production.
 
 **Actions**:
+
 1. **Parallel Development**:
    - Keep old code in `legacy/` folder
    - Build both versions during transition
@@ -1476,6 +1570,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - Monitor for issues
 
 **Validation**:
+
 - Both versions work during transition
 - No functionality lost
 - Performance maintained or improved
@@ -1489,6 +1584,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Ensure the migrated version performs well.
 
 **Actions**:
+
 1. **Bundle Size Optimization**:
    - Use code splitting for large dependencies
    - Tree-shake unused code
@@ -1507,6 +1603,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - Monitor memory leaks
 
 **Validation**:
+
 - Bundle size < 2MB
 - Linting completes in < 500ms for typical notebooks
 - Memory usage stable
@@ -1518,6 +1615,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 **Goal**: Make development easier and faster.
 
 **Actions**:
+
 1. Add debug tools:
    - React DevTools integration
    - Debug logging system
@@ -1533,6 +1631,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
    - Error boundaries in React
 
 **Validation**:
+
 - Hot reload works consistently
 - Error messages are clear
 - Debugging is straightforward
@@ -1541,23 +1640,24 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 
 ## Timeline Estimate
 
-| Phase | Duration | Dependencies |
-|-------|----------|--------------|
-| Phase 1: Setup | 1 week | None |
-| Phase 2: Core | 2 weeks | Phase 1 |
-| Phase 3: UI Components | 1.5 weeks | Phase 1, 2 |
-| Phase 4: Extension | 2 weeks | Phase 1, 2, 3 |
-| Phase 5: Testing | 1 week | Phase 1-4 |
-| Phase 6: CI/CD | 0.5 weeks | Phase 1-5 |
-| Phase 7: Docs & Migration | 1 week | Phase 1-6 |
-| Phase 8: Optimization | 1 week | Phase 1-7 |
-| **Total** | **10 weeks** | |
+| Phase                     | Duration     | Dependencies  |
+| ------------------------- | ------------ | ------------- |
+| Phase 1: Setup            | 1 week       | None          |
+| Phase 2: Core             | 2 weeks      | Phase 1       |
+| Phase 3: UI Components    | 1.5 weeks    | Phase 1, 2    |
+| Phase 4: Extension        | 2 weeks      | Phase 1, 2, 3 |
+| Phase 5: Testing          | 1 week       | Phase 1-4     |
+| Phase 6: CI/CD            | 0.5 weeks    | Phase 1-5     |
+| Phase 7: Docs & Migration | 1 week       | Phase 1-6     |
+| Phase 8: Optimization     | 1 week       | Phase 1-7     |
+| **Total**                 | **10 weeks** |               |
 
 ---
 
 ## Benefits of Migration
 
 ### Technical Benefits
+
 1. **Type Safety**: Catch errors at compile time with TypeScript
 2. **Better DX**: IntelliSense, refactoring tools, better IDE support
 3. **Maintainability**: Clear interfaces, modular architecture
@@ -1566,12 +1666,14 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 6. **Code Reuse**: Monorepo enables sharing code between packages
 
 ### Development Benefits
+
 1. **Faster Development**: React components speed up UI development
 2. **Better Testing**: Jest + RTL provide excellent testing experience
 3. **Team Collaboration**: Clear package boundaries enable parallel work
 4. **Future-Proof**: Modern stack aligns with industry standards
 
 ### User Benefits
+
 1. **Better Performance**: Optimized React rendering
 2. **Richer UI**: React enables more interactive features
 3. **Fewer Bugs**: Type safety and testing reduce issues
@@ -1581,13 +1683,13 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 
 ## Risks & Mitigations
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing functionality | High | Comprehensive testing, parallel development |
-| Increased bundle size | Medium | Code splitting, tree shaking |
-| Migration takes too long | Medium | Incremental migration, clear milestones |
-| Team learning curve | Low | Documentation, pair programming |
-| Regression bugs | High | E2E tests, manual QA, beta testing |
+| Risk                            | Impact | Mitigation                                  |
+| ------------------------------- | ------ | ------------------------------------------- |
+| Breaking existing functionality | High   | Comprehensive testing, parallel development |
+| Increased bundle size           | Medium | Code splitting, tree shaking                |
+| Migration takes too long        | Medium | Incremental migration, clear milestones     |
+| Team learning curve             | Low    | Documentation, pair programming             |
+| Regression bugs                 | High   | E2E tests, manual QA, beta testing          |
 
 ---
 
@@ -1609,6 +1711,7 @@ This document outlines a comprehensive step-by-step plan to migrate the Kaggle P
 ## Maintenance Plan
 
 After migration:
+
 1. **Regular Updates**: Keep dependencies up to date
 2. **Monitoring**: Track performance and errors
 3. **User Feedback**: Collect and address user issues
@@ -1622,6 +1725,7 @@ After migration:
 This migration plan provides a comprehensive, step-by-step approach to transforming the Kaggle Python Linter from a vanilla JavaScript Chrome extension into a modern, type-safe, maintainable codebase using TypeScript, React, and a monorepo architecture.
 
 The migration is designed to be:
+
 - **Incremental**: Each phase builds on the previous
 - **Safe**: Parallel development prevents breaking production
 - **Thorough**: Comprehensive testing at every step

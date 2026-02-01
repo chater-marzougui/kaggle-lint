@@ -16,7 +16,7 @@ describe('UndefinedVariablesRule', () => {
   test('detects undefined variable', () => {
     const code = 'x = y + 1';
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(1);
     expect(errors[0].msg).toContain('y');
     expect(errors[0].severity).toBe('error');
@@ -25,14 +25,14 @@ describe('UndefinedVariablesRule', () => {
   test('does not flag defined variables', () => {
     const code = 'x = 1\ny = x + 1';
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
   test('recognizes Python builtins', () => {
     const code = 'result = len([1, 2, 3])';
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
@@ -41,7 +41,7 @@ describe('UndefinedVariablesRule', () => {
     return x + 1
 result = foo(5)`;
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
@@ -49,7 +49,7 @@ result = foo(5)`;
     const code = `def foo():
     return x + 1`;
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(1);
     expect(errors[0].msg).toContain('x');
   });
@@ -58,7 +58,7 @@ result = foo(5)`;
     const code = `import numpy as np
 arr = np.array([1, 2, 3])`;
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
@@ -66,7 +66,7 @@ arr = np.array([1, 2, 3])`;
     const code = `from pandas import DataFrame
 df = DataFrame()`;
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
@@ -75,21 +75,21 @@ df = DataFrame()`;
     def __init__(self):
         self.value = 0`;
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
   test('skips magic commands', () => {
     const code = '%%capture\nprint("test")';
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(0);
   });
 
   test('handles strings with variables', () => {
     const code = 'msg = "value of x is " + str(x)';
     const errors = rule.run(code, 0);
-    
+
     expect(errors).toHaveLength(1);
     expect(errors[0].msg).toContain('x');
   });
@@ -97,7 +97,7 @@ df = DataFrame()`;
   test('multiple undefined variables', () => {
     const code = 'result = a + b + c';
     const errors = rule.run(code, 0);
-    
+
     expect(errors.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -105,7 +105,7 @@ df = DataFrame()`;
     const code = 'y = x + 1';
     const context = { definedNames: new Set(['x']) };
     const errors = rule.run(code, 0, context);
-    
+
     expect(errors).toHaveLength(0);
   });
 });

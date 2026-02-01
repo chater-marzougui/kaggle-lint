@@ -1,7 +1,7 @@
 /**
  * Content Script Entry Point
  * Injects React app into Kaggle notebook pages
- * 
+ *
  * MIGRATION NOTE: Logic from old-linter/src/content.js
  * Only the React mounting is new, core logic preserved
  */

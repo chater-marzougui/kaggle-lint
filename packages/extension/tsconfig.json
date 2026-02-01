@@ -7,14 +7,7 @@
     "types": ["chrome"],
     "jsx": "react-jsx"
   },
-  "include": [
-    "src/**/*",
-    "../core/src/**/*",
-    "../ui-components/src/**/*"
-  ],
+  "include": ["src/**/*", "../core/src/**/*", "../ui-components/src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../ui-components" }
-  ]
+  "references": [{ "path": "../core" }, { "path": "../ui-components" }]
 }

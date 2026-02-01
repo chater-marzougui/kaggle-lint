@@ -1,7 +1,7 @@
 /**
  * Overlay Component
  * Main overlay UI for displaying lint results
- * 
+ *
  * MIGRATION NOTE: Logic copied verbatim from old-linter/src/ui/overlay.js
  * Only converted to React component format with TypeScript
  * ALL DOM manipulation, dragging, and UI logic preserved exactly
@@ -135,7 +135,9 @@ export const Overlay: React.FC<OverlayProps> = ({
     if (!overlayRef.current) return;
 
     const overlay = overlayRef.current;
-    const titleText = overlay.querySelector('.kaggle-lint-title-text') as HTMLElement;
+    const titleText = overlay.querySelector(
+      '.kaggle-lint-title-text'
+    ) as HTMLElement;
 
     if (isMinimized) {
       // Expanding

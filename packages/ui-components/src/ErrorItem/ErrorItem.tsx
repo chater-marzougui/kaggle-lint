@@ -1,7 +1,7 @@
 /**
  * ErrorItem Component
  * Displays a single lint error item
- * 
+ *
  * MIGRATION NOTE: Logic copied verbatim from old-linter/src/ui/overlay.js
  * Only converted to React component format with TypeScript
  */
@@ -25,11 +25,15 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-export const ErrorItem: React.FC<ErrorItemProps> = ({ error, index, onClick }) => {
+export const ErrorItem: React.FC<ErrorItemProps> = ({
+  error,
+  index,
+  onClick,
+}) => {
   const severityClass = `kaggle-lint-severity-${error.severity}`;
-  
+
   return (
-    <li 
+    <li
       className={`kaggle-lint-error-item ${severityClass}`}
       data-error-index={index}
       onClick={onClick}
@@ -40,7 +44,7 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({ error, index, onClick }) =
       <span className="kaggle-lint-location">
         Cell {(error.cellIndex ?? 0) + 1}:{error.cellLine ?? error.line}
       </span>
-      <span 
+      <span
         className="kaggle-lint-message"
         dangerouslySetInnerHTML={{ __html: escapeHtml(error.msg) }}
       />

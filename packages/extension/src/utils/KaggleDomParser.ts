@@ -2,7 +2,7 @@
  * KaggleDomParser
  * Extracts Python code from Kaggle notebook cells (JupyterLab/CodeMirror 6)
  * Handles windowed/virtualized rendering
- * 
+ *
  * MIGRATION NOTE: Logic copied verbatim from old-linter/src/domParser.js
  * Only converted to TypeScript class format
  */

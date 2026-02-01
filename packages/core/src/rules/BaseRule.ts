@@ -6,7 +6,7 @@ import { LintError, LintContext, LintRule } from '../types';
  */
 export abstract class BaseRule implements LintRule {
   abstract name: string;
-  
+
   abstract run(
     code: string,
     cellOffset: number,
@@ -22,12 +22,12 @@ export abstract class BaseRule implements LintRule {
     severity: 'error' | 'warning' | 'info',
     column?: number
   ): LintError {
-    return { 
-      line, 
-      msg, 
-      severity, 
+    return {
+      line,
+      msg,
+      severity,
       rule: this.name,
-      column 
+      column,
     };
   }
 }

@@ -152,7 +152,10 @@ export class LintEngine {
       if (this.CONTEXT_AWARE_RULES.has(name)) {
         // Call resetContext if the rule has this method
         const ruleAny = rule as any;
-        if (ruleAny.resetContext && typeof ruleAny.resetContext === 'function') {
+        if (
+          ruleAny.resetContext &&
+          typeof ruleAny.resetContext === 'function'
+        ) {
           ruleAny.resetContext();
         }
       }

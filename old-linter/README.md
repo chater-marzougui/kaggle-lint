@@ -8,21 +8,22 @@ A modular JavaScript Chrome extension for linting Python code in Kaggle online n
 
 The extension includes the following modular lint rules:
 
-| Rule | Description | Severity |
-|------|-------------|----------|
-| **Undefined Variables** | Detects usage of variables that haven't been defined | Error |
-| **Capitalization Typos** | Detects potential typos from incorrect capitalization (e.g., `true` vs `True`) | Warning |
-| **Duplicate Functions** | Detects functions/classes with the same name defined multiple times | Warning |
-| **Import Issues** | Detects problematic import patterns (wildcards, duplicates, unused imports) | Warning/Info |
-| **Indentation Errors** | Detects mixed tabs/spaces, unexpected indents, misaligned blocks | Error |
-| **Empty Cells** | Detects empty or effectively empty code cells | Info |
-| **Unclosed Brackets** | Detects unclosed parentheses, brackets, and braces | Error |
-| **Redefined Variables** | Detects shadowing of built-in names and variable redefinition | Warning |
-| **Missing Return** | Detects functions that appear to compute values but lack return statements | Warning |
+| Rule                     | Description                                                                    | Severity     |
+| ------------------------ | ------------------------------------------------------------------------------ | ------------ |
+| **Undefined Variables**  | Detects usage of variables that haven't been defined                           | Error        |
+| **Capitalization Typos** | Detects potential typos from incorrect capitalization (e.g., `true` vs `True`) | Warning      |
+| **Duplicate Functions**  | Detects functions/classes with the same name defined multiple times            | Warning      |
+| **Import Issues**        | Detects problematic import patterns (wildcards, duplicates, unused imports)    | Warning/Info |
+| **Indentation Errors**   | Detects mixed tabs/spaces, unexpected indents, misaligned blocks               | Error        |
+| **Empty Cells**          | Detects empty or effectively empty code cells                                  | Info         |
+| **Unclosed Brackets**    | Detects unclosed parentheses, brackets, and braces                             | Error        |
+| **Redefined Variables**  | Detects shadowing of built-in names and variable redefinition                  | Warning      |
+| **Missing Return**       | Detects functions that appear to compute values but lack return statements     | Warning      |
 
 ### Kaggle DOM Support
 
 The extension handles different Kaggle notebook configurations:
+
 - **Themes**: Light and dark mode detection and styling
 - **Collapsible cells**: Works with collapsed/expanded cell states
 - **Notebook modes**: Edit, view, and run modes
@@ -33,12 +34,14 @@ The extension handles different Kaggle notebook configurations:
 ### From Source (Development)
 
 1. Clone this repository
+
    ```bash
    git clone https://github.com/chater-marzougui/kaggle-lint.git
    cd kaggle-lint
    ```
 
 2. Install dependencies and build
+
    ```bash
    npm install
    npm run build
@@ -122,13 +125,14 @@ The project uses webpack to bundle the extension:
 3. **Output**: All files bundled to `/dist` directory, ready to load as Chrome extension
 
 The build process:
+
 - Bundles JavaScript modules
 - Copies assets (icons, SVGs, pyodide runtime)
 - Generates manifest.json automatically
 - Handles CSS and static files
 - Outputs a complete, ready-to-load extension in `/dist`
 
-```
+````
 
 ## Rule API
 
@@ -148,7 +152,7 @@ const MyRule = (function () {
   }
   return { run };
 })();
-```
+````
 
 ## Development
 
@@ -170,6 +174,7 @@ npm test
 ```
 
 This runs both rule tests and CodeMirror tests:
+
 - `test/rules.test.js` - Tests for all linting rules (62 tests)
 - `test/codeMirror.test.js` - Tests for cell storage system (17 tests)
 
@@ -178,10 +183,13 @@ This runs both rule tests and CodeMirror tests:
 Test the linter without installing the extension:
 
 1. Start the demo server (from project root):
+
    ```bash
    npm run test:demo
    ```
+
    Or manually:
+
    ```bash
    python3 -m http.server 8000
    ```
@@ -191,6 +199,7 @@ Test the linter without installing the extension:
 3. Upload a `.ipynb` file to see the linter in action
 
 The demo page (`test/linter-demo.html`) provides:
+
 - **Linter Engine Selector**: Switch between custom rules and Flake8
 - Drag-and-drop or click-to-browse file upload
 - Visual display of all code cells with line numbers

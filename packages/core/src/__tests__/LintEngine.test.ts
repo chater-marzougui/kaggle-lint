@@ -21,7 +21,7 @@ describe('LintEngine', () => {
   test('can register custom rules', () => {
     const customEngine = new LintEngine([]);
     customEngine.registerRule(new UndefinedVariablesRule());
-    
+
     const rules = customEngine.getRules();
     expect(rules).toHaveLength(1);
     expect(rules[0].name).toBe('undefinedVariables');
@@ -30,7 +30,7 @@ describe('LintEngine', () => {
   test('lints code with multiple rules', () => {
     const code = 'x = y + 1';
     const errors = engine.lintCode(code, 0);
-    
+
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].msg).toContain('y');
   });
@@ -38,7 +38,7 @@ describe('LintEngine', () => {
   test('handles cell offset correctly', () => {
     const code = 'x = y + 1';
     const errors = engine.lintCode(code, 10);
-    
+
     expect(errors[0].line).toBeGreaterThanOrEqual(10);
   });
 
@@ -46,7 +46,7 @@ describe('LintEngine', () => {
     const code = 'x = y + 1';
     const allErrors = engine.lintCode(code, 0);
     const errorOnly = engine.filterBySeverity(allErrors, 'error');
-    
+
     expect(errorOnly.length).toBeLessThanOrEqual(allErrors.length);
   });
 
@@ -54,7 +54,7 @@ describe('LintEngine', () => {
     const code = 'x = y + 1\ntrue = True';
     const errors = engine.lintCode(code, 0);
     const grouped = engine.groupByRule(errors);
-    
+
     expect(grouped.size).toBeGreaterThan(0);
   });
 
@@ -62,7 +62,7 @@ describe('LintEngine', () => {
     const code = 'x = y + 1';
     const errors = engine.lintCode(code, 0);
     const stats = engine.getStats(errors);
-    
+
     expect(stats.total).toBe(errors.length);
     expect(stats.bySeverity).toBeDefined();
     expect(stats.byRule).toBeDefined();
@@ -71,7 +71,7 @@ describe('LintEngine', () => {
   test('handles empty code', () => {
     const code = '';
     const errors = engine.lintCode(code, 0);
-    
+
     // Empty code might trigger emptyCells rule
     expect(Array.isArray(errors)).toBe(true);
   });
@@ -80,14 +80,14 @@ describe('LintEngine', () => {
     const cells = [
       { code: 'x = 1', element: null, cellIndex: 0 },
       { code: 'y = x + 1', element: null, cellIndex: 1 },
-      { code: 'z = w + 1', element: null, cellIndex: 2 }
+      { code: 'z = w + 1', element: null, cellIndex: 2 },
     ];
-    
+
     const errors = engine.lintNotebook(cells);
-    
+
     // Should have error for undefined 'w' in cell 2
     expect(errors.length).toBeGreaterThan(0);
-    const undefinedError = errors.find(e => e.msg.includes('w'));
+    const undefinedError = errors.find((e) => e.msg.includes('w'));
     expect(undefinedError).toBeDefined();
   });
 });

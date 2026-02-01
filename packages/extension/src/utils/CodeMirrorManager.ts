@@ -2,7 +2,7 @@
  * CodeMirrorManager
  * Local storage for Kaggle notebook cells to handle lazy loading
  * Stores cell code locally and synchronizes with user edits
- * 
+ *
  * MIGRATION NOTE: Logic copied verbatim from old-linter/src/codeMirror.js
  * Only converted to TypeScript class format
  */
@@ -70,18 +70,32 @@ export class CodeMirrorManager {
    * Gets all stored cells in order
    * EXACT COPY from old-linter/src/codeMirror.js getAllCells function
    */
-  getAllCells(): Array<{ code: string; cellIndex: number; uuid: string | null }> {
+  getAllCells(): Array<{
+    code: string;
+    cellIndex: number;
+    uuid: string | null;
+  }> {
     const cells = Array.from(this.cellStore.values());
     // Sort by cellIndex
     cells.sort((a, b) => a.cellIndex - b.cellIndex);
-    return cells.map(({ code, cellIndex, uuid }) => ({ code, cellIndex, uuid }));
+    return cells.map(({ code, cellIndex, uuid }) => ({
+      code,
+      cellIndex,
+      uuid,
+    }));
   }
 
   /**
    * Synchronizes cells from extracted data
    * EXACT COPY from old-linter/src/codeMirror.js syncCells function
    */
-  syncCells(extractedCells: Array<{ code: string; cellIndex: number; uuid?: string | null }>): {
+  syncCells(
+    extractedCells: Array<{
+      code: string;
+      cellIndex: number;
+      uuid?: string | null;
+    }>
+  ): {
     updated: number;
     added: number;
     total: number;
@@ -107,7 +121,9 @@ export class CodeMirrorManager {
       });
     });
 
-    this.log(`Synced: ${added} added, ${updated} updated, ${this.cellStore.size} total`);
+    this.log(
+      `Synced: ${added} added, ${updated} updated, ${this.cellStore.size} total`
+    );
     return { updated, added, total: this.cellStore.size };
   }
 

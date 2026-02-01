@@ -5,6 +5,7 @@ This directory contains the TypeScript + React migration of the Kaggle Python Li
 ## 🎯 Migration Status: **COMPLETE**
 
 ### ✅ All Phases Complete
+
 - ✅ **Phase 1**: Project Setup & Infrastructure
 - ✅ **Phase 2**: Core Package Migration (9 lint rules, engines)
 - ✅ **Phase 3**: UI Components Package (React components)
@@ -48,7 +49,8 @@ kaggle-lint/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm 8+
 
 ### Installation & Build
@@ -128,13 +130,13 @@ const engine = new LintEngine();
 
 // Lint a single piece of code
 const errors = engine.lintCode('x = y + 1', 0);
-console.log(errors); 
+console.log(errors);
 // [{ line: 1, msg: "Undefined variable 'y'", severity: 'error', rule: 'undefinedVariables' }]
 
 // Lint multiple cells in a notebook
 const cells = [
   { code: 'x = 1', element: null, cellIndex: 0 },
-  { code: 'y = x + 1', element: null, cellIndex: 1 }
+  { code: 'y = x + 1', element: null, cellIndex: 1 },
 ];
 const notebookErrors = engine.lintNotebook(cells);
 ```
@@ -142,7 +144,10 @@ const notebookErrors = engine.lintNotebook(cells);
 ### Using Individual Rules
 
 ```typescript
-import { UndefinedVariablesRule, CapitalizationTyposRule } from '@kaggle-lint/core';
+import {
+  UndefinedVariablesRule,
+  CapitalizationTyposRule,
+} from '@kaggle-lint/core';
 
 const undefinedRule = new UndefinedVariablesRule();
 const errors = undefinedRule.run('print(x)', 0);
@@ -150,17 +155,17 @@ const errors = undefinedRule.run('print(x)', 0);
 
 ## 📝 Available Lint Rules
 
-| Rule | Description | Severity |
-|------|-------------|----------|
-| `undefinedVariables` | Detects usage of undefined variables | error |
-| `capitalizationTypos` | Detects capitalization typos in common names | warning |
-| `duplicateFunctions` | Detects duplicate function/class definitions | warning |
-| `emptyCells` | Detects empty or trivial cells | info |
-| `importIssues` | Detects problematic import patterns | warning/info |
-| `indentationErrors` | Detects Python indentation issues | error |
-| `missingReturn` | Detects functions missing return statements | warning |
-| `redefinedVariables` | Detects redefinition of built-ins | warning |
-| `unclosedBrackets` | Detects unclosed brackets/parens | error |
+| Rule                  | Description                                  | Severity     |
+| --------------------- | -------------------------------------------- | ------------ |
+| `undefinedVariables`  | Detects usage of undefined variables         | error        |
+| `capitalizationTypos` | Detects capitalization typos in common names | warning      |
+| `duplicateFunctions`  | Detects duplicate function/class definitions | warning      |
+| `emptyCells`          | Detects empty or trivial cells               | info         |
+| `importIssues`        | Detects problematic import patterns          | warning/info |
+| `indentationErrors`   | Detects Python indentation issues            | error        |
+| `missingReturn`       | Detects functions missing return statements  | warning      |
+| `redefinedVariables`  | Detects redefinition of built-ins            | warning      |
+| `unclosedBrackets`    | Detects unclosed brackets/parens             | error        |
 
 ## 🧪 Testing
 
@@ -177,6 +182,7 @@ npm run test:coverage
 ```
 
 Current test coverage:
+
 - 21 tests passing
 - All core rules tested
 - LintEngine functionality verified
@@ -228,6 +234,7 @@ npm run format
 ### Example Migration
 
 **Before (JavaScript):**
+
 ```javascript
 const UndefinedVariablesRule = (function () {
   function run(code, cellOffset = 0) {
@@ -240,11 +247,16 @@ const UndefinedVariablesRule = (function () {
 ```
 
 **After (TypeScript):**
+
 ```typescript
 export class UndefinedVariablesRule extends BaseRule {
   name = 'undefinedVariables';
-  
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
+
+  run(
+    code: string,
+    cellOffset: number = 0,
+    context?: LintContext
+  ): LintError[] {
     const errors: LintError[] = [];
     // ... EXACT SAME logic ...
     return errors;
@@ -255,12 +267,14 @@ export class UndefinedVariablesRule extends BaseRule {
 ## 🔍 What's Next (Phases 3-4)
 
 ### Phase 3: UI Components (Ready for Migration)
+
 - Migrate overlay UI to React
 - Create ErrorList component
 - Setup CSS Modules
 - Add React Testing Library tests
 
 ### Phase 4: Extension Package (Ready for Migration)
+
 - Migrate content scripts to TypeScript
 - Setup Chrome extension with React
 - Migrate DOM parser
@@ -331,6 +345,7 @@ GitHub Actions workflows:
 ### Example Migration
 
 **Before (JavaScript):**
+
 ```javascript
 const UndefinedVariablesRule = (function () {
   function run(code, cellOffset = 0) {
@@ -343,11 +358,16 @@ const UndefinedVariablesRule = (function () {
 ```
 
 **After (TypeScript):**
+
 ```typescript
 export class UndefinedVariablesRule extends BaseRule {
   name = 'undefinedVariables';
-  
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
+
+  run(
+    code: string,
+    cellOffset: number = 0,
+    context?: LintContext
+  ): LintError[] {
     const errors: LintError[] = [];
     // ... EXACT SAME logic ...
     return errors;
