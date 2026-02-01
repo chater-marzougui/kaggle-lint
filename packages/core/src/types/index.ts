@@ -10,6 +10,7 @@ export interface LintError {
   msg: string;
   severity: Severity;
   rule?: string;
+  code?: string; // For flake8 error codes
   cellIndex?: number;
 }
 

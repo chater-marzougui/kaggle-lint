@@ -57,6 +57,16 @@ module.exports = {
           from: '../ui-components/src/Overlay/Overlay.css', 
           to: 'content.css' 
         },
+        // Copy popup CSS from old-linter
+        {
+          from: '../../old-linter/src/popup/popup.css',
+          to: 'popup.css'
+        },
+        // Copy pyodide files from core package
+        {
+          from: '../core/dist/pyodide',
+          to: 'pyodide'
+        },
       ],
     }),
     new HtmlWebpackPlugin({

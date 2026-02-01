@@ -6,13 +6,19 @@
  * Only the React mounting is new, core logic preserved
  */
 
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ContentApp } from './ContentApp';
 
 // Wait for DOM to be ready
 function init() {
   console.log('[Kaggle Linter] Initializing...');
+
+  // Check if already initialized to prevent double mounting
+  const existingRoot = document.getElementById('kaggle-linter-root');
+  if (existingRoot) {
+    console.log('[Kaggle Linter] Already initialized, skipping...');
+    return;
+  }
 
   // Create mount point for React app
   const mountPoint = document.createElement('div');
@@ -21,13 +27,9 @@ function init() {
   mountPoint.style.zIndex = '10000';
   document.body.appendChild(mountPoint);
 
-  // Render React app
+  // Render React app (without StrictMode to avoid double rendering)
   const root = createRoot(mountPoint);
-  root.render(
-    <React.StrictMode>
-      <ContentApp />
-    </React.StrictMode>
-  );
+  root.render(<ContentApp />);
 
   console.log('[Kaggle Linter] Initialized successfully');
 }

@@ -1,84 +1,165 @@
-# Kaggle Python Linter - TypeScript + React Migration
+# Kaggle Python Linter
 
-This directory contains the TypeScript + React migration of the Kaggle Python Linter Chrome extension.
+A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both custom rules and industry-standard Flake8 linting.
 
-## 🎯 Migration Status: **COMPLETE**
+## ✨ Features
 
-### ✅ All Phases Complete
+### Dual Linting Engines
 
-- ✅ **Phase 1**: Project Setup & Infrastructure
-- ✅ **Phase 2**: Core Package Migration (9 lint rules, engines)
-- ✅ **Phase 3**: UI Components Package (React components)
-- ✅ **Phase 4**: Extension Package (Chrome extension)
-- ✅ **Phase 5**: Testing Infrastructure (Jest setup)
-- ✅ **Phase 6**: Build & CI/CD (Turborepo, GitHub Actions)
+- **Built-in Engine**: Fast, custom Python linting rules optimized for Kaggle notebooks
+  - 9 specialized rules with instant feedback
+  - Notebook-aware context tracking (cross-cell variable awareness)
+  - Configurable rule toggles
+  
+- **Flake8 Engine**: Industry-standard Python linter powered by Pyodide
+  - Comprehensive PEP-8 compliance checking
+  - Runs entirely in browser via WebAssembly
+  - Full Flake8 + pyflakes support
 
-## 📦 Monorepo Structure
+### Smart Notebook Features
 
-```
-kaggle-lint/
-├── packages/
-│   ├── core/                    # ✅ Core linting logic
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
-│   │   │   ├── engines/        # LintEngine + Flake8Engine
-│   │   │   ├── __tests__/      # Jest tests (21 passing)
-│   │   │   └── index.ts        # Package exports
-│   │   └── dist/               # Compiled output
-│   ├── ui-components/          # ✅ React UI components
-│   │   ├── src/
-│   │   │   ├── Overlay/        # Main overlay component
-│   │   │   ├── ErrorList/      # Error list component
-│   │   │   ├── ErrorItem/      # Error item component
-│   │   │   └── types/          # UI types
-│   │   └── dist/               # Compiled output
-│   └── extension/              # ✅ Chrome extension
-│       ├── src/
-│       │   ├── content/        # Content script (React)
-│       │   ├── popup/          # Extension popup (React)
-│       │   └── utils/          # DOM parser, CodeMirror manager
-│       ├── public/             # Static assets (manifest, icons)
-│       └── dist/               # Built extension (321 KB)
-├── old-linter/                  # Original vanilla JS implementation
-├── .github/workflows/          # CI/CD pipelines
-├── turbo.json                  # Turborepo configuration
-└── package.json                # Root workspace config
-```
+- **Cross-cell Context**: Understands variables defined in previous cells
+- **Lazy Loading Support**: Works with Kaggle's dynamic cell loading
+- **Theme Aware**: Automatically adapts to light/dark mode
+- **Interactive Overlay**: Draggable error panel with click-to-navigate
+- **Keyboard Shortcuts**: Quick linting with Ctrl+Shift+L
 
-## 🚀 Getting Started
+### Available Lint Rules
+
+| Rule                     | Description                                                                    | Severity     |
+| ------------------------ | ------------------------------------------------------------------------------ | ------------ |
+| **Undefined Variables**  | Detects usage of variables that haven't been defined                           | Error        |
+| **Capitalization Typos** | Detects potential typos from incorrect capitalization (e.g., `true` vs `True`) | Warning      |
+| **Duplicate Functions**  | Detects functions/classes with the same name defined multiple times            | Warning      |
+| **Import Issues**        | Detects problematic import patterns (wildcards, duplicates, unused imports)    | Warning/Info |
+| **Indentation Errors**   | Detects mixed tabs/spaces, unexpected indents, misaligned blocks               | Error        |
+| **Empty Cells**          | Detects empty or effectively empty code cells                                  | Info         |
+| **Unclosed Brackets**    | Detects unclosed parentheses, brackets, and braces                             | Error        |
+| **Redefined Variables**  | Detects shadowing of built-in names and variable redefinition                  | Warning      |
+| **Missing Return**       | Detects functions that appear to compute values but lack return statements     | Warning      |
+
+## 🚀 Installation
 
 ### Prerequisites
 
 - Node.js 18+
 - npm 8+
 
-### Installation & Build
+### From Source
 
-```bash
-# Install all dependencies
-npm install
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/chater-marzougui/kaggle-lint.git
+   cd kaggle-lint
+   ```
 
-# Build all packages (using Turborepo)
-npm run build
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-# Run tests
-npm test
+3. **Build the extension**
+   ```bash
+   npm run build
+   ```
 
-# Type check
-npm run type-check
+4. **Load in Chrome**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" in the top right
+   - Click "Load unpacked"
+   - Select the `packages/extension/dist/` directory
 
-# Lint code
-npm run lint
+### From Release
 
-# Format code
-npm run format
+Download the latest release `.zip` file from the [releases page](https://github.com/chater-marzougui/kaggle-lint/releases) and load it as an unpacked extension in Chrome.
+
+## 📖 Usage
+
+### On Kaggle Notebooks
+
+1. Navigate to any Kaggle notebook in edit mode
+2. The linter automatically initializes and displays an overlay in the bottom-right corner
+3. Errors, warnings, and info messages appear with severity indicators
+
+### Keyboard Shortcuts
+
+- **Ctrl+Shift+L**: Manually re-run the linter
+- **Ctrl+Shift+H**: Toggle overlay visibility
+- **Click on error**: Scroll to and highlight the affected cell
+
+### Extension Settings
+
+Click the extension icon in Chrome toolbar to configure:
+
+- **Linter Engine**: Switch between Built-in and Flake8
+- **Rule Toggles**: Enable/disable individual rules (Built-in mode)
+- **Actions**: Re-lint now or toggle overlay
+
+For detailed usage instructions, see [EXTENSION_USAGE.md](EXTENSION_USAGE.md).
+
+## 🏗️ Architecture
+
+### Monorepo Structure
+
+The project is organized as a monorepo with three main packages:
+
+```
+kaggle-lint/
+├── packages/
+│   ├── core/                    # Core linting engine
+│   │   ├── src/
+│   │   │   ├── types/          # TypeScript type definitions
+│   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
+│   │   │   ├── engines/        # LintEngine + Flake8Engine
+│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime
+│   │   │   └── __tests__/      # Jest tests (21 passing)
+│   │   └── dist/               # Compiled output
+│   ├── ui-components/          # React UI components
+│   │   ├── src/
+│   │   │   ├── Overlay/        # Main overlay component
+│   │   │   ├── ErrorList/      # Error list component
+│   │   │   └── ErrorItem/      # Error item component
+│   │   └── dist/               # Compiled output
+│   └── extension/              # Chrome extension
+│       ├── src/
+│       │   ├── content/        # Content script (React)
+│       │   ├── popup/          # Extension popup (React)
+│       │   └── utils/          # DOM parser, CodeMirror manager
+│       ├── public/             # Static assets (manifest, icons)
+│       └── dist/               # Built extension (~19 MB with pyodide)
+├── old-linter/                  # Original vanilla JS implementation (reference)
+├── .github/workflows/          # CI/CD pipelines
+└── turbo.json                  # Turborepo configuration
 ```
 
-### Development
+### Package Overview
+
+1. **@kaggle-lint/core**: Pure TypeScript linting engine
+   - No DOM dependencies
+   - Can be used standalone or in Node.js
+   - Includes both custom rules and Flake8 integration
+   - Fully tested with Jest
+
+2. **@kaggle-lint/ui-components**: React UI components
+   - Reusable overlay, error list, error items
+   - CSS modules for scoped styling
+   - Can be used in any React app
+
+3. **@kaggle-lint/extension**: Chrome extension
+   - Integrates core + UI components
+   - Content script with React
+   - Popup with React
+   - DOM utilities for Kaggle notebooks
+
+## 💻 Development
+
+### Building
 
 ```bash
-# Watch mode for all packages
+# Build all packages (uses Turborepo)
+npm run build
+
+# Build in watch mode
 npm run dev
 
 # Build specific package
@@ -87,28 +168,84 @@ cd packages/ui-components && npm run build
 cd packages/extension && npm run build
 ```
 
-### Loading the Extension
+### Testing
 
-1. Build the extension: `npm run build`
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable "Developer mode"
-4. Click "Load unpacked"
-5. Select `packages/extension/dist/` directory
+```bash
+# Run all tests
+npm test
 
-## 📋 Core Package API
+# Run tests in watch mode
+cd packages/core && npm run test:watch
 
-### Types
+# Type check all packages
+npm run type-check
+```
+
+Current test coverage:
+- 21 unit tests passing
+- All core rules tested
+- LintEngine functionality verified
+
+### Testing the Extension
+
+#### In Browser
+
+1. Build and load the extension (see Installation)
+2. Open a Kaggle notebook
+3. Check browser console for `[Kaggle Linter]` logs
+
+#### Standalone Demo
+
+Test the linter without installing the extension:
+
+```bash
+# Start demo server
+cd old-linter
+python3 -m http.server 8000
+```
+
+Open http://localhost:8000/test/linter-demo.html and upload a `.ipynb` file.
+
+The demo provides:
+- Linter engine selector (Custom vs Flake8)
+- Drag-and-drop file upload
+- Visual display with line numbers
+- Real-time linting results
+- Click-to-scroll navigation
+
+### Code Quality
+
+```bash
+# Lint code
+npm run lint
+
+# Auto-fix linting issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Check formatting
+npm run format:check
+```
+
+## 📋 API Reference
+
+### Core Package
+
+#### Types
 
 ```typescript
-import { LintError, LintContext, LintRule, CodeCell } from '@kaggle-lint/core';
+import { LintError, LintContext, LintRule } from '@kaggle-lint/core';
 
-// Basic error structure
+// Error structure
 interface LintError {
   line: number;
   column?: number;
   msg: string;
   severity: 'error' | 'warning' | 'info';
   rule?: string;
+  code?: string;  // For Flake8 error codes
   cellIndex?: number;
 }
 
@@ -117,10 +254,11 @@ interface LintContext {
   definedNames?: Set<string>;
   importedModules?: Set<string>;
   functionNames?: Set<string>;
+  classNames?: Set<string>;
 }
 ```
 
-### Using the LintEngine
+#### Using the LintEngine
 
 ```typescript
 import { LintEngine } from '@kaggle-lint/core';
@@ -141,7 +279,7 @@ const cells = [
 const notebookErrors = engine.lintNotebook(cells);
 ```
 
-### Using Individual Rules
+#### Using Individual Rules
 
 ```typescript
 import {
@@ -153,159 +291,49 @@ const undefinedRule = new UndefinedVariablesRule();
 const errors = undefinedRule.run('print(x)', 0);
 ```
 
-## 📝 Available Lint Rules
-
-| Rule                  | Description                                  | Severity     |
-| --------------------- | -------------------------------------------- | ------------ |
-| `undefinedVariables`  | Detects usage of undefined variables         | error        |
-| `capitalizationTypos` | Detects capitalization typos in common names | warning      |
-| `duplicateFunctions`  | Detects duplicate function/class definitions | warning      |
-| `emptyCells`          | Detects empty or trivial cells               | info         |
-| `importIssues`        | Detects problematic import patterns          | warning/info |
-| `indentationErrors`   | Detects Python indentation issues            | error        |
-| `missingReturn`       | Detects functions missing return statements  | warning      |
-| `redefinedVariables`  | Detects redefinition of built-ins            | warning      |
-| `unclosedBrackets`    | Detects unclosed brackets/parens             | error        |
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-cd packages/core
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Generate coverage report
-npm run test:coverage
-```
-
-Current test coverage:
-
-- 21 tests passing
-- All core rules tested
-- LintEngine functionality verified
-
-## 🏗️ Development
-
-### Building
-
-```bash
-# Build all packages
-npm run build
-
-# Build core package only
-cd packages/core
-npm run build
-```
-
-### Type Checking
-
-```bash
-# Check types in all packages
-cd packages/core && npx tsc --noEmit
-cd packages/ui-components && npx tsc --noEmit
-cd packages/extension && npx tsc --noEmit
-```
-
-### Linting
-
-```bash
-# Lint all packages
-npm run lint
-
-# Auto-fix linting issues
-npm run lint:fix
-
-# Format code
-npm run format
-```
-
-## 📚 Migration Approach
-
-### Key Principles
-
-1. **Zero Logic Changes**: All rule logic copied verbatim from old-linter
-2. **Type Safety**: Added TypeScript type annotations without changing behavior
-3. **Test Preservation**: Tests migrated to Jest with same test cases
-4. **Exact Functionality**: Everything that works must continue working identically
-
-### Example Migration
-
-**Before (JavaScript):**
-
-```javascript
-const UndefinedVariablesRule = (function () {
-  function run(code, cellOffset = 0) {
-    const errors = [];
-    // ... logic ...
-    return errors;
-  }
-  return { run };
-})();
-```
-
-**After (TypeScript):**
+#### Using the Flake8 Engine
 
 ```typescript
-export class UndefinedVariablesRule extends BaseRule {
-  name = 'undefinedVariables';
+import { Flake8Engine } from '@kaggle-lint/core';
 
-  run(
-    code: string,
-    cellOffset: number = 0,
-    context?: LintContext
-  ): LintError[] {
+// Create Flake8 engine
+const flake8 = new Flake8Engine();
+
+// Initialize (loads Pyodide - may take 10-30 seconds first time)
+await flake8.initialize();
+
+// Lint code
+const errors = await flake8.lint('x = y + 1', 0);
+
+// Lint entire notebook with context tracking
+const notebookErrors = await flake8.lintNotebook(cells);
+```
+
+### Adding Custom Rules
+
+Each rule follows a simple interface:
+
+```typescript
+export class MyCustomRule extends BaseRule {
+  name = 'myCustomRule';
+
+  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
     const errors: LintError[] = [];
-    // ... EXACT SAME logic ...
+    
+    // Analyze code and find issues
+    if (/* issue detected */) {
+      errors.push({
+        line: lineNumber + cellOffset,
+        msg: 'Description of the issue',
+        severity: 'error',
+        rule: this.name,
+      });
+    }
+    
     return errors;
   }
 }
 ```
-
-## 🔍 What's Next (Phases 3-4)
-
-### Phase 3: UI Components (Ready for Migration)
-
-- Migrate overlay UI to React
-- Create ErrorList component
-- Setup CSS Modules
-- Add React Testing Library tests
-
-### Phase 4: Extension Package (Ready for Migration)
-
-- Migrate content scripts to TypeScript
-- Setup Chrome extension with React
-- Migrate DOM parser
-- Keep CodeMirror handling identical
-
-## 🎉 Achievements
-
-- ✅ **9 lint rules** migrated (100% complete)
-- ✅ **14,500+ lines** of code migrated
-- ✅ **0 breaking changes** to functionality
-- ✅ **21 tests** passing
-- ✅ **Full type safety** with TypeScript strict mode
-- ✅ **Build artifacts** generated successfully
-- ✅ **Monorepo structure** ready for phases 3-4
-
-## 📖 Documentation
-
-- [Migration Plan](MIGRATION.md) - Complete migration strategy
-- [Original README](old-linter/README.md) - Original extension documentation
-
-## 🎉 Migration Achievements
-
-- ✅ **9 lint rules** migrated (100% complete)
-- ✅ **14,500+ lines** of code migrated
-- ✅ **0 breaking changes** to functionality
-- ✅ **21 tests** passing
-- ✅ **Full type safety** with TypeScript strict mode
-- ✅ **Build artifacts** generated successfully (321 KB extension)
-- ✅ **Monorepo structure** with Turborepo
-- ✅ **CI/CD pipeline** with GitHub Actions
-- ✅ **React components** for modern UI
 
 ## 🔧 Build & CI/CD
 
@@ -314,102 +342,68 @@ export class UndefinedVariablesRule extends BaseRule {
 The project uses Turborepo for optimized build orchestration:
 
 - **Dependency-aware builds**: Packages build in correct order
-- **Caching**: Faster rebuilds with intelligent caching
+- **Caching**: Faster rebuilds with intelligent caching  
 - **Parallel execution**: Multiple packages build simultaneously
 
-### CI/CD Pipeline
+### GitHub Actions
 
-GitHub Actions workflows:
+Automated workflows:
 
-- **CI**: Runs on every push and PR
-  - Linting (ESLint + Prettier)
-  - Type checking (TypeScript)
-  - Tests (Jest)
+- **CI Pipeline** (runs on every push and PR)
+  - ESLint + Prettier checks
+  - TypeScript type checking
+  - Jest unit tests
   - Build validation
 
-- **Release**: Triggered on version tags
-  - Builds extension
-  - Creates ZIP artifact
-  - Publishes GitHub release
-
-## 📖 Migration Approach
-
-### Key Principles Applied
-
-1. **Zero Logic Changes**: All code copied verbatim from old-linter
-2. **Type Safety Only**: Added TypeScript annotations without behavior changes
-3. **Exact Functionality**: Everything works identically to original
-4. **Preserved DOM Logic**: Kaggle DOM parsing unchanged (it was hard to get working)
-5. **Preserved Integrations**: Pyodide/Flake8 engine logic identical
-
-### Example Migration
-
-**Before (JavaScript):**
-
-```javascript
-const UndefinedVariablesRule = (function () {
-  function run(code, cellOffset = 0) {
-    const errors = [];
-    // ... logic ...
-    return errors;
-  }
-  return { run };
-})();
-```
-
-**After (TypeScript):**
-
-```typescript
-export class UndefinedVariablesRule extends BaseRule {
-  name = 'undefinedVariables';
-
-  run(
-    code: string,
-    cellOffset: number = 0,
-    context?: LintContext
-  ): LintError[] {
-    const errors: LintError[] = [];
-    // ... EXACT SAME logic ...
-    return errors;
-  }
-}
-```
-
-## 📚 Documentation
-
-- [Migration Plan](MIGRATION.md) - Complete migration strategy
-- [Migration Recommendations](MIGRATION_RECOMMENDATIONS.MD) - Enhancement suggestions
-- [Original README](old-linter/README.md) - Original extension documentation
+- **Release Pipeline** (triggered on version tags)
+  - Builds extension with all packages
+  - Creates distribution ZIP
+  - Publishes GitHub release with artifacts
 
 ## 🤝 Contributing
 
-When contributing to this codebase:
+Contributions are welcome! When contributing:
 
-1. **Preserve logic exactly** - No refactoring during migration-related changes
-2. **Add types only** - TypeScript annotations without behavior changes
+1. **Follow existing patterns** - Maintain consistency with the codebase
+2. **Add types** - Use TypeScript for type safety
 3. **Test thoroughly** - Ensure all tests pass
-4. **Document changes** - Update README with progress
+4. **Document changes** - Update README and comments as needed
+5. **Check formatting** - Run `npm run format` before committing
 
-## 🔒 Architecture
+### Development Workflow
 
-### Workspace Packages
+1. Fork and clone the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `npm test`
+5. Check types: `npm run type-check`
+6. Lint code: `npm run lint:fix`
+7. Build: `npm run build`
+8. Submit a pull request
 
-1. **@kaggle-lint/core**: Pure TypeScript linting engine
-   - No DOM dependencies
-   - Can be used standalone or in Node.js
-   - Fully tested with Jest
+## 📚 Additional Documentation
 
-2. **@kaggle-lint/ui-components**: React UI components
-   - Reusable overlay, error list, error items
-   - CSS modules for scoped styling
-   - Can be used in any React app
+- [Extension Usage Guide](EXTENSION_USAGE.md) - Detailed usage instructions
+- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Recent migration details
+- [Migration History](MIGRATION.md) - Complete migration plan and history
 
-3. **@kaggle-lint/extension**: Chrome extension
-   - Integrates core + UI components
-   - Content script with React
-   - Popup with React
-   - DOM utilities for Kaggle notebooks
+## 🙏 Acknowledgments
+
+Special thanks to:
+
+- **[Pyodide](https://pyodide.org/)** - Python runtime compiled to WebAssembly
+- **[Flake8](https://flake8.pycqa.org/)** - Industry-standard Python linting tool
 
 ## 📄 License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details
+
+## 🐛 Issues & Support
+
+- **Report bugs**: [GitHub Issues](https://github.com/chater-marzougui/kaggle-lint/issues)
+- **Discuss features**: [GitHub Discussions](https://github.com/chater-marzougui/kaggle-lint/discussions)
+- **View documentation**: Check the `/docs` folder and wiki
+
+---
+
+**Built with TypeScript, React, and ❤️ for the Kaggle community**
