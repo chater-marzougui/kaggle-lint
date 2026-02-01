@@ -97,47 +97,7 @@ Click the extension icon in Chrome toolbar to configure:
 
 For detailed usage instructions, see [EXTENSION_USAGE.md](EXTENSION_USAGE.md).
 
-```
-kaggle-lint/
-├── packages/
-│   ├── core/                    # ✅ Core linting logic
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
-│   │   │   ├── engines/        # LintEngine + Flake8Engine
-│   │   │   ├── __tests__/      # Jest tests (21 passing)
-│   │   │   └── index.ts        # Package exports
-│   │   └── dist/               # Compiled output
-│   ├── ui-components/          # ✅ React UI components
-│   │   ├── src/
-│   │   │   ├── Overlay/        # Main overlay component
-│   │   │   ├── ErrorList/      # Error list component
-│   │   │   ├── ErrorItem/      # Error item component
-│   │   │   └── types/          # UI types
-│   │   └── dist/               # Compiled output
-│   └── extension/              # ✅ Chrome extension
-│       ├── src/
-│       │   ├── content/        # Content script (React)
-│       │   ├── popup/          # Extension popup (React)
-│       │   └── utils/          # DOM parser, CodeMirror manager
-│       ├── public/             # Static assets (manifest, icons)
-│       └── dist/               # Built extension (321 KB)
-├── old-linter/                  # Original vanilla JS implementation
-├── .github/workflows/          # CI/CD pipelines
-├── turbo.json                  # Turborepo configuration
-└── package.json                # Root workspace config
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm 8+
-
 ## 🏗️ Architecture
-
-### Monorepo Structure
 
 ### Monorepo Structure
 
