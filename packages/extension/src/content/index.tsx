@@ -14,6 +14,13 @@ import { ContentApp } from './ContentApp';
 function init() {
   console.log('[Kaggle Linter] Initializing...');
 
+  // Check if already initialized to prevent double mounting
+  const existingRoot = document.getElementById('kaggle-linter-root');
+  if (existingRoot) {
+    console.log('[Kaggle Linter] Already initialized, skipping...');
+    return;
+  }
+
   // Create mount point for React app
   const mountPoint = document.createElement('div');
   mountPoint.id = 'kaggle-linter-root';
@@ -21,13 +28,9 @@ function init() {
   mountPoint.style.zIndex = '10000';
   document.body.appendChild(mountPoint);
 
-  // Render React app
+  // Render React app (without StrictMode to avoid double rendering)
   const root = createRoot(mountPoint);
-  root.render(
-    <React.StrictMode>
-      <ContentApp />
-    </React.StrictMode>
-  );
+  root.render(<ContentApp />);
 
   console.log('[Kaggle Linter] Initialized successfully');
 }
