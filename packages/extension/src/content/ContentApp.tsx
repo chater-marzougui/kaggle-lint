@@ -86,7 +86,7 @@ export const ContentApp: React.FC = () => {
 
     // Load settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.get(['linterSettings'], (result) => {
+      chrome.storage.sync.get(['linterSettings'], (result: any) => {
         if (result.linterSettings) {
           _setSettings(result.linterSettings);
         }
@@ -154,6 +154,7 @@ export const ContentApp: React.FC = () => {
       chrome.runtime.onMessage.addListener(messageListener);
       return () => chrome.runtime.onMessage.removeListener(messageListener);
     }
+    return undefined;
   }, [runLinter]);
 
   /**
