@@ -1,9 +1,10 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
 
 module.exports = {
-  mode: 'production',
+  mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
   entry: {
     content: './src/content/index.tsx',
     popup: './src/popup/index.tsx',
@@ -42,6 +43,11 @@ module.exports = {
     },
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+      'process.env.DEBUG': JSON.stringify(process.env.DEBUG || 'false'),
+      'process.env.EXTENSION_VERSION': JSON.stringify(process.env.EXTENSION_VERSION || '2.0.0'),
+    }),
     new CopyPlugin({
       patterns: [
         { from: 'public/manifest.json', to: 'manifest.json' },
