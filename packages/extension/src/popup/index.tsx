@@ -3,7 +3,6 @@
  * Renders the popup React app
  */
 
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { PopupApp } from './PopupApp';
 

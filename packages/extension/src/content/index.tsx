@@ -6,7 +6,6 @@
  * Only the React mounting is new, core logic preserved
  */
 
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ContentApp } from './ContentApp';
 
