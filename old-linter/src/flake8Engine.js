@@ -11,6 +11,7 @@ const Flake8Engine = (function () {
   let isLoading = false;
   let isReady = false;
   let loadPromise = null;
+  const pyodidePath = process.env.PYODIDE_PATH || "src/pyodide/";
 
   /**
    * Load Pyodide and install Flake8
@@ -37,7 +38,7 @@ const Flake8Engine = (function () {
           chrome.runtime &&
           chrome.runtime.getURL
         ) {
-          pyodideIndexURL = chrome.runtime.getURL("src/pyodide/");
+          pyodideIndexURL = chrome.runtime.getURL(pyodidePath);
           console.log(
             "[Flake8Engine] Using local Pyodide from:",
             pyodideIndexURL

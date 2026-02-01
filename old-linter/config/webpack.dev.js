@@ -6,6 +6,11 @@ module.exports = merge(common, {
   mode: 'development',
   devtool: 'cheap-module-source-map',
   watch: true,
+  plugins: [
+    new webpack.definePlugin({
+      'process.env.PYODIDE_PATH': JSON.stringify('src/pyodide/'),
+    }),
+  ],
   watchOptions: {
     ignored: /node_modules/,
     aggregateTimeout: 300,

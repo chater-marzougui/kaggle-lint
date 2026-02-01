@@ -20,6 +20,7 @@
    * @returns {Array<{code: string, cellIndex: number, uuid: string|null}>}
    */
   window.KAGGLE_LINTER_EXTRACT = async function () {
+    
     log("🔍 Extracting code via DOM lines...");
 
     const results = [];
