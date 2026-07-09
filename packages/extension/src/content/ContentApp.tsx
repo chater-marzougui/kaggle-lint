@@ -9,30 +9,113 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine } from '@kaggle-lint/core';
+import { LintEngine, Flake8Engine } from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
+import {
+  UndefinedVariablesRule,
+  CapitalizationTyposRule,
+  DuplicateFunctionsRule,
+  EmptyCellsRule,
+  ImportIssuesRule,
+  IndentationErrorsRule,
+  MissingReturnRule,
+  RedefinedVariablesRule,
+  UnclosedBracketsRule,
+} from '@kaggle-lint/core';
 
 interface Settings {
-  engine: 'custom' | 'flake8';
-  autoLint: boolean;
-  showInfo: boolean;
+  linterEngine: 'handmade' | 'flake8';
+  rules: Record<string, boolean>;
 }
+
+// Default settings
+const DEFAULT_SETTINGS: Settings = {
+  linterEngine: 'handmade',
+  rules: {
+    undefinedVariables: true,
+    capitalizationTypos: true,
+    duplicateFunctions: true,
+    importIssues: true,
+    indentationErrors: true,
+    emptyCells: true,
+    unclosedBrackets: true,
+    redefinedVariables: true,
+    missingReturn: true,
+  },
+};
+
+// Rule mapping
+const RULE_MAP: Record<string, () => any> = {
+  undefinedVariables: () => new UndefinedVariablesRule(),
+  capitalizationTypos: () => new CapitalizationTyposRule(),
+  duplicateFunctions: () => new DuplicateFunctionsRule(),
+  emptyCells: () => new EmptyCellsRule(),
+  importIssues: () => new ImportIssuesRule(),
+  indentationErrors: () => new IndentationErrorsRule(),
+  missingReturn: () => new MissingReturnRule(),
+  redefinedVariables: () => new RedefinedVariablesRule(),
+  unclosedBrackets: () => new UnclosedBracketsRule(),
+};
 
 export const ContentApp: React.FC = () => {
   const [errors, setErrors] = useState<any[]>([]);
   const [visible, setVisible] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isLinting, setIsLinting] = useState(false);
-  const [_settings, _setSettings] = useState<Settings>({
-    engine: 'custom',
-    autoLint: true,
-    showInfo: true,
-  });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready'>('unloaded');
 
-  const lintEngine = React.useRef(new LintEngine()).current;
+  const handmadeLintEngineRef = React.useRef<LintEngine | null>(null);
+  const flake8EngineRef = React.useRef<Flake8Engine>(new Flake8Engine());
   const domParser = React.useRef(new KaggleDomParser()).current;
   const codeMirrorManager = React.useRef(new CodeMirrorManager()).current;
+
+  /**
+   * Create handmade lint engine based on settings
+   */
+  const getHandmadeLintEngine = useCallback(() => {
+    const enabledRules = Object.entries(settings.rules)
+      .filter(([_, enabled]) => enabled)
+      .map(([ruleId]) => RULE_MAP[ruleId]?.())
+      .filter(Boolean);
+    
+    console.log(`[Linter] Creating handmade engine with ${enabledRules.length} rules`);
+    handmadeLintEngineRef.current = new LintEngine(enabledRules);
+    
+    return handmadeLintEngineRef.current;
+  }, [settings.rules]);
+
+  /**
+   * Initialize Flake8 engine if needed
+   */
+  const initializeFlake8 = useCallback(async () => {
+    if (flake8Status === 'ready') {
+      return flake8EngineRef.current;
+    }
+
+    if (flake8Status === 'loading') {
+      // Wait for it to finish loading
+      while (!flake8EngineRef.current.isReady()) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return flake8EngineRef.current;
+    }
+
+    console.log('[Linter] Initializing Flake8 engine...');
+    setFlake8Status('loading');
+    
+    try {
+      await flake8EngineRef.current.initialize();
+      setFlake8Status('ready');
+      console.log('[Linter] Flake8 engine ready');
+      return flake8EngineRef.current;
+    } catch (error) {
+      console.error('[Linter] Failed to initialize Flake8:', error);
+      setFlake8Status('unloaded');
+      throw error;
+    }
+  }, [flake8Status]);
 
   /**
    * Run the linter
@@ -46,6 +129,7 @@ export const ContentApp: React.FC = () => {
 
     setIsLinting(true);
     console.log('[Linter] Starting lint...');
+    console.log('[Linter] Current settings:', settings);
 
     try {
       // Extract cells from DOM
@@ -62,44 +146,84 @@ export const ContentApp: React.FC = () => {
         cellIndex: index,
       }));
 
-      // Run linter
-      const lintErrors = lintEngine.lintNotebook(cellsForLinting);
-      console.log(`[Linter] Found ${lintErrors.length} errors`);
+      let lintErrors;
+      
+      if (settings.linterEngine === 'handmade') {
+        // Run handmade linter
+        console.log('[Linter] Running handmade engine...');
+        const engine = getHandmadeLintEngine();
+        lintErrors = engine.lintNotebook(cellsForLinting);
+        console.log(`[Linter] Handmade engine found ${lintErrors.length} errors`);
+      } else {
+        // Run flake8
+        console.log('[Linter] Running flake8 engine...');
+        const flake8Engine = await initializeFlake8();
+        lintErrors = await flake8Engine.lintNotebook(cellsForLinting);
+        console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
+      }
 
       // Update errors state
       setErrors(lintErrors);
+      console.log('[Linter] Updated errors state with', lintErrors.length, 'errors');
     } catch (error) {
       console.error('[Linter] Error during linting:', error);
+      // If flake8 fails, show user-friendly message
+      if (settings.linterEngine === 'flake8') {
+        console.warn('[Linter] Flake8 failed, you may need to reload the page');
+      }
     } finally {
       setIsLinting(false);
     }
-  }, [isLinting, domParser, codeMirrorManager, lintEngine]);
+  }, [isLinting, domParser, codeMirrorManager, settings, getHandmadeLintEngine, initializeFlake8]);
 
   /**
    * Initialize linter on mount
    * EXACT LOGIC from old-linter/src/content.js init function
    */
   useEffect(() => {
+    console.log('[Linter] Initializing ContentApp...');
+    
     // Detect theme
     const detectedTheme = domParser.detectTheme();
     setTheme(detectedTheme);
+    console.log('[Linter] Detected theme:', detectedTheme);
 
     // Load settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.sync.get(['linterSettings'], (result: any) => {
         if (result.linterSettings) {
-          _setSettings(result.linterSettings);
+          console.log('[Linter] Loaded settings from storage:', result.linterSettings);
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...result.linterSettings,
+            rules: {
+              ...DEFAULT_SETTINGS.rules,
+              ...(result.linterSettings.rules || {}),
+            },
+          });
+        } else {
+          console.log('[Linter] No saved settings, using defaults');
         }
       });
     }
 
     // Run linter after a brief delay
     const timer = setTimeout(() => {
+      console.log('[Linter] Running initial lint...');
       runLinter();
     }, 1000);
 
     return () => clearTimeout(timer);
   }, [domParser, runLinter]);
+
+  /**
+   * Re-run linter when settings change (but not on initial mount)
+   */
+  useEffect(() => {
+    console.log('[Linter] Settings changed:', settings);
+    // Invalidate the handmade engine so it gets recreated with new settings
+    handmadeLintEngineRef.current = null;
+  }, [settings]);
 
   /**
    * Setup keyboard shortcuts
@@ -110,11 +234,13 @@ export const ContentApp: React.FC = () => {
       // Ctrl+Shift+L: Run linter
       if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         e.preventDefault();
+        console.log('[Linter] Keyboard shortcut: Re-lint');
         runLinter();
       }
       // Ctrl+Shift+H: Toggle overlay
       if (e.ctrlKey && e.shiftKey && e.key === 'H') {
         e.preventDefault();
+        console.log('[Linter] Keyboard shortcut: Toggle overlay');
         setVisible((prev) => !prev);
       }
     };
@@ -137,13 +263,24 @@ export const ContentApp: React.FC = () => {
         console.log('[Linter] Received message:', message);
 
         if (message.type === 'runLinter') {
+          console.log('[Linter] Message: runLinter');
           runLinter();
           sendResponse({ success: true });
         } else if (message.type === 'toggleOverlay') {
+          console.log('[Linter] Message: toggleOverlay');
           setVisible((prev) => !prev);
           sendResponse({ success: true });
         } else if (message.type === 'settingsChanged') {
-          _setSettings(message.settings);
+          console.log('[Linter] Message: settingsChanged', message.settings);
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...message.settings,
+            rules: {
+              ...DEFAULT_SETTINGS.rules,
+              ...(message.settings.rules || {}),
+            },
+          });
+          // Run linter with new settings
           runLinter();
           sendResponse({ success: true });
         }
@@ -179,6 +316,8 @@ export const ContentApp: React.FC = () => {
       theme={theme}
       onErrorClick={handleErrorClick}
       onRefresh={runLinter}
+      isLoading={isLinting}
+      flake8Status={settings.linterEngine === 'flake8' ? flake8Status : undefined}
     />
   );
 };

@@ -10,7 +10,6 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
   - 9 specialized rules with instant feedback
   - Notebook-aware context tracking (cross-cell variable awareness)
   - Configurable rule toggles
-  
 - **Flake8 Engine**: Industry-standard Python linter powered by Pyodide
   - Comprehensive PEP-8 compliance checking
   - Runs entirely in browser via WebAssembly
@@ -48,17 +47,20 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 ### From Source
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/chater-marzougui/kaggle-lint.git
    cd kaggle-lint
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Build the extension**
+
    ```bash
    npm run build
    ```
@@ -182,6 +184,7 @@ npm run type-check
 ```
 
 Current test coverage:
+
 - 21 unit tests passing
 - All core rules tested
 - LintEngine functionality verified
@@ -207,6 +210,7 @@ python3 -m http.server 8000
 Open http://localhost:8000/test/linter-demo.html and upload a `.ipynb` file.
 
 The demo provides:
+
 - Linter engine selector (Custom vs Flake8)
 - Drag-and-drop file upload
 - Visual display with line numbers
@@ -245,7 +249,7 @@ interface LintError {
   msg: string;
   severity: 'error' | 'warning' | 'info';
   rule?: string;
-  code?: string;  // For Flake8 error codes
+  code?: string; // For Flake8 error codes
   cellIndex?: number;
 }
 
@@ -319,7 +323,7 @@ export class MyCustomRule extends BaseRule {
 
   run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
     const errors: LintError[] = [];
-    
+
     // Analyze code and find issues
     if (/* issue detected */) {
       errors.push({
@@ -329,7 +333,7 @@ export class MyCustomRule extends BaseRule {
         rule: this.name,
       });
     }
-    
+
     return errors;
   }
 }
@@ -342,7 +346,7 @@ export class MyCustomRule extends BaseRule {
 The project uses Turborepo for optimized build orchestration:
 
 - **Dependency-aware builds**: Packages build in correct order
-- **Caching**: Faster rebuilds with intelligent caching  
+- **Caching**: Faster rebuilds with intelligent caching
 - **Parallel execution**: Multiple packages build simultaneously
 
 ### GitHub Actions

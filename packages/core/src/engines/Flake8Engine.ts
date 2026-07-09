@@ -2,7 +2,7 @@
  * Flake8 Linter Engine using Pyodide
  * Provides Python linting using Flake8 running in WebAssembly via Pyodide
  * WITH NOTEBOOK CONTEXT TRACKING
- * 
+ *
  * Migrated from old-linter/src/flake8Engine.js to TypeScript
  */
 

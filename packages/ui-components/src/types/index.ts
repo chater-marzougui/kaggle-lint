@@ -29,8 +29,10 @@ export interface OverlayProps {
   onErrorClick?: (error: any) => void;
   onRefresh?: () => Promise<void>;
   visible?: boolean;
+  isLoading?: boolean;
   theme?: 'light' | 'dark';
   codeCells?: Array<{ element: Element | null; cellIndex: number }>;
+  flake8Status?: 'unloaded' | 'loading' | 'ready';
 }
 
 export interface ErrorStats {

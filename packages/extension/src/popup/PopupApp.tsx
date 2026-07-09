@@ -73,10 +73,13 @@ interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'handmade',
-  rules: RULES.reduce((acc, rule) => {
-    acc[rule.id] = rule.enabled;
-    return acc;
-  }, {} as Record<string, boolean>),
+  rules: RULES.reduce(
+    (acc, rule) => {
+      acc[rule.id] = rule.enabled;
+      return acc;
+    },
+    {} as Record<string, boolean>
+  ),
 };
 
 export const PopupApp: React.FC = () => {
@@ -88,7 +91,15 @@ export const PopupApp: React.FC = () => {
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.sync.get(['linterSettings'], (result: any) => {
         if (result.linterSettings) {
-          setSettings(result.linterSettings);
+          // Merge with defaults to ensure all properties exist
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...result.linterSettings,
+            rules: {
+              ...DEFAULT_SETTINGS.rules,
+              ...(result.linterSettings.rules || {}),
+            },
+          });
         }
       });
     }
@@ -211,7 +222,11 @@ export const PopupApp: React.FC = () => {
     <div className="popup-container">
       <div className="header">
         <div className="header-title">
-          <img src="/icons/icon48.png" alt="Kaggle Linter" className="header-icon" />
+          <img
+            src="/icons/icon48.png"
+            alt="Kaggle Linter"
+            className="header-icon"
+          />
           <div className="header-text">
             <h1>Kaggle Linter</h1>
             <p className="subtitle">Python code quality checker</p>
@@ -274,7 +289,7 @@ export const PopupApp: React.FC = () => {
             </div>
             <div className="section-content" id="rules-list">
               {RULES.map((rule) => {
-                const isEnabled = settings.rules[rule.id] !== false;
+                const isEnabled = settings.rules?.[rule.id] !== false;
                 return (
                   <div key={rule.id} className="rule-item">
                     <div className="rule-info">

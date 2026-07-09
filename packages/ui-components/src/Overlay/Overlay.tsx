@@ -66,6 +66,7 @@ export const Overlay: React.FC<OverlayProps> = ({
   onErrorClick,
   onRefresh,
   visible = true,
+  isLoading = false,
   theme = 'light',
   codeCells: _codeCells = [], // Prefixed with underscore to indicate intentionally unused
 }) => {
@@ -239,12 +240,12 @@ export const Overlay: React.FC<OverlayProps> = ({
         <div className="kaggle-lint-controls">
           <button
             className={`kaggle-lint-btn kaggle-lint-btn-icon ${
-              isRefreshing ? 'kaggle-lint-spinning' : ''
+              (isRefreshing || isLoading) ? 'kaggle-lint-spinning' : ''
             }`}
             title="Refresh lint"
             id="kaggle-lint-refresh-btn"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isLoading}
           >
             {refreshIcon}
           </button>
