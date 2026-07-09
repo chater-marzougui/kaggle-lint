@@ -42,6 +42,16 @@
       "css": ["content.css"],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.kaggle.com/code/*/*/edit",
+        "https://kkb-production.jupyter-proxy.kaggle.net/*"
+      ],
+      "js": ["pageExtractor.js"],
+      "world": "MAIN",
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [

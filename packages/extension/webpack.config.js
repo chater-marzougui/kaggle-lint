@@ -8,6 +8,7 @@ module.exports = {
   entry: {
     content: './src/content/index.tsx',
     popup: './src/popup/index.tsx',
+    pageExtractor: './src/page/pageExtractor.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
