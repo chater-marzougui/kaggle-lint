@@ -64,6 +64,7 @@ export const ContentApp: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isLinting, setIsLinting] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready'>('unloaded');
 
   const handmadeLintEngineRef = React.useRef<LintEngine | null>(null);
@@ -191,7 +192,7 @@ export const ContentApp: React.FC = () => {
    */
   useEffect(() => {
     console.log('[Linter] Initializing ContentApp...');
-    
+
     // Detect theme
     const detectedTheme = domParser.detectTheme();
     setTheme(detectedTheme);
@@ -213,27 +214,34 @@ export const ContentApp: React.FC = () => {
         } else {
           console.log('[Linter] No saved settings, using defaults');
         }
+        setSettingsLoaded(true);
       });
+    } else {
+      setSettingsLoaded(true);
     }
-
-    // Run linter after a brief delay
-    const timer = setTimeout(() => {
-      console.log('[Linter] Running initial lint...');
-      runLinterRef.current();
-    }, 1000);
-
-    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    console.log('[Linter] Running initial lint...');
+    const timer = setTimeout(() => runLinterRef.current(), 1000);
+    return () => clearTimeout(timer);
+  }, [settingsLoaded]);
 
   /**
    * Re-run linter when settings change (but not on initial mount)
    */
+  const prevSettingsRef = React.useRef<Settings | null>(null);
   useEffect(() => {
     console.log('[Linter] Settings changed:', settings);
     // Invalidate the handmade engine so it gets recreated with new settings
     handmadeLintEngineRef.current = null;
-  }, [settings]);
+    if (settingsLoaded && prevSettingsRef.current !== null) {
+      runLinterRef.current();
+    }
+    prevSettingsRef.current = settings;
+  }, [settings, settingsLoaded]);
 
   /**
    * Setup keyboard shortcuts
