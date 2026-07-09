@@ -71,6 +71,9 @@ export const ContentApp: React.FC = () => {
   const domParser = React.useRef(new KaggleDomParser()).current;
   const codeMirrorManager = React.useRef(new CodeMirrorManager()).current;
 
+  const runLinterRef = React.useRef<() => Promise<void>>(async () => {});
+  const isLintingRef = React.useRef(false);
+
   /**
    * Create handmade lint engine based on settings
    */
@@ -122,11 +125,12 @@ export const ContentApp: React.FC = () => {
    * EXACT LOGIC from old-linter/src/content.js runLinter function
    */
   const runLinter = useCallback(async () => {
-    if (isLinting) {
+    if (isLintingRef.current) {
       console.log('[Linter] Already linting, skipping...');
       return;
     }
 
+    isLintingRef.current = true;
     setIsLinting(true);
     console.log('[Linter] Starting lint...');
     console.log('[Linter] Current settings:', settings);
@@ -172,9 +176,14 @@ export const ContentApp: React.FC = () => {
         console.warn('[Linter] Flake8 failed, you may need to reload the page');
       }
     } finally {
+      isLintingRef.current = false;
       setIsLinting(false);
     }
-  }, [isLinting, domParser, codeMirrorManager, settings, getHandmadeLintEngine, initializeFlake8]);
+  }, [domParser, codeMirrorManager, settings, getHandmadeLintEngine, initializeFlake8]);
+
+  useEffect(() => {
+    runLinterRef.current = runLinter;
+  }, [runLinter]);
 
   /**
    * Initialize linter on mount
@@ -210,11 +219,12 @@ export const ContentApp: React.FC = () => {
     // Run linter after a brief delay
     const timer = setTimeout(() => {
       console.log('[Linter] Running initial lint...');
-      runLinter();
+      runLinterRef.current();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [domParser, runLinter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Re-run linter when settings change (but not on initial mount)
@@ -235,7 +245,7 @@ export const ContentApp: React.FC = () => {
       if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         e.preventDefault();
         console.log('[Linter] Keyboard shortcut: Re-lint');
-        runLinter();
+        runLinterRef.current();
       }
       // Ctrl+Shift+H: Toggle overlay
       if (e.ctrlKey && e.shiftKey && e.key === 'H') {
@@ -247,7 +257,7 @@ export const ContentApp: React.FC = () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [runLinter]);
+  }, []);
 
   /**
    * Setup message listener for chrome extension
@@ -264,7 +274,7 @@ export const ContentApp: React.FC = () => {
 
         if (message.type === 'runLinter') {
           console.log('[Linter] Message: runLinter');
-          runLinter();
+          runLinterRef.current();
           sendResponse({ success: true });
         } else if (message.type === 'toggleOverlay') {
           console.log('[Linter] Message: toggleOverlay');
@@ -280,9 +290,6 @@ export const ContentApp: React.FC = () => {
               ...(message.settings.rules || {}),
             },
           });
-          // Run linter with new settings
-          runLinter();
-          sendResponse({ success: true });
         }
 
         return true;
@@ -292,7 +299,7 @@ export const ContentApp: React.FC = () => {
       return () => chrome.runtime.onMessage.removeListener(messageListener);
     }
     return undefined;
-  }, [runLinter]);
+  }, []);
 
   /**
    * Handle error click
