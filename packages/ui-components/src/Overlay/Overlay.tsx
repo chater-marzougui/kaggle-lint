@@ -70,6 +70,7 @@ export const Overlay: React.FC<OverlayProps> = ({
   isLoading = false,
   theme = 'light',
   codeCells: _codeCells = [], // Prefixed with underscore to indicate intentionally unused
+  flake8Status,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -273,6 +274,12 @@ export const Overlay: React.FC<OverlayProps> = ({
       </div>
 
       <div className="kaggle-lint-content" id="kaggle-lint-content">
+        {flake8Status === 'loading' && (
+          <div className="kaggle-lint-engine-status">
+            Loading Flake8 (Pyodide)… first load can take up to 30 s
+          </div>
+        )}
+
         <div className="kaggle-lint-summary">
           <span className="kaggle-lint-stat kaggle-lint-error">
             {SEVERITY_ICONS.error} {stats.bySeverity.error || 0}
