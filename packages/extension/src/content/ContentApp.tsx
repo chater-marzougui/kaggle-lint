@@ -293,6 +293,53 @@ export const ContentApp: React.FC = () => {
   }, []);
 
   /**
+   * Auto re-lint on cell edits (F8)
+   * Debounced MutationObserver watching for changes inside `.cm-content`
+   * (CodeMirror's editable text), ignoring mutations inside the overlay's
+   * own root (#kaggle-linter-root) so re-rendering lint results doesn't
+   * trigger another lint.
+   */
+  useEffect(() => {
+    if (!settingsLoaded) return undefined;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRelint = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        console.log('[Linter] Auto re-lint after edit');
+        runLinterRef.current();
+      }, 800);
+    };
+
+    const overlayRoot = document.getElementById('kaggle-linter-root');
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        const target = mutation.target;
+        const el = target instanceof Element ? target : target.parentElement;
+        if (!el) continue;
+        if (overlayRoot && overlayRoot.contains(el)) continue;
+        if (el.closest('.cm-content')) {
+          scheduleRelint();
+          return;
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+
+    return () => {
+      observer.disconnect();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [settingsLoaded]);
+
+  /**
    * Handle error click
    * EXACT LOGIC from old-linter/src/ui/overlay.js scrollToError function
    */
