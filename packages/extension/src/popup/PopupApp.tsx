@@ -7,64 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-
-// Available linting rules with display names and descriptions
-const RULES = [
-  {
-    id: 'undefinedVariables',
-    name: 'Undefined Variables',
-    description: 'Detect usage of undefined variables',
-    enabled: true,
-  },
-  {
-    id: 'capitalizationTypos',
-    name: 'Capitalization Typos',
-    description: 'Detect true/false/none instead of True/False/None',
-    enabled: true,
-  },
-  {
-    id: 'duplicateFunctions',
-    name: 'Duplicate Functions',
-    description: 'Detect duplicate function definitions',
-    enabled: true,
-  },
-  {
-    id: 'importIssues',
-    name: 'Import Issues',
-    description: 'Detect wildcard and duplicate imports',
-    enabled: true,
-  },
-  {
-    id: 'indentationErrors',
-    name: 'Indentation Errors',
-    description: 'Detect missing indentation after colons',
-    enabled: true,
-  },
-  {
-    id: 'emptyCells',
-    name: 'Empty Cells',
-    description: 'Detect empty or comment-only cells',
-    enabled: true,
-  },
-  {
-    id: 'unclosedBrackets',
-    name: 'Unclosed Brackets',
-    description: 'Detect unclosed parentheses, brackets, braces',
-    enabled: true,
-  },
-  {
-    id: 'redefinedVariables',
-    name: 'Redefined Built-ins',
-    description: 'Detect shadowing of built-in names',
-    enabled: true,
-  },
-  {
-    id: 'missingReturn',
-    name: 'Missing Return',
-    description: 'Detect functions that might need a return statement',
-    enabled: true,
-  },
-];
+import { RULE_REGISTRY, defaultRuleToggles } from '@kaggle-lint/core';
 
 interface Settings {
   linterEngine: 'handmade' | 'flake8';
@@ -73,13 +16,7 @@ interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'handmade',
-  rules: RULES.reduce(
-    (acc, rule) => {
-      acc[rule.id] = rule.enabled;
-      return acc;
-    },
-    {} as Record<string, boolean>
-  ),
+  rules: defaultRuleToggles(),
 };
 
 export const PopupApp: React.FC = () => {
@@ -288,12 +225,12 @@ export const PopupApp: React.FC = () => {
               <h2 className="section-title">Built-in Rules</h2>
             </div>
             <div className="section-content" id="rules-list">
-              {RULES.map((rule) => {
+              {RULE_REGISTRY.map((rule) => {
                 const isEnabled = settings.rules?.[rule.id] !== false;
                 return (
                   <div key={rule.id} className="rule-item">
                     <div className="rule-info">
-                      <span className="rule-name">{rule.name}</span>
+                      <span className="rule-name">{rule.displayName}</span>
                       <span className="rule-description">
                         {rule.description}
                       </span>

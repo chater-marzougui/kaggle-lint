@@ -9,20 +9,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine, Flake8Engine } from '@kaggle-lint/core';
+import { LintEngine, Flake8Engine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
-import {
-  UndefinedVariablesRule,
-  CapitalizationTyposRule,
-  DuplicateFunctionsRule,
-  EmptyCellsRule,
-  ImportIssuesRule,
-  IndentationErrorsRule,
-  MissingReturnRule,
-  RedefinedVariablesRule,
-  UnclosedBracketsRule,
-} from '@kaggle-lint/core';
 
 interface Settings {
   linterEngine: 'handmade' | 'flake8';
@@ -32,30 +21,7 @@ interface Settings {
 // Default settings
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'handmade',
-  rules: {
-    undefinedVariables: true,
-    capitalizationTypos: true,
-    duplicateFunctions: true,
-    importIssues: true,
-    indentationErrors: true,
-    emptyCells: true,
-    unclosedBrackets: true,
-    redefinedVariables: true,
-    missingReturn: true,
-  },
-};
-
-// Rule mapping
-const RULE_MAP: Record<string, () => any> = {
-  undefinedVariables: () => new UndefinedVariablesRule(),
-  capitalizationTypos: () => new CapitalizationTyposRule(),
-  duplicateFunctions: () => new DuplicateFunctionsRule(),
-  emptyCells: () => new EmptyCellsRule(),
-  importIssues: () => new ImportIssuesRule(),
-  indentationErrors: () => new IndentationErrorsRule(),
-  missingReturn: () => new MissingReturnRule(),
-  redefinedVariables: () => new RedefinedVariablesRule(),
-  unclosedBrackets: () => new UnclosedBracketsRule(),
+  rules: defaultRuleToggles(),
 };
 
 export const ContentApp: React.FC = () => {
@@ -79,14 +45,14 @@ export const ContentApp: React.FC = () => {
    * Create handmade lint engine based on settings
    */
   const getHandmadeLintEngine = useCallback(() => {
-    const enabledRules = Object.entries(settings.rules)
-      .filter(([_, enabled]) => enabled)
-      .map(([ruleId]) => RULE_MAP[ruleId]?.())
-      .filter(Boolean);
-    
+    if (handmadeLintEngineRef.current) {
+      return handmadeLintEngineRef.current;
+    }
+
+    const enabledRules = createEnabledRules(settings.rules);
     console.log(`[Linter] Creating handmade engine with ${enabledRules.length} rules`);
     handmadeLintEngineRef.current = new LintEngine(enabledRules);
-    
+
     return handmadeLintEngineRef.current;
   }, [settings.rules]);
 
