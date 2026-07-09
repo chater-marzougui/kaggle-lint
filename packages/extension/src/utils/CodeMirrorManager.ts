@@ -28,7 +28,7 @@ export class CodeMirrorManager {
    * Generates a unique ID for a cell
    * EXACT COPY from old-linter/src/codeMirror.js getCellId function
    */
-  private getCellId(cellIndex: number, uuid: string | null): string {
+  getCellId(cellIndex: number, uuid: string | null): string {
     return uuid || `cell-${cellIndex}`;
   }
 
