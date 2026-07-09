@@ -186,13 +186,20 @@ export class KaggleDomParser {
 
     let cellIndex = 0;
     for (const cell of Array.from(allCells)) {
+      // Index counts every `.jp-Cell` (markdown included, in document
+      // order), matching pageExtractor.ts's extractAllCells() convention —
+      // otherwise the bridge and DOM-scrape paths disagree on cellIndex
+      // for notebooks with markdown cells interleaved, corrupting sort
+      // order and the "Cell N" the UI reports for the same physical cell.
+      const currentIndex = cellIndex;
+      cellIndex++;
+
       if (!this.isCodeCell(cell)) {
         continue;
       }
 
       const editor = this.getEditorFromCell(cell);
       if (!editor) {
-        cellIndex++;
         continue;
       }
 
@@ -200,13 +207,11 @@ export class KaggleDomParser {
       if (code !== null && code.trim().length > 0) {
         cells.push({
           code,
-          cellIndex,
+          cellIndex: currentIndex,
           uuid: cell.getAttribute('data-uuid'),
           element: cell,
         });
       }
-
-      cellIndex++;
     }
 
     this.log(`Extracted ${cells.length} code cells via DOM scrape`);

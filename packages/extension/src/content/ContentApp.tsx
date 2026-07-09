@@ -107,14 +107,17 @@ export const ContentApp: React.FC = () => {
       const cells = await domParser.extractCells();
       console.log(`[Linter] Extracted ${cells.length} cells`);
 
-      // A full bridge sweep reports every cell currently in the notebook,
-      // so the store can be safely reset before syncing (drops cells the
-      // user deleted). A DOM-scrape result is partial — only currently
-      // rendered cells — so previous entries are kept, which is what lets
-      // virtualized-out cells keep lint coverage.
-      if (domParser.getLastExtractionSource() === 'bridge') {
-        codeMirrorManager.clear();
-      }
+      // Never clear() the store here. Both extraction paths are DOM-based:
+      // the MAIN-world bridge sees full CodeMirror document text for
+      // editors that ARE rendered, but — like the DOM-scrape fallback — it
+      // has no visibility into cells Kaggle hasn't mounted a `.cm-editor`
+      // for at all (i.e. cells scrolled out of a virtualized notebook). So
+      // "bridge succeeded" never means "saw every cell," and clearing on
+      // that basis would wipe exactly the virtualized-out coverage this
+      // store exists to provide. We only ever merge; a cell the user
+      // deletes leaves a stale store entry until the page reloads, which
+      // is an accepted tradeoff (extraction can't tell "deleted" apart
+      // from "not currently rendered").
       codeMirrorManager.syncCells(cells);
 
       // Lint from the store (survives cells Kaggle has unloaded from the
@@ -321,8 +324,19 @@ export const ContentApp: React.FC = () => {
         if (!el) continue;
         if (overlayRoot && overlayRoot.contains(el)) continue;
         if (el.closest('.cm-content')) {
-          scheduleRelint();
-          return;
+          // Kaggle's notebook is virtualized: scrolling mounts/unmounts
+          // `.cm-line` nodes inside `.cm-content`, which is a childList
+          // mutation indistinguishable from a real edit at this point.
+          // Only schedule a re-lint if the user is actually editing —
+          // CodeMirror keeps DOM focus inside the edited content while
+          // typing, but pure scrolling doesn't put focus inside `.cm-content`.
+          const editorHasFocus =
+            document.activeElement instanceof Element &&
+            document.activeElement.closest('.cm-content') !== null;
+          if (editorHasFocus) {
+            scheduleRelint();
+            return;
+          }
         }
       }
     });
