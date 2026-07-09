@@ -103,18 +103,34 @@ export const ContentApp: React.FC = () => {
     console.log('[Linter] Current settings:', settings);
 
     try {
-      // Extract cells from DOM
+      // Extract cells from DOM (MAIN-world bridge, DOM-scrape fallback)
       const cells = await domParser.extractCells();
       console.log(`[Linter] Extracted ${cells.length} cells`);
 
-      // Sync with CodeMirror storage
+      // A full bridge sweep reports every cell currently in the notebook,
+      // so the store can be safely reset before syncing (drops cells the
+      // user deleted). A DOM-scrape result is partial — only currently
+      // rendered cells — so previous entries are kept, which is what lets
+      // virtualized-out cells keep lint coverage.
+      if (domParser.getLastExtractionSource() === 'bridge') {
+        codeMirrorManager.clear();
+      }
       codeMirrorManager.syncCells(cells);
 
-      // Prepare cells for linting
-      const cellsForLinting = cells.map((cell, index) => ({
-        code: cell.code,
-        element: cell.element,
-        cellIndex: index,
+      // Lint from the store (survives cells Kaggle has unloaded from the
+      // DOM), enriched with live element references from this extraction
+      // pass so error-click-to-scroll keeps working.
+      const elementByCellId = new Map(
+        cells.map((cell) => [
+          codeMirrorManager.getCellId(cell.cellIndex, cell.uuid ?? null),
+          cell.element ?? null,
+        ])
+      );
+      const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
+        code: stored.code,
+        cellIndex: stored.cellIndex,
+        element:
+          elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
       }));
 
       let lintErrors;
