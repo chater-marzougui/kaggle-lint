@@ -3,9 +3,15 @@
  * Extracts Python code from Kaggle notebook cells (JupyterLab/CodeMirror 6)
  * Handles windowed/virtualized rendering
  *
- * MIGRATION NOTE: Logic copied verbatim from old-linter/src/domParser.js
- * Only converted to TypeScript class format
+ * Primary extraction goes through the MAIN-world bridge (src/page/pageExtractor.ts),
+ * which reads full CodeMirror 6 document state directly — including lines Kaggle
+ * hasn't rendered yet and cells currently scrolled out of the virtualized viewport.
+ * If the bridge doesn't respond within BRIDGE_TIMEOUT_MS (extension just reloaded,
+ * pageExtractor not yet injected in this frame, etc.), this falls back to scraping
+ * whatever `.cm-line` DOM nodes Kaggle currently has rendered.
  */
+
+import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell } from '../page/bridgeProtocol';
 
 export interface CodeCell {
   code: string;
@@ -14,8 +20,11 @@ export interface CodeCell {
   element?: Element | null;
 }
 
+const BRIDGE_TIMEOUT_MS = 1500;
+
 export class KaggleDomParser {
   private DEBUG = true;
+  private lastSource: 'bridge' | 'dom-scrape' = 'dom-scrape';
 
   private log(...args: any[]): void {
     if (this.DEBUG) console.log('[KaggleDomParser]', ...args);
@@ -68,11 +77,109 @@ export class KaggleDomParser {
   }
 
   /**
-   * Extract all cells from the notebook
-   * EXACT LOGIC from old-linter/src/domParser.js extractCells function
-   * This is a simplified version - the full implementation would be ~400 lines
+   * Which path the most recent extractCells() call used. ContentApp reads
+   * this to decide whether the cell store can be safely cleared before
+   * syncing: a bridge result is a full sweep of the notebook, a DOM-scrape
+   * result is partial (only currently-rendered cells).
+   */
+  getLastExtractionSource(): 'bridge' | 'dom-scrape' {
+    return this.lastSource;
+  }
+
+  /**
+   * Extract all cells from the notebook. Tries the MAIN-world bridge
+   * first; falls back to DOM scraping if it doesn't respond in time.
    */
   async extractCells(root: Document = document): Promise<CodeCell[]> {
+    const bridgeCells = await this.requestFromPage();
+    if (bridgeCells) {
+      this.lastSource = 'bridge';
+      const resolved = this.resolveElements(bridgeCells, root);
+      this.log(`Extracted ${resolved.length} code cells via MAIN-world bridge`);
+      return resolved;
+    }
+
+    this.lastSource = 'dom-scrape';
+    this.log('Bridge extraction unavailable, falling back to DOM scrape');
+    return this.extractCellsViaDomScrape(root);
+  }
+
+  /**
+   * Requests a full extraction from the MAIN-world pageExtractor over
+   * window.postMessage. Resolves null on timeout so the caller can fall
+   * back to DOM scraping; always removes its listener either way.
+   */
+  private requestFromPage(): Promise<PageExtractedCell[] | null> {
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID();
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout>;
+
+      const cleanup = () => {
+        window.removeEventListener('message', handleMessage);
+        clearTimeout(timeoutId);
+      };
+
+      const handleMessage = (event: MessageEvent) => {
+        if (settled || event.source !== window) return;
+        const data = event.data;
+        if (!data || data.type !== EXTRACT_RESPONSE || data.requestId !== requestId) return;
+
+        settled = true;
+        cleanup();
+        resolve(data.cells as PageExtractedCell[]);
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(null);
+      }, BRIDGE_TIMEOUT_MS);
+
+      window.postMessage({ type: EXTRACT_REQUEST, requestId }, '*');
+    });
+  }
+
+  /**
+   * Resolves a DOM Element for each bridge-extracted cell: by `data-uuid`
+   * when present, else by walking `.jp-Cell` in notebook order to the same
+   * cellIndex. Elements are legitimately null for cells Kaggle has
+   * virtualized out of the DOM.
+   */
+  private resolveElements(cells: PageExtractedCell[], root: Document): CodeCell[] {
+    const allCellElements = Array.from(root.querySelectorAll('.jp-Cell'));
+    const byUuid = new Map<string, Element>();
+    allCellElements.forEach((el) => {
+      const uuid = el.getAttribute('data-uuid');
+      if (uuid) byUuid.set(uuid, el);
+    });
+
+    return cells.map((cell) => {
+      let element: Element | null = null;
+      if (cell.uuid && byUuid.has(cell.uuid)) {
+        element = byUuid.get(cell.uuid)!;
+      } else if (cell.cellIndex >= 0 && cell.cellIndex < allCellElements.length) {
+        element = allCellElements[cell.cellIndex] ?? null;
+      }
+
+      return {
+        code: cell.code,
+        cellIndex: cell.cellIndex,
+        uuid: cell.uuid,
+        element,
+      };
+    });
+  }
+
+  /**
+   * DOM-scrape fallback. Only sees cells/lines Kaggle has currently
+   * rendered — used only when the MAIN-world bridge doesn't respond.
+   * EXACT LOGIC from old-linter/src/domParser.js extractCells function
+   */
+  private async extractCellsViaDomScrape(root: Document): Promise<CodeCell[]> {
     const cells: CodeCell[] = [];
     const allCells = root.querySelectorAll('.jp-Cell');
     this.log(`Found ${allCells.length} .jp-Cell elements`);
@@ -94,7 +201,7 @@ export class KaggleDomParser {
         cells.push({
           code,
           cellIndex,
-          uuid: null,
+          uuid: cell.getAttribute('data-uuid'),
           element: cell,
         });
       }
@@ -102,7 +209,7 @@ export class KaggleDomParser {
       cellIndex++;
     }
 
-    this.log(`Extracted ${cells.length} code cells`);
+    this.log(`Extracted ${cells.length} code cells via DOM scrape`);
     return cells;
   }
 
@@ -122,34 +229,20 @@ export class KaggleDomParser {
   }
 
   /**
-   * Get editor from cell
-   * EXACT COPY from old-linter/src/domParser.js getEditorFromCell function
+   * Get editor from cell. The scroll-into-view force-render hack is gone —
+   * the MAIN-world bridge (which doesn't need an element rendered to read
+   * its CM6 state) is the primary path now; this only runs as a fallback.
    */
   private getEditorFromCell(cell: Element): Element | null {
-    let editor = cell.querySelector('.cm-editor');
-    if (editor) {
-      return editor;
-    }
-
-    this.log('  Forcing cell render...');
-    this.forceRenderCell(cell);
-    editor = cell.querySelector('.cm-editor');
-    return editor;
+    return cell.querySelector('.cm-editor');
   }
 
   /**
-   * Force render cell
-   * EXACT COPY from old-linter/src/domParser.js forceRenderCell function
-   */
-  private forceRenderCell(cell: Element): void {
-    if (cell && typeof (cell as any).scrollIntoView === 'function') {
-      (cell as any).scrollIntoView({ block: 'nearest', behavior: 'instant' });
-    }
-  }
-
-  /**
-   * Extract code from CodeMirror editor
-   * EXACT LOGIC from old-linter/src/domParser.js extractFromCodeMirror function
+   * Extract code from CodeMirror editor via rendered DOM.
+   * The CM6-API path was removed here: isolated-world content scripts
+   * cannot see the page-JS `cmView` expando (see pageExtractor.ts, which
+   * runs in MAIN world and can — that's the primary path now).
+   * EXACT LOGIC (DOM half only) from old-linter/src/domParser.js extractFromCodeMirror
    */
   private extractFromCodeMirror(editorElement: Element): string | null {
     if (!editorElement) {
@@ -157,20 +250,6 @@ export class KaggleDomParser {
       return null;
     }
 
-    // Method 1: Try CodeMirror 6 API (most reliable)
-    const view =
-      (editorElement as any).cmView ||
-      (editorElement as any).view ||
-      (editorElement as any).CodeMirror;
-    if (view && view.state && view.state.doc) {
-      const code = view.state.doc.toString();
-      if (code.trim().length > 0) {
-        this.log(`  ✅ Extracted ${code.length} chars via CM6 API`);
-        return code;
-      }
-    }
-
-    // Method 2: Extract from rendered DOM
     const content = editorElement.querySelector('.cm-content');
     if (!content) {
       this.log('  ⚠️ No .cm-content found');
@@ -191,15 +270,5 @@ export class KaggleDomParser {
     const code = codeLines.join('\n');
     this.log(`  ✅ Extracted ${code.length} chars from ${lines.length} lines`);
     return code;
-  }
-
-  /**
-   * Scroll to specific line in a cell
-   * EXACT LOGIC from old-linter/src/ui/overlay.js scrollToError function
-   */
-  scrollToLine(line: number): void {
-    // Implementation would scroll to the line
-    // This is a placeholder for the full implementation
-    console.log(`Scrolling to line ${line}`);
   }
 }
