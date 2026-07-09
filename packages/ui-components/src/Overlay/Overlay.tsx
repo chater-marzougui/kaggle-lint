@@ -65,6 +65,7 @@ export const Overlay: React.FC<OverlayProps> = ({
   errors,
   onErrorClick,
   onRefresh,
+  onClose,
   visible = true,
   isLoading = false,
   theme = 'light',
@@ -221,7 +222,6 @@ export const Overlay: React.FC<OverlayProps> = ({
       ref={overlayRef}
       id="kaggle-lint-overlay"
       className={`kaggle-lint-overlay kaggle-lint-theme-${theme}`}
-      style={{ display: visible ? 'block' : 'none' }}
     >
       <div ref={headerRef} className="kaggle-lint-header">
         <span className="kaggle-lint-title">
@@ -265,11 +265,7 @@ export const Overlay: React.FC<OverlayProps> = ({
           <button
             className="kaggle-lint-btn kaggle-lint-btn-close"
             title="Close"
-            onClick={() => {
-              if (overlayRef.current) {
-                overlayRef.current.style.display = 'none';
-              }
-            }}
+            onClick={onClose}
           >
             ✕
           </button>

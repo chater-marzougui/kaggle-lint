@@ -298,6 +298,7 @@ export const ContentApp: React.FC = () => {
       theme={theme}
       onErrorClick={handleErrorClick}
       onRefresh={runLinter}
+      onClose={() => setVisible(false)}
       isLoading={isLinting}
       flake8Status={settings.linterEngine === 'flake8' ? flake8Status : undefined}
     />
