@@ -237,7 +237,8 @@ export const ContentApp: React.FC = () => {
     console.log('[Linter] Settings changed:', settings);
     // Invalidate the handmade engine so it gets recreated with new settings
     handmadeLintEngineRef.current = null;
-    if (settingsLoaded && prevSettingsRef.current !== null) {
+    if (!settingsLoaded) return;
+    if (prevSettingsRef.current !== null) {
       runLinterRef.current();
     }
     prevSettingsRef.current = settings;
