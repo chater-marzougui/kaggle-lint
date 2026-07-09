@@ -28,6 +28,7 @@ export interface OverlayProps {
   }>;
   onErrorClick?: (error: any) => void;
   onRefresh?: () => Promise<void>;
+  onClose?: () => void;
   visible?: boolean;
   isLoading?: boolean;
   theme?: 'light' | 'dark';

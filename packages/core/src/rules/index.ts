@@ -13,6 +13,7 @@ export * from './IndentationErrorsRule';
 export * from './MissingReturnRule';
 export * from './RedefinedVariablesRule';
 export * from './UnclosedBracketsRule';
+export * from './registry';
 
 import { BaseRule } from './BaseRule';
 import { UndefinedVariablesRule } from './UndefinedVariablesRule';

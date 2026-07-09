@@ -65,10 +65,12 @@ export const Overlay: React.FC<OverlayProps> = ({
   errors,
   onErrorClick,
   onRefresh,
+  onClose,
   visible = true,
   isLoading = false,
   theme = 'light',
   codeCells: _codeCells = [], // Prefixed with underscore to indicate intentionally unused
+  flake8Status,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -221,7 +223,6 @@ export const Overlay: React.FC<OverlayProps> = ({
       ref={overlayRef}
       id="kaggle-lint-overlay"
       className={`kaggle-lint-overlay kaggle-lint-theme-${theme}`}
-      style={{ display: visible ? 'block' : 'none' }}
     >
       <div ref={headerRef} className="kaggle-lint-header">
         <span className="kaggle-lint-title">
@@ -265,11 +266,7 @@ export const Overlay: React.FC<OverlayProps> = ({
           <button
             className="kaggle-lint-btn kaggle-lint-btn-close"
             title="Close"
-            onClick={() => {
-              if (overlayRef.current) {
-                overlayRef.current.style.display = 'none';
-              }
-            }}
+            onClick={onClose}
           >
             ✕
           </button>
@@ -277,6 +274,12 @@ export const Overlay: React.FC<OverlayProps> = ({
       </div>
 
       <div className="kaggle-lint-content" id="kaggle-lint-content">
+        {flake8Status === 'loading' && (
+          <div className="kaggle-lint-engine-status">
+            Loading Flake8 (Pyodide)… first load can take up to 30 s
+          </div>
+        )}
+
         <div className="kaggle-lint-summary">
           <span className="kaggle-lint-stat kaggle-lint-error">
             {SEVERITY_ICONS.error} {stats.bySeverity.error || 0}
