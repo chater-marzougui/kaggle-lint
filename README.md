@@ -4,16 +4,15 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 
 ## ✨ Features
 
-### Dual Linting Engines
+### Two Linting Engines
 
-- **Built-in Engine**: Fast, custom Python linting rules optimized for Kaggle notebooks
-  - 9 specialized rules with instant feedback
-  - Notebook-aware context tracking (cross-cell variable awareness)
-  - Configurable rule toggles
-- **Flake8 Engine**: Industry-standard Python linter powered by Pyodide
-  - Comprehensive PEP-8 compliance checking
-  - Runs entirely in browser via WebAssembly
-  - Full Flake8 + pyflakes support
+- **Flake8**: Industry-standard Python linter (pyflakes + pycodestyle + mccabe) running in-browser via Pyodide (Python-in-WebAssembly)
+  - Comprehensive PEP-8 compliance checking, real `# noqa` comment support
+  - Notebook-aware: variables defined in earlier cells are correctly recognized in later ones
+  - Configurable ignore-codes list
+- **Ruff**: Fast Rust-based Python linter, no Python runtime needed — a native WebAssembly build (`@astral-sh/ruff-wasm-web`)
+  - Much lighter/faster cold start than the Pyodide-based flake8 engine (no wheels, no Python stdlib)
+  - Same notebook-aware cross-cell scoping and configurable ignore-codes list
 
 ### Smart Notebook Features
 
@@ -22,20 +21,6 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 - **Theme Aware**: Automatically adapts to light/dark mode
 - **Interactive Overlay**: Draggable error panel with click-to-navigate
 - **Keyboard Shortcuts**: Quick linting with Ctrl+Shift+L
-
-### Available Lint Rules
-
-| Rule                     | Description                                                                    | Severity     |
-| ------------------------ | ------------------------------------------------------------------------------ | ------------ |
-| **Undefined Variables**  | Detects usage of variables that haven't been defined                           | Error        |
-| **Capitalization Typos** | Detects potential typos from incorrect capitalization (e.g., `true` vs `True`) | Warning      |
-| **Duplicate Functions**  | Detects functions/classes with the same name defined multiple times            | Warning      |
-| **Import Issues**        | Detects problematic import patterns (wildcards, duplicates, unused imports)    | Warning/Info |
-| **Indentation Errors**   | Detects mixed tabs/spaces, unexpected indents, misaligned blocks               | Error        |
-| **Empty Cells**          | Detects empty or effectively empty code cells                                  | Info         |
-| **Unclosed Brackets**    | Detects unclosed parentheses, brackets, and braces                             | Error        |
-| **Redefined Variables**  | Detects shadowing of built-in names and variable redefinition                  | Warning      |
-| **Missing Return**       | Detects functions that appear to compute values but lack return statements     | Warning      |
 
 ## 🚀 Installation
 
@@ -93,8 +78,8 @@ Download the latest release `.zip` file from the [releases page](https://github.
 
 Click the extension icon in Chrome toolbar to configure:
 
-- **Linter Engine**: Switch between Built-in and Flake8
-- **Rule Toggles**: Enable/disable individual rules (Built-in mode)
+- **Linter Engine**: Switch between Flake8 and Ruff
+- **Ignore Codes**: Comma-separated error codes to ignore, per engine (e.g. `E501, F401`)
 - **Actions**: Re-lint now or toggle overlay
 
 For detailed usage instructions, see [EXTENSION_USAGE.md](EXTENSION_USAGE.md).
@@ -108,13 +93,13 @@ The project is organized as a monorepo with three main packages:
 ```
 kaggle-lint/
 ├── packages/
-│   ├── core/                    # Core linting engine
+│   ├── core/                    # Core linting logic
 │   │   ├── src/
 │   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
-│   │   │   ├── engines/        # LintEngine + flake8Shim/flake8Mapping (pure logic; browser glue lives in the extension's offscreen document)
-│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime
-│   │   │   └── __tests__/      # Jest tests (21 passing)
+│   │   │   ├── notebook/       # Shared cell-concatenation + severity/diagnostic mapping (used by both engines)
+│   │   │   ├── engines/        # flake8Shim.ts (pure Python string; browser glue lives in the extension's offscreen document)
+│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime + bundled flake8/pyflakes/pycodestyle/mccabe wheels
+│   │   │   └── __tests__/      # Jest tests
 │   │   └── dist/               # Compiled output
 │   ├── ui-components/          # React UI components
 │   │   ├── src/
@@ -187,7 +172,7 @@ Current test coverage:
 
 - 21 unit tests passing
 - All core rules tested
-- LintEngine functionality verified
+- Flake8/ruff engine logic verified
 
 ### Testing the Extension
 
@@ -262,77 +247,18 @@ interface LintContext {
 }
 ```
 
-#### Using the LintEngine
+#### Flake8/Ruff Linting (extension-only)
+
+Both engines run inside the extension's Chrome offscreen document — flake8 via Pyodide (Python-in-WASM) + bundled wheels, ruff via a native `@astral-sh/ruff-wasm-web` build with no Python runtime at all — not as standalone `@kaggle-lint/core` classes, since both need a Chrome extension context (`chrome.offscreen`, `chrome.runtime` messaging) a plain Node/browser script doesn't have. The content script talks to whichever engine is selected via `EngineClient` (`packages/extension/src/engine/EngineClient.ts`):
 
 ```typescript
-import { LintEngine } from '@kaggle-lint/core';
+import { EngineClient } from '../engine/EngineClient';
 
-// Create engine with default rules
-const engine = new LintEngine();
-
-// Lint a single piece of code
-const errors = engine.lintCode('x = y + 1', 0);
-console.log(errors);
-// [{ line: 1, msg: "Undefined variable 'y'", severity: 'error', rule: 'undefinedVariables' }]
-
-// Lint multiple cells in a notebook
-const cells = [
-  { code: 'x = 1', element: null, cellIndex: 0 },
-  { code: 'y = x + 1', element: null, cellIndex: 1 },
-];
-const notebookErrors = engine.lintNotebook(cells);
+const client = new EngineClient();
+const errors = await client.lintNotebook('flake8', [{ code: 'x = y + 1', cellIndex: 0 }], []);
 ```
 
-#### Using Individual Rules
-
-```typescript
-import {
-  UndefinedVariablesRule,
-  CapitalizationTyposRule,
-} from '@kaggle-lint/core';
-
-const undefinedRule = new UndefinedVariablesRule();
-const errors = undefinedRule.run('print(x)', 0);
-```
-
-#### Flake8 Linting (extension-only)
-
-Flake8/pyflakes linting runs inside the extension's Chrome offscreen document (Pyodide + bundled wheels), not as a standalone `@kaggle-lint/core` class — it requires a Chrome extension context (`chrome.offscreen`, `chrome.runtime` messaging) that a plain Node/browser script doesn't have. The content script talks to it via `Flake8Client` (`packages/extension/src/flake8/Flake8Client.ts`):
-
-```typescript
-import { Flake8Client } from '../flake8/Flake8Client';
-
-const client = new Flake8Client();
-const errors = await client.lintNotebook([{ code: 'x = y + 1', cellIndex: 0 }]);
-```
-
-`packages/core` exports the reusable, browser-independent pieces the offscreen runtime is built from: `PYTHON_SHIM` (the pyflakes-wrapping Python source, from `engines/flake8Shim.ts`) and `mapFlake8Results` (line-offset + rule tagging, from `engines/flake8Mapping.ts`).
-
-### Adding Custom Rules
-
-Each rule follows a simple interface:
-
-```typescript
-export class MyCustomRule extends BaseRule {
-  name = 'myCustomRule';
-
-  run(code: string, cellOffset: number = 0, context?: LintContext): LintError[] {
-    const errors: LintError[] = [];
-
-    // Analyze code and find issues
-    if (/* issue detected */) {
-      errors.push({
-        line: lineNumber + cellOffset,
-        msg: 'Description of the issue',
-        severity: 'error',
-        rule: this.name,
-      });
-    }
-
-    return errors;
-  }
-}
-```
+`packages/core` exports the reusable, browser-independent pieces both offscreen runtimes are built from: `buildNotebookSource`/`mapLineToCell` (notebook/buildNotebookSource.ts — concatenates cells into one lint pass), `classifySeverity`/`mapDiagnostics` (notebook/severityMapping.ts — shared by both engines), and `PYTHON_SHIM` (engines/flake8Shim.ts — flake8-specific).
 
 ## 🔧 Build & CI/CD
 
