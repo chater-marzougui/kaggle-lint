@@ -6,6 +6,10 @@
 // Export types
 export * from './types';
 
+// Export the notebook-source builder + severity/diagnostic mapping
+// (shared by both the flake8 and ruff engines)
+export * from './notebook';
+
 // Export rules
 export * from './rules';
 
