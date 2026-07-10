@@ -26,6 +26,9 @@
  */
 
 import type { Severity } from '@kaggle-lint/core';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('LineMarkers');
 
 export interface MarkerTarget {
   cellElement: Element;
@@ -67,6 +70,9 @@ function buildLineElementMap(cellElement: Element): Map<number, HTMLElement> {
   const lineElements = Array.from(cellElement.querySelectorAll('.cm-content > .cm-line'));
 
   if (gutterElements.length === 0 || gutterElements.length !== lineElements.length) {
+    logger.log(
+      `buildLineElementMap: bailing, gutter=${gutterElements.length} line=${lineElements.length}`
+    );
     return map;
   }
 
@@ -98,6 +104,7 @@ export function applyLineMarkers(targets: MarkerTarget[], root: ParentNode = doc
   const mapByCell = new Map<Element, Map<number, HTMLElement>>();
   const bestSeverityByLine = new Map<HTMLElement, Severity>();
   const titlesByLine = new Map<HTMLElement, string[]>();
+  let unresolved = 0;
 
   for (const target of targets) {
     let lineMap = mapByCell.get(target.cellElement);
@@ -106,7 +113,10 @@ export function applyLineMarkers(targets: MarkerTarget[], root: ParentNode = doc
       mapByCell.set(target.cellElement, lineMap);
     }
     const lineEl = lineMap.get(target.cellLine);
-    if (!lineEl) continue;
+    if (!lineEl) {
+      unresolved++;
+      continue;
+    }
 
     const current = bestSeverityByLine.get(lineEl);
     if (!current || SEVERITY_RANK[target.severity] < SEVERITY_RANK[current]) {
@@ -124,6 +134,10 @@ export function applyLineMarkers(targets: MarkerTarget[], root: ParentNode = doc
   titlesByLine.forEach((titles, lineEl) => {
     lineEl.setAttribute('title', titles.join('\n'));
   });
+
+  logger.log(
+    `applyLineMarkers: ${targets.length} targets, ${unresolved} unresolved, ${bestSeverityByLine.size} lines marked`
+  );
 }
 
 /** Clears every marker this module has ever added, scoped to `root` (the whole document by default). Used on overlay hide/disable and at the start of every applyLineMarkers call. */
