@@ -19,13 +19,13 @@ Every plan references finding IDs (F1–F34) from [../review-findings.md](../rev
 | 7   | [milestone-7-single-frame-and-navigation](milestone-7-single-frame-and-navigation/plan.md) | One overlay in the right frame; exact-line click-to-scroll; deleted cells shed errors                            | F32, F33, F34                             | ✅ merged 2026-07-10                                                                          |
 | 8   | [milestone-8-user-experience](milestone-8-user-experience/plan.md)                         | React-pure overlay (ex-M6 T1), ruff default, in-editor line markers, one-click ignore, badges, panel persistence | F11(full), F29 + features                 | ✅ merged 2026-07-10 (Task 7 manual gate passed — see notes.md for the live bugs found/fixed) |
 | 4   | [milestone-4-config-and-build-hygiene](milestone-4-config-and-build-hygiene/plan.md)       | Manifest cleanup, cut old-linter dep, dedupe types, single-source version                                        | F15, F17, F18, F21–F23 (F16/F19/F20 moot) | ✅ merged 2026-07-10 (Task 5 skipped as moot — see plan/notes)                                |
-| 5   | [milestone-5-tests-and-ci](milestone-5-tests-and-ci/plan.md)                               | Real lint job, extension test infra, honest coverage                                                             | F4, F5, part of F24 (Task 1 moot)         | **next** — M4's lint scripts landed, no blockers                                              |
-| 6   | [milestone-6-ux-and-release](milestone-6-ux-and-release/plan.md)                           | Popup robustness, honest README, old-linter removal, release                                                     | F12, F24, F27–F30 (T1 moved to M8)        | M4, M5, M7, M8                                                                                |
+| 5   | [milestone-5-tests-and-ci](milestone-5-tests-and-ci/plan.md)                               | Real lint job, extension test infra, honest coverage                                                             | F4, F5, part of F24 (Task 1 moot)         | ✅ merged 2026-07-10 (Task 1 skipped as moot — see plan/notes)                                |
+| 6   | [milestone-6-ux-and-release](milestone-6-ux-and-release/plan.md)                           | Popup robustness, honest README, old-linter removal, release                                                     | F12, F24, F27–F30 (T1 moved to M8)        | **next** — M4, M7, M8 done; M5 done, no blockers                                              |
 
 ## Execution order
 
 ```
-[M1 ✅ ─► M2 ✅ ─► M3 ✅ ─► consolidation ✅ ─► M7 ✅ ─► M8 ✅ ─► M4 ✅] ─► M5 ─► M6 (release)
+[M1 ✅ ─► M2 ✅ ─► M3 ✅ ─► consolidation ✅ ─► M7 ✅ ─► M8 ✅ ─► M4 ✅ ─► M5 ✅] ─► M6 (release)
 ```
 
 - **M7 first** — both remaining user-visible bugs (duplicate overlay, wrong-position scroll) live there, and M8's features need its uuid/scroll plumbing.
