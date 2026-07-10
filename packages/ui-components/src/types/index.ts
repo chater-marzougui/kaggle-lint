@@ -12,6 +12,7 @@ export interface LintError {
   msg: string;
   severity: Severity;
   rule?: string;
+  code?: string;
   cellIndex?: number;
 }
 
@@ -22,6 +23,7 @@ export interface OverlayProps {
     msg: string;
     severity: 'error' | 'warning' | 'info';
     rule?: string;
+    code?: string;
     cellIndex?: number;
     cellLine?: number;
     element?: Element | null;

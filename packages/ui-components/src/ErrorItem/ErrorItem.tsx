@@ -48,7 +48,10 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
         className="kaggle-lint-message"
         dangerouslySetInnerHTML={{ __html: escapeHtml(error.msg) }}
       />
-      <span className="kaggle-lint-rule">[{error.rule}]</span>
+      <span className="kaggle-lint-rule">
+        [{error.rule}
+        {error.code ? ` ${error.code}` : ''}]
+      </span>
     </li>
   );
 };
