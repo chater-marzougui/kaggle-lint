@@ -22,7 +22,7 @@ export class CodeMirrorManager {
   private DEBUG = false;
   private cellStore = new Map<string, StoredCell>();
 
-  private log(...args: any[]): void {
+  private log(...args: unknown[]): void {
     if (this.DEBUG) {
       logger.log(...args);
     }

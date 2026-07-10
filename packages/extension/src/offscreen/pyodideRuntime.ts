@@ -19,15 +19,15 @@ import {
 } from '@kaggle-lint/core';
 import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
-declare global {
-  interface Window {
-    loadPyodide?: (config: { indexURL: string }) => Promise<any>;
-  }
-}
-
 interface PyodideInterface {
   loadPackage(name: string): Promise<void>;
   runPythonAsync(code: string): Promise<string>;
+}
+
+declare global {
+  interface Window {
+    loadPyodide?: (config: { indexURL: string }) => Promise<PyodideInterface>;
+  }
 }
 
 const PYODIDE_INDEX_URL = chrome.runtime.getURL('pyodide/');

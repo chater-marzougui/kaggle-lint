@@ -25,18 +25,84 @@ import {
 const LOADED_MARKER = '__kaggleLintPageExtractorLoaded';
 
 /**
+ * Best-effort shapes for the page's undocumented, live-probed globals (see
+ * the file header and the doc comments below) — every property is optional
+ * since these are unofficial APIs whose exact shape isn't guaranteed, but
+ * naming and typing what this file actually reads/calls is still far more
+ * useful than opting out of type-checking entirely with `any`.
+ */
+interface CodeMirrorView {
+  state?: {
+    doc: {
+      toString(): string;
+      lines: number;
+      line(n: number): { from: number };
+    };
+  };
+  domAtPos?: (pos: number) => { node: Node | null } | null;
+  scrollDOM?: Element;
+}
+
+interface ElementWithCmView extends Element {
+  cmView?: { view?: CodeMirrorView };
+}
+
+interface JupyterCellModel {
+  type?: string;
+  id?: string;
+  sharedModel?: { getSource?: () => string };
+}
+
+interface JupyterCellEditor {
+  setCursorPosition?: (position: { line: number; column: number }) => void;
+  revealPosition?: (position: { line: number; column: number }) => void;
+  editor?: CodeMirrorView;
+}
+
+interface JupyterCellWidget {
+  model?: JupyterCellModel;
+  editor?: JupyterCellEditor;
+}
+
+interface JupyterNotebookContent {
+  widgets?: JupyterCellWidget[];
+  scrollToItem?: (index: number) => void;
+  activeCellIndex?: number;
+}
+
+interface JupyterApp {
+  shell?: {
+    currentWidget?: {
+      content?: JupyterNotebookContent;
+    };
+  };
+}
+
+declare global {
+  interface Window {
+    jupyterapp?: JupyterApp;
+    CodeMirror?: {
+      EditorView?: {
+        findFromDOM?: (editor: Element) => CodeMirrorView | null;
+      };
+    };
+    __kaggleLintPageExtractorLoaded?: boolean;
+  }
+}
+
+/**
  * Finds the CodeMirror 6 EditorView for an editor DOM node, if reachable
  * from MAIN-world JS. Tries the `cmView` expando CodeMirror attaches to
  * its root DOM element, then falls back to a global `CodeMirror.EditorView.findFromDOM`
  * if the page happens to expose one (feature-detected; most CM6 setups don't).
  */
-function getEditorView(editor: Element): any {
-  const cmView = (editor as any).cmView;
+function getEditorView(editor: Element): CodeMirrorView | null {
+  const cmView = (editor as ElementWithCmView).cmView;
   if (cmView?.view?.state?.doc) {
     return cmView.view;
   }
 
-  const globalCM = (window as any).CodeMirror;
+  const globalCM = window.CodeMirror;
   if (globalCM?.EditorView?.findFromDOM) {
     const found = globalCM.EditorView.findFromDOM(editor);
     if (found?.state?.doc) {
@@ -54,7 +120,7 @@ function getEditorView(editor: Element): any {
  */
 function extractEditorText(editor: Element): string | null {
   const view = getEditorView(editor);
-  if (view) {
+  if (view?.state) {
     const text = view.state.doc.toString();
     if (text.trim().length > 0) {
       return text;
@@ -95,14 +161,14 @@ function extractEditorText(editor: Element): string | null {
  */
 function extractViaJupyterModel(): PageExtractedCell[] | null {
   try {
-    const app = (window as any).jupyterapp;
+    const app = window.jupyterapp;
     const widgets = app?.shell?.currentWidget?.content?.widgets;
     if (!Array.isArray(widgets) || widgets.length === 0) {
       return null;
     }
 
     const results: PageExtractedCell[] = [];
-    widgets.forEach((cellWidget: any, index: number) => {
+    widgets.forEach((cellWidget: JupyterCellWidget, index: number) => {
       const model = cellWidget?.model;
       if (!model || model.type !== 'code') {
         return;
@@ -183,16 +249,20 @@ function extractAllCells(): {
 function findCellWidget(
   uuid: string | null,
   cellIndex: number
-): { content: any; widget: any; index: number } | null {
-  const app = (window as any).jupyterapp;
+): {
+  content: JupyterNotebookContent;
+  widget: JupyterCellWidget;
+  index: number;
+} | null {
+  const app = window.jupyterapp;
   const content = app?.shell?.currentWidget?.content;
   const widgets = content?.widgets;
-  if (!Array.isArray(widgets) || widgets.length === 0) {
+  if (!content || !Array.isArray(widgets) || widgets.length === 0) {
     return null;
   }
 
   if (uuid) {
-    const index = widgets.findIndex((w: any) => w?.model?.id === uuid);
+    const index = widgets.findIndex((w) => w?.model?.id === uuid);
     if (index !== -1) {
       return { content, widget: widgets[index], index };
     }
@@ -273,7 +343,10 @@ function findScrollableAncestor(el: Element): Element | null {
  * rather than guessing). Shared by the scroll-to-line highlight below and
  * by the in-editor lint markers, both of which need exactly this lookup.
  */
-function findLineElement(view: any, line: number): HTMLElement | null {
+function findLineElement(
+  view: CodeMirrorView | null | undefined,
+  line: number
+): HTMLElement | null {
   const doc = view?.state?.doc;
   if (!doc || typeof view.domAtPos !== 'function') {
     return null;
@@ -292,7 +365,10 @@ function findLineElement(view: any, line: number): HTMLElement | null {
   }
 }
 
-function centerAndHighlightLine(view: any, line: number): void {
+function centerAndHighlightLine(
+  view: CodeMirrorView | null | undefined,
+  line: number
+): void {
   const applyToLine = (lineEl: HTMLElement): void => {
     try {
       const scroller = findScrollableAncestor(lineEl);
@@ -503,7 +579,7 @@ function handleMessage(event: MessageEvent): void {
 
 // Guard against double registration: manifest.json's all_frames + two
 // overlapping match patterns can inject this script more than once per frame.
-if (!(window as any)[LOADED_MARKER]) {
-  (window as any)[LOADED_MARKER] = true;
+if (!window[LOADED_MARKER]) {
+  window[LOADED_MARKER] = true;
   window.addEventListener('message', handleMessage);
 }

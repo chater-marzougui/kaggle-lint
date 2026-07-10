@@ -34,7 +34,7 @@ export class KaggleDomParser {
   private DEBUG = true;
   private lastSource: 'model' | 'dom' | 'dom-scrape' = 'dom-scrape';
 
-  private log(...args: any[]): void {
+  private log(...args: unknown[]): void {
     if (this.DEBUG) logger.log(...args);
   }
 

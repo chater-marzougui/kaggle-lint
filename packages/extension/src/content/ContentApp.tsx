@@ -34,6 +34,11 @@ const DEFAULT_SETTINGS: Settings = {
   ruffIgnoreCodes: '',
 };
 
+type ContentScriptMessage =
+  | { type: 'runLinter' }
+  | { type: 'toggleOverlay' }
+  | { type: 'settingsChanged'; settings: Partial<Settings> };
+
 const OVERLAY_UI_STATE_KEY = 'overlayUiState';
 const DEFAULT_OVERLAY_UI_STATE: OverlayUiState = {
   position: { x: 0, y: 0 },
@@ -74,23 +79,26 @@ export const ContentApp: React.FC = () => {
       setOverlayUiStateLoaded(true);
       return;
     }
-    chrome.storage.local.get([OVERLAY_UI_STATE_KEY], (result: any) => {
-      const stored = result[OVERLAY_UI_STATE_KEY] as OverlayUiState | undefined;
-      if (stored) {
-        // Window size can differ between sessions; clamp so a
-        // previously-dragged-far position can't land off-screen.
-        const maxX = Math.max(0, window.innerWidth - 100);
-        const maxY = Math.max(0, window.innerHeight - 60);
-        setOverlayUiState({
-          position: {
-            x: Math.min(Math.max(stored.position.x, -maxX), maxX),
-            y: Math.min(Math.max(stored.position.y, -maxY), maxY),
-          },
-          isMinimized: Boolean(stored.isMinimized),
-        });
+    chrome.storage.local.get(
+      [OVERLAY_UI_STATE_KEY],
+      (result: Record<string, OverlayUiState | undefined>) => {
+        const stored = result[OVERLAY_UI_STATE_KEY];
+        if (stored) {
+          // Window size can differ between sessions; clamp so a
+          // previously-dragged-far position can't land off-screen.
+          const maxX = Math.max(0, window.innerWidth - 100);
+          const maxY = Math.max(0, window.innerHeight - 60);
+          setOverlayUiState({
+            position: {
+              x: Math.min(Math.max(stored.position.x, -maxX), maxX),
+              y: Math.min(Math.max(stored.position.y, -maxY), maxY),
+            },
+            isMinimized: Boolean(stored.isMinimized),
+          });
+        }
+        setOverlayUiStateLoaded(true);
       }
-      setOverlayUiStateLoaded(true);
-    });
+    );
   }, []);
 
   const handleOverlayStateChange = (state: OverlayUiState) => {
@@ -259,18 +267,21 @@ export const ContentApp: React.FC = () => {
 
     // Load settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.get(['linterSettings'], (result: any) => {
-        if (result.linterSettings) {
-          logger.log('Loaded settings from storage:', result.linterSettings);
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...result.linterSettings,
-          });
-        } else {
-          logger.log('No saved settings, using defaults');
+      chrome.storage.sync.get(
+        ['linterSettings'],
+        (result: { linterSettings?: Partial<Settings> }) => {
+          if (result.linterSettings) {
+            logger.log('Loaded settings from storage:', result.linterSettings);
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              ...result.linterSettings,
+            });
+          } else {
+            logger.log('No saved settings, using defaults');
+          }
+          setSettingsLoaded(true);
         }
-        setSettingsLoaded(true);
-      });
+      );
     } else {
       setSettingsLoaded(true);
     }
@@ -448,9 +459,9 @@ export const ContentApp: React.FC = () => {
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       const messageListener = (
-        message: any,
-        _sender: any,
-        sendResponse: any
+        message: ContentScriptMessage,
+        _sender: chrome.runtime.MessageSender,
+        sendResponse: (response: { success: boolean }) => void
       ) => {
         logger.log('Received message:', message);
 

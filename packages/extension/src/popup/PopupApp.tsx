@@ -24,15 +24,18 @@ export const PopupApp: React.FC = () => {
   // Load settings from chrome storage
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.get(['linterSettings'], (result: any) => {
-        if (result.linterSettings) {
-          // Merge with defaults to ensure all properties exist
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...result.linterSettings,
-          });
+      chrome.storage.sync.get(
+        ['linterSettings'],
+        (result: { linterSettings?: Partial<Settings> }) => {
+          if (result.linterSettings) {
+            // Merge with defaults to ensure all properties exist
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              ...result.linterSettings,
+            });
+          }
         }
-      });
+      );
     }
   }, []);
 
