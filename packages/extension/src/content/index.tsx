@@ -9,8 +9,9 @@
 import { createRoot } from 'react-dom/client';
 import { ContentApp } from './ContentApp';
 
-// Wait for DOM to be ready
-function init() {
+const NOTEBOOK_SELECTOR = '.jp-Notebook';
+
+function mount(): void {
   console.log('[Kaggle Linter] Initializing...');
 
   // Check if already initialized to prevent double mounting
@@ -34,9 +35,39 @@ function init() {
   console.log('[Kaggle Linter] Initialized successfully');
 }
 
+/**
+ * manifest.json injects this script (all_frames: true) into both the
+ * outer kaggle.com shell page and the jupyter-proxy iframe that actually
+ * hosts the notebook. A manifest `matches` pattern can't express "only the
+ * frame that has a notebook in it," so the gate runs at mount time
+ * instead: only the frame where `.jp-Notebook` actually appears in the DOM
+ * mounts the overlay (F32). No timeout-then-mount-anyway — a frame where
+ * the notebook never appears (the outer shell, and the Pyodide-CDN match
+ * until Milestone 4 Task 1 deletes it) must never mount: no overlay, no
+ * keydown listener, no chrome.runtime message listener.
+ */
+function waitForNotebookThenMount(): void {
+  if (document.querySelector(NOTEBOOK_SELECTOR)) {
+    mount();
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    if (document.querySelector(NOTEBOOK_SELECTOR)) {
+      observer.disconnect();
+      mount();
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', waitForNotebookThenMount);
 } else {
-  init();
+  waitForNotebookThenMount();
 }
