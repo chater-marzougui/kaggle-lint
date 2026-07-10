@@ -38,6 +38,7 @@ function calculateStats(errors: LintUIError[]): ErrorStats {
 export const Overlay: React.FC<OverlayProps> = ({
   errors,
   onErrorClick,
+  onIgnoreCode,
   onRefresh,
   onClose,
   visible = true,
@@ -239,7 +240,7 @@ export const Overlay: React.FC<OverlayProps> = ({
           </span>
         </div>
 
-        <ErrorList errors={errors} onErrorClick={handleErrorClick} />
+        <ErrorList errors={errors} onErrorClick={handleErrorClick} onIgnoreCode={onIgnoreCode} />
       </div>
     </div>
   );

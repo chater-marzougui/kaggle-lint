@@ -29,8 +29,18 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
   error,
   index,
   onClick,
+  onIgnoreCode,
 }) => {
   const severityClass = `kaggle-lint-severity-${error.severity}`;
+
+  const handleIgnoreClick = (e: React.MouseEvent) => {
+    // Don't trigger the row's own click (scroll-to-error) — muting a code
+    // is a separate action from navigating to it.
+    e.stopPropagation();
+    if (error.code) {
+      onIgnoreCode?.(error.code);
+    }
+  };
 
   return (
     <li
@@ -52,6 +62,16 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
         [{error.rule}
         {error.code ? ` ${error.code}` : ''}]
       </span>
+      {error.code && (
+        <button
+          type="button"
+          className="kaggle-lint-btn-ignore"
+          title={`Ignore ${error.code} everywhere`}
+          onClick={handleIgnoreClick}
+        >
+          🔇
+        </button>
+      )}
     </li>
   );
 };

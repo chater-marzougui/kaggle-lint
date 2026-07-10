@@ -479,12 +479,40 @@ export const ContentApp: React.FC = () => {
     }
   };
 
+  /**
+   * One-click ignore (Task 4): appends the code to whichever engine is
+   * active, deduped, reusing the exact same chrome.storage.sync write and
+   * `linterSettings` key the popup uses — so the popup's own ignore-codes
+   * input reflects this immediately next time it's opened (it already
+   * reads storage on mount). Writing to `settings` state also re-triggers
+   * the existing settings-changed effect, which debounces and re-lints —
+   * no separate re-lint call needed here.
+   */
+  const handleIgnoreCode = (code: string) => {
+    setSettings((prev) => {
+      const key = prev.linterEngine === 'flake8' ? 'flake8IgnoreCodes' : 'ruffIgnoreCodes';
+      const existing = prev[key]
+        .split(',')
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+      if (existing.includes(code)) {
+        return prev;
+      }
+      const updated: Settings = { ...prev, [key]: [...existing, code].join(', ') };
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.sync.set({ linterSettings: updated });
+      }
+      return updated;
+    });
+  };
+
   return (
     <Overlay
       errors={errors}
       visible={visible}
       theme={theme}
       onErrorClick={handleErrorClick}
+      onIgnoreCode={handleIgnoreCode}
       onRefresh={runLinter}
       onClose={() => setVisible(false)}
       isLoading={isLinting}

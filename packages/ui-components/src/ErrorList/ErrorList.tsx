@@ -35,6 +35,7 @@ function bySeverityThenPosition(
 export const ErrorList: React.FC<ErrorListProps> = ({
   errors,
   onErrorClick,
+  onIgnoreCode,
 }) => {
   // EXACT LOGIC from displayErrors function in old-linter/src/ui/overlay.js
   if (errors.length === 0) {
@@ -51,6 +52,7 @@ export const ErrorList: React.FC<ErrorListProps> = ({
           error={error}
           index={idx}
           onClick={() => onErrorClick?.(error)}
+          onIgnoreCode={onIgnoreCode}
         />
       ))}
     </ul>

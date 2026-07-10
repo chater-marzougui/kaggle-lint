@@ -34,6 +34,7 @@ export interface LintUIError extends LintError {
 export interface OverlayProps {
   errors: LintUIError[];
   onErrorClick?: (error: LintUIError) => void;
+  onIgnoreCode?: (code: string) => void;
   onRefresh?: () => Promise<void>;
   onClose?: () => void;
   visible?: boolean;
@@ -55,10 +56,12 @@ export interface ErrorStats {
 export interface ErrorListProps {
   errors: LintUIError[];
   onErrorClick?: (error: LintUIError) => void;
+  onIgnoreCode?: (code: string) => void;
 }
 
 export interface ErrorItemProps {
   error: LintUIError;
   index: number;
   onClick?: () => void;
+  onIgnoreCode?: (code: string) => void;
 }

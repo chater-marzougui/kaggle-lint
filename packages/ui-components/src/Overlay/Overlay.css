@@ -580,6 +580,35 @@
   background: #5a5a5a;
 }
 
+/* One-click ignore (Milestone 8, Task 4): hidden until the row is
+   hovered, so it doesn't compete visually with the message/rule text at
+   rest. */
+.kaggle-lint-btn-ignore {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.kaggle-lint-error-item:hover .kaggle-lint-btn-ignore {
+  opacity: 0.7;
+}
+
+.kaggle-lint-btn-ignore:hover {
+  opacity: 1 !important;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-btn-ignore:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 /* In-editor severity markers (Milestone 8, Task 3). Added directly to a
    Kaggle .cm-line element (a page element, not part of the overlay's own
    subtree) for as long as that line holds an active lint error. A
