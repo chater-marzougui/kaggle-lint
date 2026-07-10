@@ -46,12 +46,32 @@ export const Overlay: React.FC<OverlayProps> = ({
   theme = 'light',
   codeCells: _codeCells = [], // Prefixed with underscore to indicate intentionally unused
   engineStatus,
+  initialPosition,
+  initialMinimized = false,
+  onStateChange,
 }) => {
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(initialMinimized);
+  const isMinimizedRef = useRef(initialMinimized);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragOffsetRef = useRef({ x: initialPosition?.x ?? 0, y: initialPosition?.y ?? 0 });
+
+  // Read the latest isMinimized inside the long-lived drag listeners below
+  // without adding it to their effect's deps (same pattern this repo
+  // already uses for runLinterRef/isLintingRef in ContentApp.tsx).
+  useEffect(() => {
+    isMinimizedRef.current = isMinimized;
+  }, [isMinimized]);
+
+  // Apply the restored drag offset once, on mount only — a later prop
+  // change must not fight the user's live drag position.
+  useEffect(() => {
+    if (!overlayRef.current) return;
+    overlayRef.current.style.setProperty('--kaggle-lint-drag-x', `${dragOffsetRef.current.x}px`);
+    overlayRef.current.style.setProperty('--kaggle-lint-drag-y', `${dragOffsetRef.current.y}px`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const stats = calculateStats(errors);
 
@@ -93,7 +113,9 @@ export const Overlay: React.FC<OverlayProps> = ({
     };
 
     const handleMouseUp = () => {
+      if (!isDragging) return;
       isDragging = false;
+      onStateChange?.({ position: dragOffsetRef.current, isMinimized: isMinimizedRef.current });
     };
 
     header.style.cursor = 'move';
@@ -123,6 +145,7 @@ export const Overlay: React.FC<OverlayProps> = ({
         overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
         overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
       }
+      onStateChange?.({ position: dragOffsetRef.current, isMinimized: next });
       return next;
     });
   };

@@ -31,6 +31,11 @@ export interface LintUIError extends LintError {
   uuid?: string | null;
 }
 
+export interface OverlayUiState {
+  position: { x: number; y: number };
+  isMinimized: boolean;
+}
+
 export interface OverlayProps {
   errors: LintUIError[];
   onErrorClick?: (error: LintUIError) => void;
@@ -42,6 +47,9 @@ export interface OverlayProps {
   theme?: 'light' | 'dark';
   codeCells?: Array<{ element: Element | null; cellIndex: number }>;
   engineStatus?: 'unloaded' | 'loading' | 'ready' | 'failed';
+  initialPosition?: { x: number; y: number };
+  initialMinimized?: boolean;
+  onStateChange?: (state: OverlayUiState) => void;
 }
 
 export interface ErrorStats {

@@ -13,6 +13,7 @@ import { EngineClient } from '../engine/EngineClient';
 import { createLogger } from '../utils/logger';
 import { applyLineMarkers, clearAllLineMarkers } from './lineMarkers';
 import { LINT_STATS, type LintStatsMessage } from '../background/statsProtocol';
+import type { OverlayUiState } from '@kaggle-lint/ui-components';
 
 const logger = createLogger('ContentApp');
 
@@ -33,6 +34,12 @@ const DEFAULT_SETTINGS: Settings = {
   ruffIgnoreCodes: '',
 };
 
+const OVERLAY_UI_STATE_KEY = 'overlayUiState';
+const DEFAULT_OVERLAY_UI_STATE: OverlayUiState = {
+  position: { x: 0, y: 0 },
+  isMinimized: false,
+};
+
 export const ContentApp: React.FC = () => {
   const [errors, setErrors] = useState<LintUIError[]>([]);
   const errorsRef = React.useRef<LintUIError[]>([]);
@@ -42,6 +49,52 @@ export const ContentApp: React.FC = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [engineStatus, setEngineStatus] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
+  const [overlayUiState, setOverlayUiState] = useState<OverlayUiState>(DEFAULT_OVERLAY_UI_STATE);
+  const [overlayUiStateLoaded, setOverlayUiStateLoaded] = useState(false);
+  const overlayStateSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Overlay position/minimize state is deliberately chrome.storage.local
+   * (per-machine UI state), not .sync, and deliberately a separate key
+   * from `linterSettings` — it's not a linter setting, and mixing it in
+   * would violate this milestone's frozen-settings-shape constraint.
+   * `visible` is intentionally NOT persisted here: a user who closed the
+   * panel should get it back on the next notebook, since a
+   * persisted-closed overlay looks like a broken extension, not a
+   * deliberate choice.
+   */
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      setOverlayUiStateLoaded(true);
+      return;
+    }
+    chrome.storage.local.get([OVERLAY_UI_STATE_KEY], (result: any) => {
+      const stored = result[OVERLAY_UI_STATE_KEY] as OverlayUiState | undefined;
+      if (stored) {
+        // Window size can differ between sessions; clamp so a
+        // previously-dragged-far position can't land off-screen.
+        const maxX = Math.max(0, window.innerWidth - 100);
+        const maxY = Math.max(0, window.innerHeight - 60);
+        setOverlayUiState({
+          position: {
+            x: Math.min(Math.max(stored.position.x, -maxX), maxX),
+            y: Math.min(Math.max(stored.position.y, -maxY), maxY),
+          },
+          isMinimized: Boolean(stored.isMinimized),
+        });
+      }
+      setOverlayUiStateLoaded(true);
+    });
+  }, []);
+
+  const handleOverlayStateChange = (state: OverlayUiState) => {
+    setOverlayUiState(state);
+    if (typeof chrome === 'undefined' || !chrome.storage) return;
+    if (overlayStateSaveTimerRef.current) clearTimeout(overlayStateSaveTimerRef.current);
+    overlayStateSaveTimerRef.current = setTimeout(() => {
+      chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: state });
+    }, 300);
+  };
 
   const engineClientRef = React.useRef(new EngineClient()).current;
   const domParser = React.useRef(new KaggleDomParser()).current;
@@ -516,6 +569,10 @@ export const ContentApp: React.FC = () => {
     });
   };
 
+  if (!overlayUiStateLoaded) {
+    return null;
+  }
+
   return (
     <Overlay
       errors={errors}
@@ -527,6 +584,9 @@ export const ContentApp: React.FC = () => {
       onClose={() => setVisible(false)}
       isLoading={isLinting}
       engineStatus={engineStatus}
+      initialPosition={overlayUiState.position}
+      initialMinimized={overlayUiState.isMinimized}
+      onStateChange={handleOverlayStateChange}
     />
   );
 };
