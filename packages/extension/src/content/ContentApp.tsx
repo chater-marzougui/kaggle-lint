@@ -323,16 +323,20 @@ export const ContentApp: React.FC = () => {
         const el = target instanceof Element ? target : target.parentElement;
         if (!el) continue;
         if (overlayRoot && overlayRoot.contains(el)) continue;
-        if (el.closest('.cm-content')) {
+        const mutatedContent = el.closest('.cm-content');
+        if (mutatedContent) {
           // Kaggle's notebook is virtualized: scrolling mounts/unmounts
           // `.cm-line` nodes inside `.cm-content`, which is a childList
           // mutation indistinguishable from a real edit at this point.
-          // Only schedule a re-lint if the user is actually editing —
-          // CodeMirror keeps DOM focus inside the edited content while
-          // typing, but pure scrolling doesn't put focus inside `.cm-content`.
+          // Only schedule a re-lint if the user is actually editing THIS
+          // cell — checking only "is focus in *some* .cm-content" isn't
+          // enough: once you've clicked into any cell, focus stays there
+          // through subsequent scrolling (scrolling doesn't blur an
+          // editor), so a virtualization mutation in a totally different,
+          // unfocused cell would still pass a same-any-cm-content check.
           const editorHasFocus =
             document.activeElement instanceof Element &&
-            document.activeElement.closest('.cm-content') !== null;
+            document.activeElement.closest('.cm-content') === mutatedContent;
           if (editorHasFocus) {
             scheduleRelint();
             return;
