@@ -66,6 +66,46 @@ describe('buildNotebookSource', () => {
     ]);
     expect(source).toBe('def f(x):\n    return x + 1');
   });
+
+  // Regression: a real-world notebook cell with a %-format continuation
+  // line inside an open paren (PEP8-recommended "operator before"
+  // continuation style, common with old-style % string formatting) was
+  // being blanked as if it were a line magic, leaving an unclosed paren —
+  // a Python SyntaxError. Both flake8 (E999) and ruff then report only
+  // that syntax error and discard every other finding in the whole
+  // notebook, which is exactly the "only 1 error found" bug reported
+  // during Task 11's manual gate. Confirmed via a real local repro against
+  // the actual bundled flake8 6.1.0 wheel and the actual
+  // @astral-sh/ruff-wasm-web package (not guessed).
+  it('does not blank a %-continuation line inside an open paren', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: 'message = ("Error: %s, code: %d"\n           % ("bad", 42))',
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe('message = ("Error: %s, code: %d"\n           % ("bad", 42))');
+  });
+
+  // Same class of bug for shell-escape blanking: a real != continuation
+  // line inside an open paren was being blanked as if it were a shell
+  // escape.
+  it('does not blank a !=-continuation line inside an open paren', () => {
+    const { source } = buildNotebookSource([
+      { code: 'if (a\n        != b):\n    pass', cellIndex: 0 },
+    ]);
+    expect(source).toBe('if (a\n        != b):\n    pass');
+  });
+
+  it('still blanks a line magic/shell escape that starts a fresh statement after a closed paren', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: "x = (1 + 2)\n%matplotlib inline\n!pip install foo\ny = 3",
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe('x = (1 + 2)\n\n\ny = 3');
+  });
 });
 
 describe('mapLineToCell', () => {

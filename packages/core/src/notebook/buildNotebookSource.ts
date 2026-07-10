@@ -24,6 +24,25 @@ export interface NotebookSource {
   cellOffsets: CellOffset[];
 }
 
+/**
+ * Naive running count of unclosed ([{ brackets on a line (doesn't account
+ * for brackets inside strings/comments — an approximation, not a full
+ * tokenizer). Used only to tell whether the NEXT line is a continuation of
+ * a still-open expression, since a real line magic/shell escape can only
+ * start a fresh top-level statement, never continue one.
+ */
+function countUnclosedBrackets(line: string): number {
+  let delta = 0;
+  for (const char of line) {
+    if (char === '(' || char === '[' || char === '{') {
+      delta += 1;
+    } else if (char === ')' || char === ']' || char === '}') {
+      delta -= 1;
+    }
+  }
+  return delta;
+}
+
 function blankCellLines(lines: string[]): string[] {
   const firstNonBlank = lines.find((line) => line.trim().length > 0);
   const isCellMagic = firstNonBlank !== undefined && firstNonBlank.trimStart().startsWith('%%');
@@ -35,14 +54,23 @@ function blankCellLines(lines: string[]): string[] {
     return lines.map(() => '');
   }
 
+  // Track paren/bracket/brace nesting depth as we go: a real IPython line
+  // magic/shell escape can only start a fresh statement, so a line reached
+  // while still inside an unclosed bracket from an earlier line (e.g. a
+  // %-format continuation `% (x, y))` or a `!= b):` comparison continuation
+  // — both valid, common Python) must never be treated as one, even though
+  // it happens to start with % or ! after trimming.
+  let bracketDepth = 0;
   return lines.map((line) => {
     const trimmed = line.trimStart();
-    if (trimmed.startsWith('%') || trimmed.startsWith('!')) {
-      // A line magic (%matplotlib inline) or shell escape (!pip install x)
-      // — blank only this line, the rest of the cell still lints.
-      return '';
-    }
-    return line;
+    const isContinuation = bracketDepth > 0;
+    const shouldBlank = !isContinuation && (trimmed.startsWith('%') || trimmed.startsWith('!'));
+
+    bracketDepth += countUnclosedBrackets(line);
+
+    // A line magic (%matplotlib inline) or shell escape (!pip install x)
+    // — blank only this line, the rest of the cell still lints.
+    return shouldBlank ? '' : line;
   });
 }
 
