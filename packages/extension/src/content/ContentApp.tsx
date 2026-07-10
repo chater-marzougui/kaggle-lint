@@ -211,7 +211,19 @@ export const ContentApp: React.FC = () => {
     if (!settingsLoaded) return;
     console.log('[Linter] Running initial lint...');
     const timer = setTimeout(() => runLinterRef.current(), 1000);
-    return () => clearTimeout(timer);
+    // Kaggle fetches notebook cell content asynchronously (a separate blob
+    // download observed racing with page load) — the Jupyter cell widgets
+    // can all be present, with some cells' sharedModel content not yet
+    // loaded, so the very first lint can read those cells as empty and
+    // undercount. A one-time catch-up lint a few seconds later covers
+    // content that finished loading after the first pass; every trigger
+    // after this one (keyboard shortcut, edits, settings changes) already
+    // re-extracts fresh and is unaffected.
+    const catchUpTimer = setTimeout(() => runLinterRef.current(), 4000);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(catchUpTimer);
+    };
   }, [settingsLoaded]);
 
   /**
