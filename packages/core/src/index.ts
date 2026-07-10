@@ -10,8 +10,5 @@ export * from './types';
 // (shared by both the flake8 and ruff engines)
 export * from './notebook';
 
-// Export rules
-export * from './rules';
-
 // Export engines
 export * from './engines';

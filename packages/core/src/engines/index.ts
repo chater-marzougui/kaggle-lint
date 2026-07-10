@@ -1,9 +1,7 @@
 /**
  * Engines Index
- * Exports all linting engines. flake8Mapping is superseded by
- * notebook/severityMapping (see Task 2/3). LintEngine (handmade) is
- * dropped in Task 9, once ContentApp.tsx no longer imports it.
+ * Exports the flake8 Python shim. LintEngine (handmade) and
+ * flake8Mapping are both deleted — see Tasks 3 and 9.
  */
 
-export * from './LintEngine';
 export * from './flake8Shim';
