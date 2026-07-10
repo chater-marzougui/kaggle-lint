@@ -358,9 +358,18 @@ export const ContentApp: React.FC = () => {
         msg: error.msg,
       }));
 
-  /** Refresh markers whenever the error list itself changes (a completed lint). */
+  /**
+   * Refresh markers whenever the error list itself changes (a completed
+   * lint). errorsRef is updated unconditionally so the [visible] effect's
+   * reapply-on-show always has fresh data; the repaint itself is skipped
+   * while the overlay is hidden, otherwise linting while hidden (e.g.
+   * Ctrl+Shift+L or auto-relint-on-edit) would repaint markers the user
+   * explicitly hid, defeating the same visibility gate applied below to
+   * the mutation-driven refresh.
+   */
   useEffect(() => {
     errorsRef.current = errors;
+    if (!visibleRef.current) return;
     applyLineMarkers(buildMarkerTargets(errors));
   }, [errors]);
 
