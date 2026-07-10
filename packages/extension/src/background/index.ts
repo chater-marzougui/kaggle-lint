@@ -7,7 +7,7 @@
  * extension's own CSP instead (see manifest.json's content_security_policy).
  */
 
-import { FLAKE8_LINT_NOTEBOOK, FLAKE8_STATUS } from '../flake8/protocol';
+import { FLAKE8_LINT_NOTEBOOK, FLAKE8_OFFSCREEN_REQUEST, FLAKE8_STATUS } from '../flake8/protocol';
 
 const FLAKE8_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   FLAKE8_LINT_NOTEBOOK,
@@ -16,14 +16,25 @@ const FLAKE8_MESSAGE_TYPES: ReadonlySet<string> = new Set([
 
 const OFFSCREEN_URL = 'offscreen.html';
 
+let creatingOffscreen: Promise<void> | null = null;
+
 async function ensureOffscreen(): Promise<void> {
-  const has = await chrome.offscreen.hasDocument();
-  if (!has) {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_URL,
-      reasons: [chrome.offscreen.Reason.WORKERS],
-      justification: 'Run Pyodide/Flake8 linter in WASM',
-    });
+  if (await chrome.offscreen.hasDocument()) {
+    return;
+  }
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+    return;
+  }
+  creatingOffscreen = chrome.offscreen.createDocument({
+    url: OFFSCREEN_URL,
+    reasons: [chrome.offscreen.Reason.WORKERS],
+    justification: 'Run Pyodide/Flake8 linter in WASM',
+  });
+  try {
+    await creatingOffscreen;
+  } finally {
+    creatingOffscreen = null;
   }
 }
 
@@ -33,20 +44,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // Only forward messages that came from a content script running in a
-  // tab. chrome.runtime.sendMessage() below has no single-recipient form
-  // for extension-page targets, so it broadcasts — this same listener
-  // will see its own forwarded message again (and so will the offscreen
-  // document's listener). The re-broadcast has no sender.tab (it
-  // originates from this service worker, an extension page, not a tab),
-  // so this guard prevents an infinite forward loop while still letting
-  // the offscreen document's listener (which checks message.type, not
-  // sender) answer it.
+  // tab. This is defense in depth, not the sole guard against re-forward
+  // loops: the wrapped message sent below has type FLAKE8_OFFSCREEN_REQUEST,
+  // which is disjoint from FLAKE8_MESSAGE_TYPES, so this listener's own
+  // type check (above) already ignores it when chrome.runtime.sendMessage's
+  // broadcast reaches this same listener again. It also has no sender.tab
+  // (it originates from this service worker, an extension page, not a tab),
+  // so the check below would reject it a second time regardless.
   if (!sender.tab) {
     return false;
   }
 
   ensureOffscreen()
-    .then(() => chrome.runtime.sendMessage(message))
+    .then(() =>
+      chrome.runtime.sendMessage({
+        type: FLAKE8_OFFSCREEN_REQUEST,
+        payload: message,
+      })
+    )
     .then((response) => sendResponse(response))
     .catch((error) => sendResponse({ ok: false, error: String(error) }));
 

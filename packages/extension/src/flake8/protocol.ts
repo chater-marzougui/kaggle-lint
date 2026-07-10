@@ -34,3 +34,10 @@ export type Flake8Status = 'unloaded' | 'loading' | 'ready' | 'failed';
 export interface Flake8StatusResponse {
   status: Flake8Status;
 }
+
+export const FLAKE8_OFFSCREEN_REQUEST = 'FLAKE8_OFFSCREEN_REQUEST' as const;
+
+export interface Flake8OffscreenRequest {
+  type: typeof FLAKE8_OFFSCREEN_REQUEST;
+  payload: Flake8LintRequest | Flake8StatusRequest;
+}

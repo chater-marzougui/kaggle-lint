@@ -4,10 +4,14 @@
  * response below with a real PyodideRuntime-backed handler.
  */
 
-import { FLAKE8_LINT_NOTEBOOK, FLAKE8_STATUS } from '../flake8/protocol';
+import { FLAKE8_OFFSCREEN_REQUEST, FLAKE8_LINT_NOTEBOOK, FLAKE8_STATUS } from '../flake8/protocol';
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== FLAKE8_LINT_NOTEBOOK && message?.type !== FLAKE8_STATUS) {
+  if (message?.type !== FLAKE8_OFFSCREEN_REQUEST) {
+    return false;
+  }
+  const payload = message.payload;
+  if (payload?.type !== FLAKE8_LINT_NOTEBOOK && payload?.type !== FLAKE8_STATUS) {
     return false;
   }
   sendResponse({ ok: false, error: 'not implemented' });
