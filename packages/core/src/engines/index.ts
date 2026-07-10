@@ -4,4 +4,5 @@
  */
 
 export * from './LintEngine';
-export * from './Flake8Engine';
+export * from './flake8Shim';
+export * from './flake8Mapping';
