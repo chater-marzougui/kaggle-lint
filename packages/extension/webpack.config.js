@@ -9,6 +9,8 @@ module.exports = {
     content: './src/content/index.tsx',
     popup: './src/popup/index.tsx',
     pageExtractor: './src/page/pageExtractor.ts',
+    background: './src/background/index.ts',
+    offscreen: './src/offscreen/index.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -74,6 +76,11 @@ module.exports = {
       template: './src/popup/popup.html',
       filename: 'popup.html',
       chunks: ['popup'],
+    }),
+    new HtmlWebpackPlugin({
+      template: './src/offscreen/offscreen.html',
+      filename: 'offscreen.html',
+      chunks: ['offscreen'],
     }),
   ],
 };
