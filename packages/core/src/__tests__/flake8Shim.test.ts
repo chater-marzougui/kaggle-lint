@@ -8,12 +8,15 @@ describe('PYTHON_SHIM ContextAwareChecker init ordering', () => {
     // UndefinedName violation crashes with AttributeError, silently
     // discarding that cell's entire result set. Regression test for a bug
     // found during Milestone 3's manual verification gate.
+    // Bounded by the next sibling method at the same indentation (not just
+    // the next blank line), so this captures exactly __init__'s body and
+    // nothing from report()/CollectingReporter that happens to follow it.
     const classMatch = PYTHON_SHIM.match(
-      /class ContextAwareChecker\(checker\.Checker\):[\s\S]*?def __init__\(self, tree, filename='<input>', known_context=None\):\n([\s\S]*?)\n\n/
+      /class ContextAwareChecker\(checker\.Checker\):[\s\S]*?\n( {12})def __init__\(self, tree, filename='<input>', known_context=None\):\n([\s\S]*?)\n\1def /
     );
     expect(classMatch).not.toBeNull();
 
-    const initBody = classMatch![1];
+    const initBody = classMatch![2];
     const superIdx = initBody.indexOf('super().__init__(tree, filename)');
     const contextIdx = initBody.indexOf('self.known_context = known_context or set()');
 
