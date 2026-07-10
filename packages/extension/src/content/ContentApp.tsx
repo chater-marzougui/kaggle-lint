@@ -160,6 +160,11 @@ export const ContentApp: React.FC = () => {
         element:
           elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
       }));
+      logger.log(
+        `cellsForLinting: ${cellsForLinting.length} total, ` +
+          `${cellsForLinting.filter((c) => c.element).length} with element, ` +
+          `cellIndexes=${cellsForLinting.map((c) => c.cellIndex).join(',')}`
+      );
 
       // The protocol is JSON-only (no DOM elements cross chrome.runtime
       // messaging), so strip elements before sending and re-attach them
@@ -197,6 +202,12 @@ export const ContentApp: React.FC = () => {
             uuid: cell?.uuid ?? null,
           };
         });
+        logger.log(
+          `lintErrors: ${lintErrors.length} total, ` +
+            `${lintErrors.filter((e) => e.element).length} with element, ` +
+            `sample error.cellIndexes=${rawErrors.slice(0, 5).map((e) => e.cellIndex).join(',')}, ` +
+            `cellByCellIndex keys=${Array.from(cellByCellIndex.keys()).join(',')}`
+        );
         setEngineStatus('ready');
         logger.log(`${settings.linterEngine} engine found ${lintErrors.length} errors`);
       } catch (error) {
