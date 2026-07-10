@@ -185,15 +185,15 @@ Found in a post-consolidation re-review of current `main` (two reported by the u
 | F12 | P1 | Popup | No sendMessage error handling; wrong page detection | M6 |
 | F13 | P1 | Flake8 | Busy-wait poll instead of awaiting loadPromise | M3 |
 | F14 | P2 | Duplication | Rule metadata in 3 places | ~~M1~~ **moot (2026-07-10) — rule system deleted** |
-| F15 | P2 | Duplication | Core types copy-pasted into ui-components | M4 |
+| F15 | P2 | Duplication | Core types copy-pasted into ui-components | ~~M4~~ **resolved (2026-07-10) — ui-components imports Severity/LintError from core** |
 | F16 | P2 | Duplication | NotebookCell/ErrorStats/getStats duplicated across engines | ~~M4~~ **moot (2026-07-10) — LintEngine.ts/Flake8Engine.ts deleted** |
-| F17 | P2 | Config | Manifest: CDN match, WAR `*`, unused `scripting` perm | M4 |
-| F18 | P2 | Build | webpack copies popup.css from old-linter | M4 |
+| F17 | P2 | Config | Manifest: CDN match, WAR `*`, unused `scripting` perm | ~~M4~~ **resolved (2026-07-10) — CDN match/scripting perm removed, WAR narrowed to pyodide/\*+icons/\*** |
+| F18 | P2 | Build | webpack copies popup.css from old-linter | ~~M4~~ **resolved (2026-07-10) — popup.css moved into packages/extension, old-linter build dependency gone** |
 | F19 | P2 | Dead code | emptyCells branch identical to default | ~~M4~~ **moot (2026-07-10) — LintEngine.ts deleted** |
 | F20 | P2 | Types | `as any` private-method coupling in LintEngine | ~~M4~~ **moot (2026-07-10) — LintEngine.ts deleted** |
-| F21 | P2 | Config | Version hardcoded in 7 files | M4 |
-| F22 | P2 | Config | Node/React-types version conflicts | M4 |
-| F23 | P2 | Build | ui-components dist unusable (CSS not emitted) | M4 |
+| F21 | P2 | Config | Version hardcoded in 7 files | ~~M4~~ **mostly resolved (2026-07-10) — manifest+popup footer now single-sourced from root package.json; the 3 per-package package.jsons still hardcode "2.0.0" for internal `*`-linked workspace refs that never ship, deliberately not touched** |
+| F22 | P2 | Config | Node/React-types version conflicts | ~~M4~~ **resolved (2026-07-10) — single 18.x @types/react tree-wide, README Node/npm floor corrected to 22+/10+** |
+| F23 | P2 | Build | ui-components dist unusable (CSS not emitted) | ~~M4~~ **resolved (2026-07-10) — copy-css build step emits dist/Overlay/Overlay.css; main/types deliberately kept pointing at dist/ (switching to src/ was tested and found not to remove a real TS6305 composite-project dependency)** |
 | F24 | P2 | Docs | README claims false test coverage, dead links | M6 |
 | F25–F30 | P3 | Various | Placeholders, console noise, hardcoded release notes, `any`s | M4/M6 |
 | F31 | P3 | UX | No flake8 ignore-codes config UI | ~~M6~~ **resolved (2026-07-10) — ignore-codes UI shipped for both engines** |

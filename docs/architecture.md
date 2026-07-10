@@ -43,9 +43,9 @@ The ruff engine (`@astral-sh/ruff-wasm-web`, no Python/Pyodide involved at all) 
 
 React 18 components: `Overlay` (draggable panel, minimize, refresh, stats), `ErrorList` (sorts by severity then cell position before rendering), `ErrorItem`. Notable properties:
 
-- Types in `src/types/index.ts` **still duplicate** core's `LintError`/`Severity` (F15, still open — comment claims circular-dependency avoidance; no cycle actually exists, ui-components already depends on core in package.json). The `code?: string` field that was missing (part of F15's drift) was added back in the lint-engine-consolidation project so the overlay could display violation codes, but the duplication itself is unresolved.
+- Types in `src/types/index.ts` now import `Severity`/`LintError` from `@kaggle-lint/core` instead of duplicating them (F15, resolved in Milestone 4). `LintUIError extends LintError` (added in Milestone 7/8, with `cellLine`/`element`/`uuid`) is the type every UI component actually receives.
 - `Overlay.tsx` mixes React state with direct DOM manipulation (minimize animation, close button set `style.display` directly) — a verbatim port of the old vanilla overlay. Unchanged by the consolidation project (F11's full fix is still Milestone 6, Task 1).
-- Build is plain `tsc` — `Overlay.css` is imported by the component but never copied to `dist/`, so the published package shape (`main: dist/index.js`) is broken for standalone consumption. It only works because the extension's webpack aliases `@kaggle-lint/ui-components` to `src/`. Unchanged (F23, still Milestone 4, Task 6).
+- Build is `tsc && npm run copy-css` (Milestone 4) — a `copyfiles` step (mirroring core's own `copy-pyodide` pattern) now copies `Overlay.css` into `dist/Overlay/Overlay.css` alongside the compiled `Overlay.js` that imports it, so the published package shape (`main: dist/index.js`) is honest again (F23, resolved). `main`/`types` deliberately still point at `dist/`, not `src/` — tested during Milestone 4 and found that `packages/extension/tsconfig.json` directly `include`s ui-components' `composite: true` src tree, which requires a built `dist/` regardless of `package.json`'s fields (a `TS6305` composite-project check), so switching to `src/` wouldn't have removed the dist dependency anyway.
 
 ## packages/extension
 
@@ -101,23 +101,23 @@ The CodeMirror-6-API path this document originally described (`element.cmView.st
 ### Webpack (`webpack.config.js`)
 
 - Aliases `@kaggle-lint/core` and `@kaggle-lint/ui-components` to their **`src/`** (not `dist/`), so TS compiles from source; yet the CopyPlugin pulls `pyodide/` from `core/dist/` — core must still be built first.
-- Copies `popup.css` from **`old-linter/src/popup/popup.css`** — still a live build dependency on the legacy folder (finding F18, still open, Milestone 4).
+- Copies `popup.css` from `src/popup/popup.css` — moved into this package in Milestone 4 (finding F18, resolved); the extension's webpack build no longer depends on `old-linter/` at all.
 - Two extra entries beyond `content`/`popup` since Milestone 3: `background/index.ts` and `offscreen/index.ts`.
 - `manifest.json`, icons, `Overlay.css` (→ `content.css`), the Pyodide runtime + bundled flake8 wheels, and (since the lint-engine-consolidation project) `ruff_wasm_bg.wasm` (resolved via `require.resolve('@astral-sh/ruff-wasm-web/package.json')`, not a hardcoded path) are also copied.
 
 ### Manifest (`public/manifest.json`)
 
-MV3. Content script matches `https://www.kaggle.com/code/*/*/edit`, the Kaggle jupyter-proxy domain, and — nonsensically — the Pyodide CDN URL (finding F17, still open). Permissions: `activeTab`, `storage`, `scripting` (unused), and (since Milestone 3) `offscreen`. `web_accessible_resources: ["*"]` for `<all_urls>` (far too broad, F17). `background.service_worker` and `content_security_policy.extension_pages` were added in Milestone 3 — there **is** a background service worker now (see the runtime-contexts diagram above); the earlier "no background service worker" claim in this document was true pre-M3 and is no longer accurate.
+MV3. Content script matches `https://www.kaggle.com/code/*/*/edit` and the Kaggle jupyter-proxy domain — the nonsensical Pyodide CDN URL match was removed in Milestone 4 (finding F17, resolved). Permissions: `activeTab`, `storage`, and (since Milestone 3) `offscreen` — the unused `scripting` permission was also removed in Milestone 4. `web_accessible_resources` is now narrowed to `pyodide/*`/`icons/*` scoped to the two real Kaggle origins (was `["*"]` for `<all_urls>`, F17). `background.service_worker` and `content_security_policy.extension_pages` were added in Milestone 3 — there **is** a background service worker now (see the runtime-contexts diagram above); the earlier "no background service worker" claim in this document was true pre-M3 and is no longer accurate.
 
 ## CI/CD
 
-- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`, but **no package defines a `lint` script**, so it checks nothing except the separate `format:check` step), type-check, test (core and now the lint-engine-consolidation project's additional core test suites; extension still has no test runner), build (uploads extension dist artifact). F4/F5 (lint no-op, dead coverage upload) are both still open, Milestone 5.
+- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`; each package now defines a real `"lint": "eslint src --ext .ts,.tsx"` script as of Milestone 4, so this job actually checks something for the first time — F4 was the *CI-wiring* finding and is formally credited to Milestone 5, but the underlying no-op is gone as of this milestone), type-check, test (core and now the lint-engine-consolidation project's additional core test suites; extension still has no test runner), build (uploads extension dist artifact). F5 (dead coverage upload) is still open, Milestone 5.
 - **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with hardcoded "What's New" notes (F28, still open, Milestone 6).
 
 ## Settings & versioning
 
 - Settings shape is now `{ linterEngine: 'flake8' | 'ruff', flake8IgnoreCodes: string, ruffIgnoreCodes: string }` persisted in `chrome.storage.sync`'s `linterSettings` key — the old `{ linterEngine: 'handmade'|'flake8', rules: Record<string, boolean> }` shape (and its triple duplication of rule metadata, finding F14) no longer exists; there is no settings migration for users with old stored values (a deliberate decision — see `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`). Defaults are still independently duplicated between `ContentApp.tsx` and `PopupApp.tsx` (two copies now, not three — no third rule-registry copy exists anymore since there are no rules).
-- Version "2.0.0" is still hardcoded independently in root package.json, three package.jsons, manifest.json, PopupApp's footer, and webpack's `EXTENSION_VERSION` default (finding F21, still open, Milestone 4).
+- Version is now single-sourced from root `package.json` into the shipped manifest (via a webpack `CopyPlugin` transform) and the popup footer (via `process.env.EXTENSION_VERSION`, a `DefinePlugin` substitution) — Milestone 4, finding F21, mostly resolved. `public/manifest.json`'s own `"version"` field is a deliberate `"0.0.0"` canary (so a bypassed transform ships something obviously wrong, not silently stale); the three per-package `package.json`s (core/ui-components/extension) still independently say `"2.0.0"`, left as-is since those are internal `*`-linked workspace references that never ship.
 
 ## Note: the lint-engine-consolidation project (2026-07-10)
 
