@@ -112,7 +112,7 @@ MV3. Content script matches `https://www.kaggle.com/code/*/*/edit` and the Kaggl
 ## CI/CD
 
 - **ci.yml**: four jobs on push/PR — lint, type-check, test, build. F4 (CI-wiring) and F5 (dead coverage upload) both resolved in **Milestone 5**: both packages' `test` scripts always run with `--coverage`, coverage thresholds are derived from measured coverage (not guessed), and codecov upload is wired for both packages' lcov output. `packages/extension` now has a real Jest + ts-jest + jsdom test runner (also Milestone 5), previously nonexistent. Post-M5 same-day follow-ups: GitHub Actions runner majors bumped to their Node-24-targeting versions (`actions/checkout@v7`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, `codecov/codecov-action@v7`) after the user's real (not `act`-simulated) CI run surfaced Node-20-deprecation warnings; ESLint migrated 8→9 flat config (`eslint.config.js` replacing `.eslintrc.js`); a `.gitattributes` (`* text=auto eol=lf`) fixes a Windows/`act` CRLF false-negative in `format:check`.
-- **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with hardcoded "What's New" notes (F28, still open, Milestone 6).
+- **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with auto-generated notes (`generate_release_notes: true`) plus a static install-instructions prefix (F28, resolved in Milestone 6 — previously hardcoded "What's New" marketing copy regardless of what actually shipped).
 
 ## Settings & versioning
 
