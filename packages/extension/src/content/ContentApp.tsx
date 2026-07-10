@@ -208,15 +208,18 @@ export const ContentApp: React.FC = () => {
 
   /**
    * Re-run linter when settings change (but not on initial mount).
-   * Debounced (500ms): the popup's engine-switch radio buttons have no way
-   * to know a lint is already in flight, so switching engines several
-   * times in a row used to queue up several full, back-to-back lint
-   * passes (each one skipped only if it happened to land while the
-   * previous was still running). flake8 in particular can take several
-   * seconds per pass on a large notebook; enough of those stacking up in
-   * a row was long enough for Chrome's own unresponsive-page detector to
-   * fire. Waiting for the selection to settle collapses N rapid switches
-   * into a single lint against the final choice.
+   * Debounced: the popup's engine-switch radio buttons and ignore-codes
+   * text field have no way to know a lint is already in flight, so
+   * switching engines (or typing a code) several times in a row used to
+   * queue up several full, back-to-back lint passes (each one skipped
+   * only if it happened to land while the previous was still running).
+   * flake8 in particular can take several seconds per pass on a large
+   * notebook; enough of those stacking up in a row was long enough for
+   * Chrome's own unresponsive-page detector to fire. Waiting for the
+   * change to settle collapses N rapid changes into a single lint against
+   * the final value. The ignore-codes field gets a longer delay (1s vs
+   * 500ms for an engine switch) since typing produces far more rapid-fire
+   * changes than clicking a radio button.
    */
   const prevSettingsRef = React.useRef<Settings | null>(null);
   useEffect(() => {
@@ -224,10 +227,15 @@ export const ContentApp: React.FC = () => {
     if (!settingsLoaded) return undefined;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
-    if (prevSettingsRef.current !== null) {
-      timer = setTimeout(() => {
-        runLinterRef.current();
-      }, 500);
+    const prev = prevSettingsRef.current;
+    if (prev !== null) {
+      const engineChanged = prev.linterEngine !== settings.linterEngine;
+      timer = setTimeout(
+        () => {
+          runLinterRef.current();
+        },
+        engineChanged ? 500 : 1000
+      );
     }
     prevSettingsRef.current = settings;
 

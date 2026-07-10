@@ -244,38 +244,74 @@ function findScrollableAncestor(el: Element): Element | null {
  * expected — the caller's `revealPosition` call already positioned the
  * view (just not centered), so this is a pure enhancement, never required
  * for `scrollToCellLine` to report success.
+ *
+ * Second attempt (superseded): looked up the line's DOM element via
+ * `domAtPos` synchronously, right after the scroll calls above. Confirmed
+ * live to only work when the line was already on-screen (no scroll
+ * needed) — a scroll that actually had to move the viewport can defer
+ * mounting the newly-visible cell's `.cm-line` nodes by a frame or more,
+ * so reading `domAtPos` in the same synchronous tick found nothing yet.
+ * See the bounded animation-frame poll below.
  */
 function centerAndHighlightLine(view: any, line: number): void {
-  try {
-    const doc = view?.state?.doc;
-    if (!doc || typeof view.domAtPos !== 'function') {
-      return;
-    }
-
-    const lineNumber = Math.min(Math.max(1, line), doc.lines);
-    const linePos = doc.line(lineNumber).from;
-    const domPos = view.domAtPos(linePos);
-    const node: Node | null = domPos?.node ?? null;
-    const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
-    const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
-    if (!lineEl) {
-      return;
-    }
-
-    const scroller = findScrollableAncestor(lineEl);
-    if (scroller) {
-      const scrollerRect = scroller.getBoundingClientRect();
-      const lineRect = lineEl.getBoundingClientRect();
-      const delta =
-        lineRect.top + lineRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
-      scroller.scrollTop += delta;
-    }
-
-    lineEl.classList.add('kaggle-lint-line-highlight');
-    setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
-  } catch {
-    // Enhancement only — see doc comment above.
+  const doc = view?.state?.doc;
+  if (!doc || typeof view.domAtPos !== 'function') {
+    return;
   }
+
+  const lineNumber = Math.min(Math.max(1, line), doc.lines);
+  const linePos = doc.line(lineNumber).from;
+
+  const findLineElement = (): HTMLElement | null => {
+    try {
+      const domPos = view.domAtPos(linePos);
+      const node: Node | null = domPos?.node ?? null;
+      const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
+      const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
+      return lineEl && lineEl.isConnected ? lineEl : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const applyToLine = (lineEl: HTMLElement): void => {
+    try {
+      const scroller = findScrollableAncestor(lineEl);
+      if (scroller) {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const lineRect = lineEl.getBoundingClientRect();
+        const delta =
+          lineRect.top + lineRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
+        scroller.scrollTop += delta;
+      }
+      lineEl.classList.add('kaggle-lint-line-highlight');
+      setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
+    } catch {
+      // Enhancement only.
+    }
+  };
+
+  // The target line's DOM node may not be mounted yet immediately after
+  // scrollToItem/revealPosition -- Kaggle's notebook is virtualized, and a
+  // scroll that actually had to move the viewport (target was off-screen)
+  // can defer mounting the newly-visible cell's .cm-line nodes by a frame
+  // or more. Confirmed live: reading domAtPos synchronously only worked
+  // when no scroll was needed at all. Poll a bounded number of animation
+  // frames instead of assuming the DOM has already settled.
+  const MAX_ATTEMPTS = 20;
+  const poll = (attemptsLeft: number): void => {
+    const lineEl = findLineElement();
+    if (lineEl) {
+      applyToLine(lineEl);
+      return;
+    }
+    if (attemptsLeft <= 0) {
+      return;
+    }
+    requestAnimationFrame(() => poll(attemptsLeft - 1));
+  };
+
+  poll(MAX_ATTEMPTS);
 }
 
 /**
