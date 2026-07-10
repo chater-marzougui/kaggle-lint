@@ -57,8 +57,14 @@ export class RuffRuntime {
     );
 
     const { source, cellOffsets } = buildNotebookSource(cells);
-    const raw: Diagnostic[] = workspace.check(source);
-    workspace.free(); // wasm-bindgen classes need explicit disposal — WASM-side memory isn't GC'd by JS
+    let raw: Diagnostic[];
+    try {
+      raw = workspace.check(source);
+    } finally {
+      // wasm-bindgen classes need explicit disposal — WASM-side memory
+      // isn't GC'd by JS — so free() must run even if check() throws.
+      workspace.free();
+    }
 
     const normalized = raw.map((d) => ({
       line: d.start_location.row,

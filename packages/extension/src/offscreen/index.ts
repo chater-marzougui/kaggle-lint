@@ -32,6 +32,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (payload?.type === ENGINE_STATUS) {
     const runtime = runtimes[payload.engine as EngineLintRequest['engine']];
+    if (!runtime) {
+      // Unknown/unrecognized engine name (e.g. a pre-consolidation
+      // chrome.storage.sync value like 'handmade' that this plan
+      // deliberately doesn't migrate). EngineStatusResponse has no error
+      // variant, so 'failed' is the least-surprising status to report —
+      // it can never become 'ready' and the popup already knows how to
+      // render a failed engine.
+      const response: EngineStatusResponse = { status: 'failed' };
+      sendResponse(response);
+      return false;
+    }
     const response: EngineStatusResponse = { status: runtime.status };
     sendResponse(response);
     return false;
@@ -40,6 +51,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (payload?.type === ENGINE_LINT_NOTEBOOK) {
     const request = payload as EngineLintRequest;
     const runtime = runtimes[request.engine];
+    if (!runtime) {
+      const response: EngineLintResponse = {
+        ok: false,
+        error: `Unknown lint engine: "${request.engine}"`,
+      };
+      sendResponse(response);
+      return false;
+    }
     runtime
       .lintNotebook(request.cells, request.ignoreCodes)
       .then((errors) => {
