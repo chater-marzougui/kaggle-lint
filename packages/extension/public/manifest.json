@@ -3,7 +3,7 @@
   "name": "Kaggle Python Linter",
   "description": "A linter extension for Python code in Kaggle notebooks",
   "version": "2.0.0",
-  "permissions": ["activeTab", "storage", "scripting", "offscreen"],
+  "permissions": ["activeTab", "storage", "offscreen"],
   "background": {
     "service_worker": "background.js"
   },
@@ -32,17 +32,14 @@
   },
   "host_permissions": [
     "https://www.kaggle.com/*",
-    "*://*.kaggle.com/*",
-    "*://*.kaggleusercontent.com/*",
-    "*://www.kaggle.com/*",
-    "https://*.kaggleusercontent.com/*"
+    "https://*.kaggleusercontent.com/*",
+    "https://kkb-production.jupyter-proxy.kaggle.net/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://www.kaggle.com/code/*/*/edit",
-        "https://kkb-production.jupyter-proxy.kaggle.net/*",
-        "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/*"
+        "https://kkb-production.jupyter-proxy.kaggle.net/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -62,8 +59,11 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["*"],
-      "matches": ["<all_urls>"]
+      "resources": ["pyodide/*", "icons/*"],
+      "matches": [
+        "https://www.kaggle.com/*",
+        "https://kkb-production.jupyter-proxy.kaggle.net/*"
+      ]
     }
   ]
 }
