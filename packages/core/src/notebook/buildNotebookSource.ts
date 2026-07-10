@@ -24,23 +24,80 @@ export interface NotebookSource {
   cellOffsets: CellOffset[];
 }
 
+type TripleQuote = '"""' | "'''" | null;
+
+interface LineScanResult {
+  /** Net change in unclosed ([{ bracket depth contributed by this line. */
+  bracketDelta: number;
+  /** Triple-quote still open at end of line (null if none/closed). */
+  tripleQuoteOpen: TripleQuote;
+}
+
 /**
- * Naive running count of unclosed ([{ brackets on a line (doesn't account
- * for brackets inside strings/comments — an approximation, not a full
- * tokenizer). Used only to tell whether the NEXT line is a continuation of
- * a still-open expression, since a real line magic/shell escape can only
- * start a fresh top-level statement, never continue one.
+ * Lightweight, quote/comment-aware scan of one line: counts real code-level
+ * ([{ brackets while skipping over string-literal contents (so a `)` inside
+ * an emoticon like "hi :)" isn't mistaken for a closing bracket) and
+ * `#`-comments (so an aside like "# see issue #42 (TODO)" doesn't throw off
+ * the count), and tracks whether a triple-quoted string is left open across
+ * lines. Not a full Python tokenizer (doesn't handle every string-prefix
+ * combination or nested f-string braces specially), but closes the two
+ * concrete false-positive/false-negative cases a naive character count hits
+ * in real notebooks.
  */
-function countUnclosedBrackets(line: string): number {
-  let delta = 0;
-  for (const char of line) {
-    if (char === '(' || char === '[' || char === '{') {
-      delta += 1;
-    } else if (char === ')' || char === ']' || char === '}') {
-      delta -= 1;
+function scanLine(line: string, tripleQuoteOpenAtStart: TripleQuote): LineScanResult {
+  let bracketDelta = 0;
+  let tripleQuoteOpen = tripleQuoteOpenAtStart;
+  let singleLineQuote: string | null = null;
+  let i = 0;
+
+  while (i < line.length) {
+    if (tripleQuoteOpen) {
+      if (line.startsWith(tripleQuoteOpen, i)) {
+        tripleQuoteOpen = null;
+        i += 3;
+      } else {
+        i += 1;
+      }
+      continue;
     }
+
+    if (singleLineQuote) {
+      const char = line[i];
+      if (char === '\\') {
+        i += 2; // skip the escaped character too
+      } else if (char === singleLineQuote) {
+        singleLineQuote = null;
+        i += 1;
+      } else {
+        i += 1;
+      }
+      continue;
+    }
+
+    if (line.startsWith('"""', i) || line.startsWith("'''", i)) {
+      tripleQuoteOpen = line.slice(i, i + 3) as TripleQuote;
+      i += 3;
+      continue;
+    }
+
+    const char = line[i];
+    if (char === '#') {
+      break; // rest of the line is a comment — nothing further counts
+    }
+    if (char === '"' || char === "'") {
+      singleLineQuote = char;
+      i += 1;
+      continue;
+    }
+    if (char === '(' || char === '[' || char === '{') {
+      bracketDelta += 1;
+    } else if (char === ')' || char === ']' || char === '}') {
+      bracketDelta -= 1;
+    }
+    i += 1;
   }
-  return delta;
+
+  return { bracketDelta, tripleQuoteOpen };
 }
 
 function blankCellLines(lines: string[]): string[] {
@@ -54,19 +111,23 @@ function blankCellLines(lines: string[]): string[] {
     return lines.map(() => '');
   }
 
-  // Track paren/bracket/brace nesting depth as we go: a real IPython line
-  // magic/shell escape can only start a fresh statement, so a line reached
-  // while still inside an unclosed bracket from an earlier line (e.g. a
-  // %-format continuation `% (x, y))` or a `!= b):` comparison continuation
-  // — both valid, common Python) must never be treated as one, even though
-  // it happens to start with % or ! after trimming.
+  // Track paren/bracket/brace nesting depth and open triple-quoted strings
+  // as we go: a real IPython line magic/shell escape can only start a
+  // fresh statement, so a line reached while still inside an unclosed
+  // bracket (e.g. a %-format continuation `% (x, y))` or a `!= b):`
+  // comparison continuation — both valid, common Python) or an open
+  // docstring must never be treated as one, even though it happens to
+  // start with % or ! after trimming.
   let bracketDepth = 0;
+  let tripleQuoteOpen: TripleQuote = null;
   return lines.map((line) => {
     const trimmed = line.trimStart();
-    const isContinuation = bracketDepth > 0;
+    const isContinuation = bracketDepth > 0 || tripleQuoteOpen !== null;
     const shouldBlank = !isContinuation && (trimmed.startsWith('%') || trimmed.startsWith('!'));
 
-    bracketDepth += countUnclosedBrackets(line);
+    const scan = scanLine(line, tripleQuoteOpen);
+    bracketDepth += scan.bracketDelta;
+    tripleQuoteOpen = scan.tripleQuoteOpen;
 
     // A line magic (%matplotlib inline) or shell escape (!pip install x)
     // — blank only this line, the rest of the cell still lints.

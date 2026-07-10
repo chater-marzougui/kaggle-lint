@@ -106,6 +106,50 @@ describe('buildNotebookSource', () => {
     ]);
     expect(source).toBe('x = (1 + 2)\n\n\ny = 3');
   });
+
+  // Regression: an unmatched paren inside a # comment (e.g. "(see issue
+  // #42" or "(TODO: fix this") was throwing off the bracket-depth counter
+  // for the rest of the cell, permanently masking every later real magic/
+  // shell-escape line — reintroducing the syntax-error-collapse bug via a
+  // different trigger. Comments must not affect bracket counting.
+  it('does not let an unmatched paren inside a comment mask a later real magic line', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: '# TODO: fix indexing (see issue #42\n%matplotlib inline\ndf.head()',
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe('# TODO: fix indexing (see issue #42\n\ndf.head()');
+  });
+
+  // Regression: a `)` inside a string literal (e.g. an emoticon like ":)")
+  // was throwing off the bracket-depth counter, wrongly closing a bracket
+  // that was actually still open — causing a genuine continuation line on
+  // the next line to be wrongly blanked, reproducing the original bug.
+  it('does not let a closing-bracket character inside a string literal mask a real continuation', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: 'greeting = "hi :)"\nmessage = ("Error: %s"\n           % ("bad",))',
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe('greeting = "hi :)"\nmessage = ("Error: %s"\n           % ("bad",))');
+  });
+
+  // Regression: a docstring/triple-quoted string spanning multiple lines,
+  // where an inner line happens to start with % or !, must not be blanked
+  // — it's string content, not code.
+  it('does not blank a %/! line inside a multi-line triple-quoted string', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: 'doc = """\n% not a magic, just text\n! not a shell escape either\n"""',
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe(
+      'doc = """\n% not a magic, just text\n! not a shell escape either\n"""'
+    );
+  });
 });
 
 describe('mapLineToCell', () => {
