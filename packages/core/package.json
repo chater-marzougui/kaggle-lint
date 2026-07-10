@@ -9,7 +9,7 @@
     "build": "tsc && npm run copy-pyodide",
     "copy-pyodide": "copyfiles -u 2 \"src/pyodide/**/*\" dist/pyodide",
     "dev": "tsc --watch",
-    "test": "jest",
+    "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",

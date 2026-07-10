@@ -71,7 +71,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: always()
         with:
-          files: ./packages/core/coverage/lcov.info
+          files: ./packages/core/coverage/lcov.info,./packages/extension/coverage/lcov.info
           fail_ci_if_error: false
 
   build:
