@@ -7,6 +7,8 @@
  * Only converted to TypeScript class format
  */
 
+import { createLogger } from './logger';
+
 interface StoredCell {
   code: string;
   cellIndex: number;
@@ -14,13 +16,15 @@ interface StoredCell {
   lastUpdated: number;
 }
 
+const logger = createLogger('CodeMirror');
+
 export class CodeMirrorManager {
   private DEBUG = false;
   private cellStore = new Map<string, StoredCell>();
 
   private log(...args: any[]): void {
     if (this.DEBUG) {
-      console.log('[CodeMirror]', ...args);
+      logger.log(...args);
     }
   }
 

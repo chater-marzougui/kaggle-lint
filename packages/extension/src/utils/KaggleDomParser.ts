@@ -18,6 +18,7 @@ import {
   SCROLL_TO_CELL_LINE_RESPONSE,
   type PageExtractedCell,
 } from '../page/bridgeProtocol';
+import { createLogger } from './logger';
 
 export interface CodeCell {
   code: string;
@@ -27,13 +28,14 @@ export interface CodeCell {
 }
 
 const BRIDGE_TIMEOUT_MS = 1500;
+const logger = createLogger('DomParser');
 
 export class KaggleDomParser {
   private DEBUG = true;
   private lastSource: 'model' | 'dom' | 'dom-scrape' = 'dom-scrape';
 
   private log(...args: any[]): void {
-    if (this.DEBUG) console.log('[KaggleDomParser]', ...args);
+    if (this.DEBUG) logger.log(...args);
   }
 
   /**

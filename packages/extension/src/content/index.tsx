@@ -8,16 +8,18 @@
 
 import { createRoot } from 'react-dom/client';
 import { ContentApp } from './ContentApp';
+import { createLogger } from '../utils/logger';
 
+const logger = createLogger();
 const NOTEBOOK_SELECTOR = '.jp-Notebook';
 
 function mount(): void {
-  console.log('[Kaggle Linter] Initializing...');
+  logger.log('Initializing...');
 
   // Check if already initialized to prevent double mounting
   const existingRoot = document.getElementById('kaggle-linter-root');
   if (existingRoot) {
-    console.log('[Kaggle Linter] Already initialized, skipping...');
+    logger.log('Already initialized, skipping...');
     return;
   }
 
@@ -32,7 +34,7 @@ function mount(): void {
   const root = createRoot(mountPoint);
   root.render(<ContentApp />);
 
-  console.log('[Kaggle Linter] Initialized successfully');
+  logger.log('Initialized successfully');
 }
 
 /**

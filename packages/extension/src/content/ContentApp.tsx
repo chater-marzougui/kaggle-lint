@@ -9,6 +9,9 @@ import { Overlay } from '@kaggle-lint/ui-components';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { EngineClient } from '../engine/EngineClient';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ContentApp');
 
 interface Settings {
   linterEngine: 'flake8' | 'ruff';
@@ -44,14 +47,14 @@ export const ContentApp: React.FC = () => {
    */
   const runLinter = useCallback(async () => {
     if (isLintingRef.current) {
-      console.log('[Linter] Already linting, skipping...');
+      logger.log('Already linting, skipping...');
       return;
     }
 
     isLintingRef.current = true;
     setIsLinting(true);
-    console.log('[Linter] Starting lint...');
-    console.log('[Linter] Current settings:', settings);
+    logger.log('Starting lint...');
+    logger.log('Current settings:', settings);
 
     let lintStartTime = 0;
 
@@ -59,7 +62,7 @@ export const ContentApp: React.FC = () => {
       lintStartTime = performance.now();
       // Extract cells from DOM (MAIN-world bridge, DOM-scrape fallback)
       const cells = await domParser.extractCells();
-      console.log(`[Linter] Extracted ${cells.length} cells`);
+      logger.log(`Extracted ${cells.length} cells`);
 
       // The Jupyter-model path (pageExtractor.ts's extractViaJupyterModel)
       // is rendering-independent — it reads every cell's source straight
@@ -108,7 +111,7 @@ export const ContentApp: React.FC = () => {
         .map((code) => code.trim())
         .filter((code) => code.length > 0);
 
-      console.log(`[Linter] Running ${settings.linterEngine} engine...`);
+      logger.log(`Running ${settings.linterEngine} engine...`);
       setEngineStatus('loading');
 
       let lintErrors;
@@ -133,7 +136,7 @@ export const ContentApp: React.FC = () => {
           };
         });
         setEngineStatus('ready');
-        console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
+        logger.log(`${settings.linterEngine} engine found ${lintErrors.length} errors`);
       } catch (error) {
         setEngineStatus('failed');
         throw error;
@@ -141,14 +144,14 @@ export const ContentApp: React.FC = () => {
 
       // Update errors state
       setErrors(lintErrors);
-      console.log('[Linter] Updated errors state with', lintErrors.length, 'errors');
+      logger.log('Updated errors state with', lintErrors.length, 'errors');
     } catch (error) {
-      console.error('[Linter] Error during linting:', error);
-      console.warn(`[Linter] ${settings.linterEngine} failed, you may need to reload the page`);
+      logger.error('Error during linting:', error);
+      logger.warn(`${settings.linterEngine} failed, you may need to reload the page`);
     } finally {
       isLintingRef.current = false;
       setIsLinting(false);
-      console.log(`[Linter] Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
+      logger.log(`Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
     }
   }, [domParser, codeMirrorManager, settings, engineClientRef]);
 
@@ -160,24 +163,24 @@ export const ContentApp: React.FC = () => {
    * Initialize linter on mount
    */
   useEffect(() => {
-    console.log('[Linter] Initializing ContentApp...');
+    logger.log('Initializing ContentApp...');
 
     // Detect theme
     const detectedTheme = domParser.detectTheme();
     setTheme(detectedTheme);
-    console.log('[Linter] Detected theme:', detectedTheme);
+    logger.log('Detected theme:', detectedTheme);
 
     // Load settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.sync.get(['linterSettings'], (result: any) => {
         if (result.linterSettings) {
-          console.log('[Linter] Loaded settings from storage:', result.linterSettings);
+          logger.log('Loaded settings from storage:', result.linterSettings);
           setSettings({
             ...DEFAULT_SETTINGS,
             ...result.linterSettings,
           });
         } else {
-          console.log('[Linter] No saved settings, using defaults');
+          logger.log('No saved settings, using defaults');
         }
         setSettingsLoaded(true);
       });
@@ -189,7 +192,7 @@ export const ContentApp: React.FC = () => {
 
   useEffect(() => {
     if (!settingsLoaded) return;
-    console.log('[Linter] Running initial lint...');
+    logger.log('Running initial lint...');
     const timer = setTimeout(() => runLinterRef.current(), 1000);
     // Kaggle fetches notebook cell content asynchronously (a separate blob
     // download observed racing with page load) — the Jupyter cell widgets
@@ -223,7 +226,7 @@ export const ContentApp: React.FC = () => {
    */
   const prevSettingsRef = React.useRef<Settings | null>(null);
   useEffect(() => {
-    console.log('[Linter] Settings changed:', settings);
+    logger.log('Settings changed:', settings);
     if (!settingsLoaded) return undefined;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -252,13 +255,13 @@ export const ContentApp: React.FC = () => {
       // Ctrl+Shift+L: Run linter
       if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         e.preventDefault();
-        console.log('[Linter] Keyboard shortcut: Re-lint');
+        logger.log('Keyboard shortcut: Re-lint');
         runLinterRef.current();
       }
       // Ctrl+Shift+H: Toggle overlay
       if (e.ctrlKey && e.shiftKey && e.key === 'H') {
         e.preventDefault();
-        console.log('[Linter] Keyboard shortcut: Toggle overlay');
+        logger.log('Keyboard shortcut: Toggle overlay');
         setVisible((prev) => !prev);
       }
     };
@@ -277,18 +280,18 @@ export const ContentApp: React.FC = () => {
         _sender: any,
         sendResponse: any
       ) => {
-        console.log('[Linter] Received message:', message);
+        logger.log('Received message:', message);
 
         if (message.type === 'runLinter') {
-          console.log('[Linter] Message: runLinter');
+          logger.log('Message: runLinter');
           runLinterRef.current();
           sendResponse({ success: true });
         } else if (message.type === 'toggleOverlay') {
-          console.log('[Linter] Message: toggleOverlay');
+          logger.log('Message: toggleOverlay');
           setVisible((prev) => !prev);
           sendResponse({ success: true });
         } else if (message.type === 'settingsChanged') {
-          console.log('[Linter] Message: settingsChanged', message.settings);
+          logger.log('Message: settingsChanged', message.settings);
           setSettings({
             ...DEFAULT_SETTINGS,
             ...message.settings,
@@ -319,7 +322,7 @@ export const ContentApp: React.FC = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        console.log('[Linter] Auto re-lint after edit');
+        logger.log('Auto re-lint after edit');
         runLinterRef.current();
       }, 800);
     };
