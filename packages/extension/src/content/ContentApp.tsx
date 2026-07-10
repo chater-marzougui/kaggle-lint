@@ -86,6 +86,7 @@ export const ContentApp: React.FC = () => {
       const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
         code: stored.code,
         cellIndex: stored.cellIndex,
+        uuid: stored.uuid,
         element:
           elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
       }));
@@ -107,18 +108,25 @@ export const ContentApp: React.FC = () => {
 
       let lintErrors;
       try {
-        const elementByCellIndex = new Map(
-          cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
+        const cellByCellIndex = new Map(
+          cellsForLinting.map((cell) => [
+            cell.cellIndex,
+            { element: cell.element, uuid: cell.uuid },
+          ])
         );
         const rawErrors = await engineClientRef.lintNotebook(
           settings.linterEngine,
           cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
           ignoreCodes
         );
-        lintErrors = rawErrors.map((error) => ({
-          ...error,
-          element: elementByCellIndex.get(error.cellIndex) ?? null,
-        }));
+        lintErrors = rawErrors.map((error) => {
+          const cell = cellByCellIndex.get(error.cellIndex);
+          return {
+            ...error,
+            element: cell?.element ?? null,
+            uuid: cell?.uuid ?? null,
+          };
+        });
         setEngineStatus('ready');
         console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
       } catch (error) {

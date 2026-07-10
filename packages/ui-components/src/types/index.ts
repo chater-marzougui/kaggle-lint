@@ -27,6 +27,7 @@ export interface OverlayProps {
     cellIndex?: number;
     cellLine?: number;
     element?: Element | null;
+    uuid?: string | null;
   }>;
   onErrorClick?: (error: any) => void;
   onRefresh?: () => Promise<void>;
