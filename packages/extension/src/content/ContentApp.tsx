@@ -48,6 +48,7 @@ export const ContentApp: React.FC = () => {
 
   const runLinterRef = React.useRef<() => Promise<void>>(async () => {});
   const isLintingRef = React.useRef(false);
+  const visibleRef = React.useRef(visible);
 
   /**
    * Run the linter
@@ -310,6 +311,9 @@ export const ContentApp: React.FC = () => {
    * childList/characterData/subtree only, no `attributes: true`) — so
    * marker writes never trigger a relint loop. `.jp-Notebook` is guaranteed
    * present here: content/index.tsx only mounts ContentApp once it exists.
+   * Skips repainting while the overlay is hidden (`visibleRef`) — otherwise
+   * an incidental mutation (e.g. scrolling) while toggled off would silently
+   * repaint markers the user just hid.
    */
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -317,6 +321,7 @@ export const ContentApp: React.FC = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
+        if (!visibleRef.current) return;
         applyLineMarkers(buildMarkerTargets(errorsRef.current));
       }, 300);
     };
@@ -333,9 +338,17 @@ export const ContentApp: React.FC = () => {
     };
   }, []);
 
-  /** Full clear when the overlay is hidden (F-free feature, but same discipline as the rest of this file: no stale markers left behind). */
+  /**
+   * Full clear when the overlay is hidden (F-free feature, but same
+   * discipline as the rest of this file: no stale markers left behind).
+   * Reapplies immediately when toggled back on, rather than waiting for
+   * the next lint or an incidental mutation to bring markers back.
+   */
   useEffect(() => {
-    if (!visible) {
+    visibleRef.current = visible;
+    if (visible) {
+      applyLineMarkers(buildMarkerTargets(errorsRef.current));
+    } else {
       clearAllLineMarkers();
     }
   }, [visible]);
