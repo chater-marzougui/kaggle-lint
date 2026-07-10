@@ -279,6 +279,13 @@ export const Overlay: React.FC<OverlayProps> = ({
             Loading Flake8 (Pyodide)… first load can take up to 30 s
           </div>
         )}
+        {flake8Status === 'failed' && (
+          <div className="kaggle-lint-engine-status">
+            Flake8 failed to load — check the offscreen document's console
+            (chrome://extensions → this extension → inspect the "service
+            worker" / "offscreen document" links) or try re-linting.
+          </div>
+        )}
 
         <div className="kaggle-lint-summary">
           <span className="kaggle-lint-stat kaggle-lint-error">

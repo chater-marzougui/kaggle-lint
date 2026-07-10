@@ -9,9 +9,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine, Flake8Engine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
+import { LintEngine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
+import { Flake8Client } from '../flake8/Flake8Client';
 
 interface Settings {
   linterEngine: 'handmade' | 'flake8';
@@ -31,10 +32,10 @@ export const ContentApp: React.FC = () => {
   const [isLinting, setIsLinting] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready'>('unloaded');
+  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
 
   const handmadeLintEngineRef = React.useRef<LintEngine | null>(null);
-  const flake8EngineRef = React.useRef<Flake8Engine>(new Flake8Engine());
+  const flake8ClientRef = React.useRef(new Flake8Client()).current;
   const domParser = React.useRef(new KaggleDomParser()).current;
   const codeMirrorManager = React.useRef(new CodeMirrorManager()).current;
 
@@ -55,37 +56,6 @@ export const ContentApp: React.FC = () => {
 
     return handmadeLintEngineRef.current;
   }, [settings.rules]);
-
-  /**
-   * Initialize Flake8 engine if needed
-   */
-  const initializeFlake8 = useCallback(async () => {
-    if (flake8Status === 'ready') {
-      return flake8EngineRef.current;
-    }
-
-    if (flake8Status === 'loading') {
-      // Wait for it to finish loading
-      while (!flake8EngineRef.current.isReady()) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return flake8EngineRef.current;
-    }
-
-    console.log('[Linter] Initializing Flake8 engine...');
-    setFlake8Status('loading');
-    
-    try {
-      await flake8EngineRef.current.initialize();
-      setFlake8Status('ready');
-      console.log('[Linter] Flake8 engine ready');
-      return flake8EngineRef.current;
-    } catch (error) {
-      console.error('[Linter] Failed to initialize Flake8:', error);
-      setFlake8Status('unloaded');
-      throw error;
-    }
-  }, [flake8Status]);
 
   /**
    * Run the linter
@@ -137,7 +107,7 @@ export const ContentApp: React.FC = () => {
       }));
 
       let lintErrors;
-      
+
       if (settings.linterEngine === 'handmade') {
         // Run handmade linter
         console.log('[Linter] Running handmade engine...');
@@ -145,11 +115,29 @@ export const ContentApp: React.FC = () => {
         lintErrors = engine.lintNotebook(cellsForLinting);
         console.log(`[Linter] Handmade engine found ${lintErrors.length} errors`);
       } else {
-        // Run flake8
+        // Run flake8 via the offscreen document. The protocol is
+        // JSON-only (no DOM elements cross chrome.runtime messaging), so
+        // strip elements before sending and re-attach them to the
+        // returned errors by cellIndex — error-click-to-scroll needs them.
         console.log('[Linter] Running flake8 engine...');
-        const flake8Engine = await initializeFlake8();
-        lintErrors = await flake8Engine.lintNotebook(cellsForLinting);
-        console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
+        setFlake8Status('loading');
+        try {
+          const elementByCellIndex = new Map(
+            cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
+          );
+          const rawErrors = await flake8ClientRef.lintNotebook(
+            cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex }))
+          );
+          lintErrors = rawErrors.map((error) => ({
+            ...error,
+            element: elementByCellIndex.get(error.cellIndex) ?? null,
+          }));
+          setFlake8Status('ready');
+          console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
+        } catch (error) {
+          setFlake8Status('failed');
+          throw error;
+        }
       }
 
       // Update errors state
@@ -165,7 +153,7 @@ export const ContentApp: React.FC = () => {
       isLintingRef.current = false;
       setIsLinting(false);
     }
-  }, [domParser, codeMirrorManager, settings, getHandmadeLintEngine, initializeFlake8]);
+  }, [domParser, codeMirrorManager, settings, getHandmadeLintEngine, flake8ClientRef]);
 
   useEffect(() => {
     runLinterRef.current = runLinter;
