@@ -3,18 +3,9 @@
  * Re-export core types and add UI-specific types
  */
 
-// Note: These types are duplicated from core to avoid circular dependency during build
-export type Severity = 'error' | 'warning' | 'info';
+import type { Severity, LintError } from '@kaggle-lint/core';
 
-export interface LintError {
-  line: number;
-  column?: number;
-  msg: string;
-  severity: Severity;
-  rule?: string;
-  code?: string;
-  cellIndex?: number;
-}
+export type { Severity, LintError };
 
 /**
  * A LintError enriched with what the overlay needs to render and act on a
