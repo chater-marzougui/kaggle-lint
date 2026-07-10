@@ -37,7 +37,8 @@ const DEFAULT_SETTINGS: Settings = {
 type ContentScriptMessage =
   | { type: 'runLinter' }
   | { type: 'toggleOverlay' }
-  | { type: 'settingsChanged'; settings: Partial<Settings> };
+  | { type: 'settingsChanged'; settings: Partial<Settings> }
+  | { type: 'ping' };
 
 const OVERLAY_UI_STATE_KEY = 'overlayUiState';
 const DEFAULT_OVERLAY_UI_STATE: OverlayUiState = {
@@ -461,7 +462,7 @@ export const ContentApp: React.FC = () => {
       const messageListener = (
         message: ContentScriptMessage,
         _sender: chrome.runtime.MessageSender,
-        sendResponse: (response: { success: boolean }) => void
+        sendResponse: (response: { success: boolean } | { pong: true }) => void
       ) => {
         logger.log('Received message:', message);
 
@@ -479,6 +480,8 @@ export const ContentApp: React.FC = () => {
             ...DEFAULT_SETTINGS,
             ...message.settings,
           });
+        } else if (message.type === 'ping') {
+          sendResponse({ pong: true });
         }
 
         return true;

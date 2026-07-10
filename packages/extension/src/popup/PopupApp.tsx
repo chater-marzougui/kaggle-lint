@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { pingContentScript, sendToContentScript } from './contentScriptBridge';
 
 interface Settings {
   linterEngine: 'flake8' | 'ruff';
@@ -39,16 +40,19 @@ export const PopupApp: React.FC = () => {
     }
   }, []);
 
-  // Check if current tab is a Kaggle page
+  // Detect whether the content script is actually running in the active
+  // tab (F12) — a URL match alone can't tell, since the content script
+  // only injects on /code/*/*/edit, not every kaggle.com page.
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.url) {
-          const isKagglePage = tabs[0].url.includes('kaggle.com');
-          setIsKaggle(isKagglePage);
-        }
-      });
-    }
+    if (typeof chrome === 'undefined' || !chrome.tabs) return;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (tabId === undefined) {
+        setIsKaggle(false);
+        return;
+      }
+      pingContentScript(tabId).then(setIsKaggle);
+    });
   }, []);
 
   // Detect and apply theme
@@ -79,15 +83,15 @@ export const PopupApp: React.FC = () => {
 
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.sync.set({ linterSettings: newSettings });
-
-      // Notify content script
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            type: 'settingsChanged',
-            settings: newSettings,
-          });
-        }
+        const tabId = tabs[0]?.id;
+        if (tabId === undefined) return;
+        sendToContentScript(tabId, {
+          type: 'settingsChanged',
+          settings: newSettings,
+        }).then((result) => {
+          if (!result.ok) setIsKaggle(false);
+        });
       });
     }
   };
@@ -110,9 +114,11 @@ export const PopupApp: React.FC = () => {
   const handleRefresh = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: 'runLinter' });
-        }
+        const tabId = tabs[0]?.id;
+        if (tabId === undefined) return;
+        sendToContentScript(tabId, { type: 'runLinter' }).then((result) => {
+          if (!result.ok) setIsKaggle(false);
+        });
       });
     }
   };
@@ -120,9 +126,11 @@ export const PopupApp: React.FC = () => {
   const handleToggleOverlay = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: 'toggleOverlay' });
-        }
+        const tabId = tabs[0]?.id;
+        if (tabId === undefined) return;
+        sendToContentScript(tabId, { type: 'toggleOverlay' }).then((result) => {
+          if (!result.ok) setIsKaggle(false);
+        });
       });
     }
   };
@@ -140,9 +148,9 @@ export const PopupApp: React.FC = () => {
               <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
               <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z" />
             </svg>
-            <h2>Not in Kaggle Notebook</h2>
+            <h2>Not Connected</h2>
             <p className="not-kaggle-text">
-              This extension only works on Kaggle Notebooks.
+              Open a Kaggle notebook in edit mode to use this extension.
             </p>
             <a
               href="https://www.kaggle.com/code"
