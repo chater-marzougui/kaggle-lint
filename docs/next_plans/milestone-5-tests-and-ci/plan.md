@@ -8,7 +8,7 @@
 
 **Tech Stack:** Jest, ts-jest, jsdom, GitHub Actions.
 
-**Fixes findings:** F4, F5, and the test-coverage half of F24. Depends on: Milestone 1; Task 4 needs Milestone 4 Task 6's per-package lint scripts (add them here if M4 hasn't landed). **(2026-07-10 note: the "registry exists" dependency below is stale — the rule registry was deleted by an unplanned project between M3 and M4; see Task 1's inline note.)**
+**Fixes findings:** F4, F5, and the test-coverage half of F24. Depends on: Milestone 1; Milestone 4 (merged 2026-07-10) — its Task 6 already landed the per-package lint scripts Task 4 needs, see that task's inline note. **(2026-07-10 note: the "registry exists" dependency below is stale — the rule registry was deleted by an unplanned project between M3 and M4; see Task 1's inline note.)**
 
 ## Global Constraints
 
@@ -55,10 +55,12 @@
 
 ### Task 4: Repair CI (F4, F5)
 
-**Files:**
-- Modify: `.github/workflows/ci.yml`, `packages/core/jest.config.js`, per-package `package.json` if M4 Task 6's lint scripts are missing
+> **2026-07-10 note:** Milestone 4 (merged) already landed Step 1's `"lint": "eslint src --ext .ts,.tsx"` script in all three packages' `package.json`s, plus a root `eslint-plugin-react-hooks` registration and 3 `prefer-const` fixes that a real lint run surfaced for the first time — `.github/workflows/ci.yml`'s lint job already calls `npm run lint`, so it has been enforcing (not a no-op) since M4 merged, with a currently-clean run (0 errors, ~23 warnings, all `@typescript-eslint/no-explicit-any` plus one accepted `react-hooks/exhaustive-deps` in `Overlay.tsx:131`). Step 1 below is now just a verification step, not new work — confirm the scripts are still present and the sanity check (break a file, confirm `npm run lint` fails, revert) still holds, don't re-add what's already there.
 
-- [ ] **Step 1:** Lint job: ensure every package has `"lint": "eslint src --ext .ts,.tsx"` so `turbo run lint` does real work. Sanity: break a file locally, confirm `npm run lint` fails, revert.
+**Files:**
+- Modify: `.github/workflows/ci.yml`, `packages/core/jest.config.js`
+
+- [ ] **Step 1:** Lint job: verify every package still has `"lint": "eslint src --ext .ts,.tsx"` (landed in Milestone 4) so `turbo run lint` does real work. Sanity: break a file locally, confirm `npm run lint` fails, revert.
 - [ ] **Step 2:** Test job: run `npm test -- -- --coverage` won't thread through turbo cleanly — instead change core's `test` script to `jest --coverage` (coverage always; it's cheap) and extension's likewise. Now `packages/core/coverage/lcov.info` exists and the existing codecov step works; add the extension lcov path to the upload.
 - [ ] **Step 3:** Set coverage thresholds to reality: measure actual post-Task-1-3 coverage (`npx jest --coverage` locally), set core's `coverageThreshold` ~5 points below measured (not the aspirational 70% that was never enforced), extension threshold modest (its React components are untested by design until M6). Record measured numbers in the commit body.
 - [ ] **Step 4:** Verify by pushing the branch: all four CI jobs green, codecov upload no longer warns about missing files, and deliberately breaking a rule test in a scratch commit turns the Test job red (then drop the scratch commit).
