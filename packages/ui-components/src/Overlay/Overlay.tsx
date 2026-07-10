@@ -1,14 +1,14 @@
 /**
  * Overlay Component
- * Main overlay UI for displaying lint results
- *
- * MIGRATION NOTE: Logic copied verbatim from old-linter/src/ui/overlay.js
- * Only converted to React component format with TypeScript
- * ALL DOM manipulation, dragging, and UI logic preserved exactly
+ * Main overlay UI for displaying lint results. Minimize/expand state and
+ * geometry are driven by React state + CSS classes (F11) — dragging is the
+ * one place this component still writes to the DOM directly, and it does
+ * so via a ref-held offset written to CSS custom properties, not React
+ * state, so a drag doesn't re-render the panel on every mousemove.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { OverlayProps, ErrorStats } from '../types';
+import { OverlayProps, ErrorStats, LintUIError } from '../types';
 import { ErrorList } from '../ErrorList';
 import './Overlay.css';
 
@@ -18,11 +18,7 @@ const SEVERITY_ICONS = {
   info: 'ℹ️',
 };
 
-/**
- * Calculate error statistics
- * EXACT LOGIC from old-linter displayErrors function
- */
-function calculateStats(errors: OverlayProps['errors']): ErrorStats {
+function calculateStats(errors: LintUIError[]): ErrorStats {
   const stats: ErrorStats = {
     total: errors.length,
     bySeverity: {
@@ -54,12 +50,14 @@ export const Overlay: React.FC<OverlayProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
 
   const stats = calculateStats(errors);
 
   /**
-   * Makes overlay draggable
-   * EXACT LOGIC from old-linter/src/ui/overlay.js makeDraggable function
+   * Dragging: ref-based, no re-render per mousemove. Writes the offset
+   * straight to `--kaggle-lint-drag-x`/`-y`, consumed by the root's
+   * `transform: translate(...)` in Overlay.css.
    */
   useEffect(() => {
     if (!overlayRef.current || !headerRef.current) return;
@@ -67,7 +65,10 @@ export const Overlay: React.FC<OverlayProps> = ({
     const overlay = overlayRef.current;
     const header = headerRef.current;
     let isDragging = false;
-    let startX: number, startY: number, startLeft: number, startTop: number;
+    let startX = 0;
+    let startY = 0;
+    let baseX = 0;
+    let baseY = 0;
 
     const handleMouseDown = (e: MouseEvent) => {
       if ((e.target as HTMLElement).tagName === 'BUTTON') {
@@ -76,20 +77,18 @@ export const Overlay: React.FC<OverlayProps> = ({
       isDragging = true;
       startX = e.clientX;
       startY = e.clientY;
-      const rect = overlay.getBoundingClientRect();
-      startLeft = rect.left;
-      startTop = rect.top;
+      baseX = dragOffsetRef.current.x;
+      baseY = dragOffsetRef.current.y;
       e.preventDefault();
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-      overlay.style.left = startLeft + deltaX + 'px';
-      overlay.style.top = startTop + deltaY + 'px';
-      overlay.style.right = 'auto';
-      overlay.style.bottom = 'auto';
+      const x = baseX + (e.clientX - startX);
+      const y = baseY + (e.clientY - startY);
+      dragOffsetRef.current = { x, y };
+      overlay.style.setProperty('--kaggle-lint-drag-x', `${x}px`);
+      overlay.style.setProperty('--kaggle-lint-drag-y', `${y}px`);
     };
 
     const handleMouseUp = () => {
@@ -109,56 +108,24 @@ export const Overlay: React.FC<OverlayProps> = ({
   }, []);
 
   /**
-   * Toggle minimize state
-   * EXACT LOGIC from old-linter/src/ui/overlay.js toggleMinimize function
+   * Toggle minimize state. All geometry/opacity/transition for the
+   * minimized "pill" shape lives in Overlay.css, driven by the
+   * `kaggle-lint-minimized` class — no direct style writes here beyond
+   * resetting the drag offset so the pill docks bottom-right, matching the
+   * pre-rewrite UX.
    */
   const handleToggleMinimize = () => {
-    if (!overlayRef.current) return;
-
-    const overlay = overlayRef.current;
-    const titleText = overlay.querySelector(
-      '.kaggle-lint-title-text'
-    ) as HTMLElement;
-
-    if (isMinimized) {
-      // Expanding
-      overlay.classList.remove('kaggle-lint-minimized');
-      overlay.style.width = '450px';
-      if (titleText) {
-        titleText.style.opacity = '0';
-        setTimeout(() => {
-          titleText.style.display = 'inline';
-          setTimeout(() => {
-            titleText.style.opacity = '1';
-          }, 10);
-          overlay.style.bottom = '20px';
-          overlay.style.right = '20px';
-        }, 150);
+    setIsMinimized((prev) => {
+      const next = !prev;
+      if (next && overlayRef.current) {
+        dragOffsetRef.current = { x: 0, y: 0 };
+        overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
+        overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
       }
-    } else {
-      // Minimizing
-      overlay.classList.add('kaggle-lint-minimized');
-      if (titleText) {
-        titleText.style.opacity = '0';
-        // Move to bottom right
-        overlay.style.right = '20px';
-        overlay.style.bottom = '20px';
-        overlay.style.left = 'auto';
-        overlay.style.top = 'auto';
-        overlay.style.width = '200px';
-        setTimeout(() => {
-          titleText.style.display = 'none';
-        }, 200);
-      }
-    }
-
-    setIsMinimized(!isMinimized);
+      return next;
+    });
   };
 
-  /**
-   * Handle refresh button click
-   * EXACT LOGIC from old-linter/src/ui/overlay.js refreshBtn.onclick
-   */
   const handleRefresh = async () => {
     if (onRefresh) {
       setIsRefreshing(true);
@@ -169,12 +136,11 @@ export const Overlay: React.FC<OverlayProps> = ({
   };
 
   /**
-   * Handle error click. Scrolling is the app's responsibility now (F33) —
-   * ContentApp's onErrorClick drives the MAIN-world bridge scroll with its
-   * own DOM fallback; Overlay no longer scrolls on its own, which used to
-   * mean every click scrolled twice.
+   * Handle error click. Scrolling is the app's responsibility (F33,
+   * Milestone 7) — ContentApp's onErrorClick drives the MAIN-world bridge
+   * scroll with its own DOM fallback; Overlay never scrolls on its own.
    */
-  const handleErrorClick = (error: OverlayProps['errors'][0]) => {
+  const handleErrorClick = (error: LintUIError) => {
     onErrorClick?.(error);
   };
 
@@ -182,7 +148,6 @@ export const Overlay: React.FC<OverlayProps> = ({
     return null;
   }
 
-  // SVG icons (will be loaded from chrome extension in actual use)
   const chevronIcon = (
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
@@ -199,7 +164,9 @@ export const Overlay: React.FC<OverlayProps> = ({
     <div
       ref={overlayRef}
       id="kaggle-lint-overlay"
-      className={`kaggle-lint-overlay kaggle-lint-theme-${theme}`}
+      className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${
+        isMinimized ? 'kaggle-lint-minimized' : ''
+      }`}
     >
       <div ref={headerRef} className="kaggle-lint-header">
         <span className="kaggle-lint-title">
@@ -218,7 +185,7 @@ export const Overlay: React.FC<OverlayProps> = ({
         <div className="kaggle-lint-controls">
           <button
             className={`kaggle-lint-btn kaggle-lint-btn-icon ${
-              (isRefreshing || isLoading) ? 'kaggle-lint-spinning' : ''
+              isRefreshing || isLoading ? 'kaggle-lint-spinning' : ''
             }`}
             title="Refresh lint"
             id="kaggle-lint-refresh-btn"
@@ -229,13 +196,9 @@ export const Overlay: React.FC<OverlayProps> = ({
           </button>
 
           <button
-            className="kaggle-lint-btn kaggle-lint-btn-icon"
+            className="kaggle-lint-btn kaggle-lint-btn-icon kaggle-lint-btn-toggle"
             title={isMinimized ? 'Expand' : 'Minimize'}
             onClick={handleToggleMinimize}
-            style={{
-              transform: isMinimized ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s ease',
-            }}
           >
             {chevronIcon}
           </button>

@@ -16,20 +16,24 @@ export interface LintError {
   cellIndex?: number;
 }
 
+/**
+ * A LintError enriched with what the overlay needs to render and act on a
+ * violation: its position within the cell (vs. the whole-notebook line the
+ * bare `line` field carries), the live DOM element for click-to-scroll
+ * (null once Kaggle virtualizes the cell out of the DOM), and the cell's
+ * stable uuid (added in Milestone 7) for the MAIN-world scroll bridge.
+ * This is the actual shape every UI component below receives — replacing
+ * the untyped `any` that used to stand in for it (F29).
+ */
+export interface LintUIError extends LintError {
+  cellLine?: number;
+  element?: Element | null;
+  uuid?: string | null;
+}
+
 export interface OverlayProps {
-  errors: Array<{
-    line: number;
-    column?: number;
-    msg: string;
-    severity: 'error' | 'warning' | 'info';
-    rule?: string;
-    code?: string;
-    cellIndex?: number;
-    cellLine?: number;
-    element?: Element | null;
-    uuid?: string | null;
-  }>;
-  onErrorClick?: (error: any) => void;
+  errors: LintUIError[];
+  onErrorClick?: (error: LintUIError) => void;
   onRefresh?: () => Promise<void>;
   onClose?: () => void;
   visible?: boolean;
@@ -49,12 +53,12 @@ export interface ErrorStats {
 }
 
 export interface ErrorListProps {
-  errors: OverlayProps['errors'];
-  onErrorClick?: (error: any) => void;
+  errors: LintUIError[];
+  onErrorClick?: (error: LintUIError) => void;
 }
 
 export interface ErrorItemProps {
-  error: OverlayProps['errors'][0];
+  error: LintUIError;
   index: number;
   onClick?: () => void;
 }

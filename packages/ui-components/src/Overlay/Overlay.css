@@ -13,16 +13,18 @@
     "Ubuntu", "Cantarell", sans-serif;
   font-size: 13px;
   overflow: hidden;
+  /* Overlay.tsx writes these two directly via ref on drag, never through
+     React state, so a drag doesn't re-render the panel. */
+  --kaggle-lint-drag-x: 0px;
+  --kaggle-lint-drag-y: 0px;
+  transform: translate(var(--kaggle-lint-drag-x), var(--kaggle-lint-drag-y));
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kaggle-lint-overlay.kaggle-lint-minimized {
   max-height: none;
+  width: 200px;
 }
 
 .kaggle-lint-minimized .kaggle-lint-errors {
@@ -115,8 +117,17 @@
   font-size: 13px;
   letter-spacing: 0.5px;
   vertical-align: middle;
-  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 160px;
+  opacity: 1;
   margin: 0;
+  transition: opacity 0.2s ease, max-width 0.2s ease;
+}
+
+.kaggle-lint-minimized .kaggle-lint-title-text {
+  opacity: 0;
+  max-width: 0;
 }
 
 .kaggle-lint-title-icon {
@@ -158,6 +169,14 @@
 .kaggle-lint-btn svg {
   width: 16px;
   height: 16px;
+}
+
+.kaggle-lint-btn-toggle svg {
+  transition: transform 0.3s ease;
+}
+
+.kaggle-lint-minimized .kaggle-lint-btn-toggle svg {
+  transform: rotate(180deg);
 }
 
 .kaggle-lint-theme-light .kaggle-lint-btn {

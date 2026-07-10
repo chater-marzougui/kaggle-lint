@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
+import type { LintUIError } from '@kaggle-lint/ui-components';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { EngineClient } from '../engine/EngineClient';
@@ -27,7 +28,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export const ContentApp: React.FC = () => {
-  const [errors, setErrors] = useState<any[]>([]);
+  const [errors, setErrors] = useState<LintUIError[]>([]);
   const [visible, setVisible] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isLinting, setIsLinting] = useState(false);
@@ -378,7 +379,7 @@ export const ContentApp: React.FC = () => {
    * 'auto' behavior, not 'smooth': an animated scroll can drift once
    * virtualization reflows mid-animation, which is the bug F33 reports.
    */
-  const handleErrorClick = async (error: any) => {
+  const handleErrorClick = async (error: LintUIError) => {
     const ok = await domParser.scrollToCellLine(
       error.uuid ?? null,
       error.cellIndex ?? 0,
@@ -388,9 +389,10 @@ export const ContentApp: React.FC = () => {
       error.element.scrollIntoView({ behavior: 'auto', block: 'center' });
     }
     if (error.element) {
-      error.element.classList.add('kaggle-lint-highlight');
+      const element = error.element;
+      element.classList.add('kaggle-lint-highlight');
       setTimeout(() => {
-        error.element.classList.remove('kaggle-lint-highlight');
+        element.classList.remove('kaggle-lint-highlight');
       }, 2000);
     }
   };
