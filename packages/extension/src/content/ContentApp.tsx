@@ -72,7 +72,10 @@ export const ContentApp: React.FC = () => {
     console.log('[Linter] Starting lint...');
     console.log('[Linter] Current settings:', settings);
 
+    let lintStartTime = 0;
+
     try {
+      lintStartTime = performance.now();
       // Extract cells from DOM (MAIN-world bridge, DOM-scrape fallback)
       const cells = await domParser.extractCells();
       console.log(`[Linter] Extracted ${cells.length} cells`);
@@ -152,6 +155,7 @@ export const ContentApp: React.FC = () => {
     } finally {
       isLintingRef.current = false;
       setIsLinting(false);
+      console.log(`[Linter] Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
     }
   }, [domParser, codeMirrorManager, settings, getHandmadeLintEngine, flake8ClientRef]);
 
