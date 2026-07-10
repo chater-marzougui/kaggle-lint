@@ -8,7 +8,15 @@
  * but has no access to chrome.* APIs.
  */
 
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell, type ExtractResponseMessage } from './bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  SCROLL_TO_CELL_LINE_REQUEST,
+  SCROLL_TO_CELL_LINE_RESPONSE,
+  type PageExtractedCell,
+  type ExtractResponseMessage,
+  type ScrollToCellLineResponseMessage,
+} from './bridgeProtocol';
 
 const LOADED_MARKER = '__kaggleLintPageExtractorLoaded';
 
@@ -149,21 +157,108 @@ function extractAllCells(): PageExtractedCell[] {
   return extractViaJupyterModel() ?? extractAllCellsViaDom();
 }
 
+/**
+ * Locates the cell widget for a uuid/cellIndex pair via the same
+ * window.jupyterapp notebook-widget path extractViaJupyterModel() reads.
+ * Prefers uuid (stable across virtualization); falls back to positional
+ * index if the uuid isn't found (e.g. a stale click target from before a
+ * cell was deleted).
+ */
+function findCellWidget(
+  uuid: string | null,
+  cellIndex: number
+): { content: any; widget: any; index: number } | null {
+  const app = (window as any).jupyterapp;
+  const content = app?.shell?.currentWidget?.content;
+  const widgets = content?.widgets;
+  if (!Array.isArray(widgets) || widgets.length === 0) {
+    return null;
+  }
+
+  if (uuid) {
+    const index = widgets.findIndex((w: any) => w?.model?.id === uuid);
+    if (index !== -1) {
+      return { content, widget: widgets[index], index };
+    }
+  }
+
+  if (cellIndex >= 0 && cellIndex < widgets.length) {
+    return { content, widget: widgets[cellIndex], index: cellIndex };
+  }
+
+  return null;
+}
+
+/**
+ * Scrolls the notebook to a cell and reveals a specific line inside it,
+ * using Jupyter's own virtualization-aware widget/editor APIs (expected
+ * shape for JupyterLab 4 — live-probe target, see this milestone's
+ * notes.md). Never touches CodeMirror state/effects directly: cross-
+ * instance CM6 dispatch is a known trap, and the `cmView` expando this
+ * file's DOM-fallback extraction path looks for doesn't exist on Kaggle's
+ * current build anyway (see extractViaJupyterModel's doc comment above).
+ */
+function scrollToCellLine(uuid: string | null, cellIndex: number, line: number): boolean {
+  try {
+    const found = findCellWidget(uuid, cellIndex);
+    if (!found) {
+      return false;
+    }
+    const { content, widget, index } = found;
+
+    if (typeof content.scrollToItem === 'function') {
+      content.scrollToItem(index);
+    } else {
+      content.activeCellIndex = index;
+    }
+
+    const editor = widget?.editor;
+    const position = { line: Math.max(0, line - 1), column: 0 };
+    if (editor && typeof editor.setCursorPosition === 'function') {
+      editor.setCursorPosition(position);
+    }
+    if (editor && typeof editor.revealPosition === 'function') {
+      editor.revealPosition(position);
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function handleMessage(event: MessageEvent): void {
   if (event.source !== window) {
     return;
   }
   const data = event.data;
-  if (!data || data.type !== EXTRACT_REQUEST || typeof data.requestId !== 'string') {
+  if (!data || typeof data.requestId !== 'string') {
     return;
   }
 
-  const response: ExtractResponseMessage = {
-    type: EXTRACT_RESPONSE,
-    requestId: data.requestId,
-    cells: extractAllCells(),
-  };
-  window.postMessage(response, '*');
+  if (data.type === EXTRACT_REQUEST) {
+    const response: ExtractResponseMessage = {
+      type: EXTRACT_RESPONSE,
+      requestId: data.requestId,
+      cells: extractAllCells(),
+    };
+    window.postMessage(response, '*');
+    return;
+  }
+
+  if (data.type === SCROLL_TO_CELL_LINE_REQUEST) {
+    const ok = scrollToCellLine(
+      typeof data.uuid === 'string' ? data.uuid : null,
+      typeof data.cellIndex === 'number' ? data.cellIndex : -1,
+      typeof data.line === 'number' ? data.line : 1
+    );
+    const response: ScrollToCellLineResponseMessage = {
+      type: SCROLL_TO_CELL_LINE_RESPONSE,
+      requestId: data.requestId,
+      ok,
+    };
+    window.postMessage(response, '*');
+  }
 }
 
 // Guard against double registration: manifest.json's all_frames + two

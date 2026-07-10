@@ -11,7 +11,13 @@
  * whatever `.cm-line` DOM nodes Kaggle currently has rendered.
  */
 
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell } from '../page/bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  SCROLL_TO_CELL_LINE_REQUEST,
+  SCROLL_TO_CELL_LINE_RESPONSE,
+  type PageExtractedCell,
+} from '../page/bridgeProtocol';
 
 export interface CodeCell {
   code: string;
@@ -140,6 +146,52 @@ export class KaggleDomParser {
       }, BRIDGE_TIMEOUT_MS);
 
       window.postMessage({ type: EXTRACT_REQUEST, requestId }, '*');
+    });
+  }
+
+  /**
+   * Asks the MAIN-world bridge to scroll the notebook to a cell and
+   * reveal a specific line inside it, using Jupyter's own virtualization-
+   * aware widget/editor APIs (see pageExtractor.ts). Resolves false on
+   * timeout, or if pageExtractor couldn't find a matching cell widget —
+   * either case means the caller should fall back to a DOM scrollIntoView.
+   */
+  async scrollToCellLine(uuid: string | null, cellIndex: number, line: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID();
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout>;
+
+      const cleanup = () => {
+        window.removeEventListener('message', handleMessage);
+        clearTimeout(timeoutId);
+      };
+
+      const handleMessage = (event: MessageEvent) => {
+        if (settled || event.source !== window) return;
+        const data = event.data;
+        if (!data || data.type !== SCROLL_TO_CELL_LINE_RESPONSE || data.requestId !== requestId) {
+          return;
+        }
+
+        settled = true;
+        cleanup();
+        resolve(Boolean(data.ok));
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(false);
+      }, BRIDGE_TIMEOUT_MS);
+
+      window.postMessage(
+        { type: SCROLL_TO_CELL_LINE_REQUEST, requestId, uuid, cellIndex, line },
+        '*'
+      );
     });
   }
 

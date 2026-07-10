@@ -337,12 +337,24 @@ export const ContentApp: React.FC = () => {
   }, [settingsLoaded]);
 
   /**
-   * Handle error click
+   * Handle error click (F33): ask the MAIN-world bridge to scroll via
+   * Jupyter's own virtualization-aware APIs and reveal the exact line.
+   * Falls back to a plain DOM scrollIntoView only if the bridge can't
+   * find the cell (pageExtractor not loaded in this frame, or the live
+   * JupyterLab API shape doesn't match what pageExtractor.ts expects) —
+   * 'auto' behavior, not 'smooth': an animated scroll can drift once
+   * virtualization reflows mid-animation, which is the bug F33 reports.
    */
-  const handleErrorClick = (error: any) => {
+  const handleErrorClick = async (error: any) => {
+    const ok = await domParser.scrollToCellLine(
+      error.uuid ?? null,
+      error.cellIndex ?? 0,
+      error.cellLine ?? error.line ?? 1
+    );
+    if (!ok && error.element) {
+      error.element.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }
     if (error.element) {
-      error.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Highlight cell
       error.element.classList.add('kaggle-lint-highlight');
       setTimeout(() => {
         error.element.classList.remove('kaggle-lint-highlight');

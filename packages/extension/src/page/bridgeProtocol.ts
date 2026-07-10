@@ -24,3 +24,20 @@ export interface ExtractResponseMessage {
   requestId: string;
   cells: PageExtractedCell[];
 }
+
+export const SCROLL_TO_CELL_LINE_REQUEST = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
+export const SCROLL_TO_CELL_LINE_RESPONSE = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_RESPONSE' as const;
+
+export interface ScrollToCellLineRequestMessage {
+  type: typeof SCROLL_TO_CELL_LINE_REQUEST;
+  requestId: string;
+  uuid: string | null;
+  cellIndex: number;
+  line: number;
+}
+
+export interface ScrollToCellLineResponseMessage {
+  type: typeof SCROLL_TO_CELL_LINE_RESPONSE;
+  requestId: string;
+  ok: boolean;
+}

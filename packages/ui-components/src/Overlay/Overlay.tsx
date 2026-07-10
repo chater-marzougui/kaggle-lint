@@ -39,28 +39,6 @@ function calculateStats(errors: OverlayProps['errors']): ErrorStats {
   return stats;
 }
 
-/**
- * Scrolls to the cell containing an error
- * EXACT COPY from old-linter/src/ui/overlay.js scrollToError function
- */
-function scrollToError(error: OverlayProps['errors'][0]): void {
-  if (error.element) {
-    error.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    highlightCell(error.element);
-  }
-}
-
-/**
- * Temporarily highlights a cell
- * EXACT COPY from old-linter/src/ui/overlay.js highlightCell function
- */
-function highlightCell(element: Element): void {
-  element.classList.add('kaggle-lint-highlight');
-  setTimeout(() => {
-    element.classList.remove('kaggle-lint-highlight');
-  }, 2000);
-}
-
 export const Overlay: React.FC<OverlayProps> = ({
   errors,
   onErrorClick,
@@ -191,14 +169,13 @@ export const Overlay: React.FC<OverlayProps> = ({
   };
 
   /**
-   * Handle error click
-   * EXACT LOGIC from old-linter/src/ui/overlay.js error item click handling
+   * Handle error click. Scrolling is the app's responsibility now (F33) —
+   * ContentApp's onErrorClick drives the MAIN-world bridge scroll with its
+   * own DOM fallback; Overlay no longer scrolls on its own, which used to
+   * mean every click scrolled twice.
    */
   const handleErrorClick = (error: OverlayProps['errors'][0]) => {
-    scrollToError(error);
-    if (onErrorClick) {
-      onErrorClick(error);
-    }
+    onErrorClick?.(error);
   };
 
   if (!visible) {
