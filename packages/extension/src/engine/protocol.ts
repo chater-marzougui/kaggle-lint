@@ -27,8 +27,7 @@ export type EngineResultError = LintError & {
 };
 
 export type EngineLintResponse =
-  | { ok: true; errors: EngineResultError[] }
-  | { ok: false; error: string };
+  { ok: true; errors: EngineResultError[] } | { ok: false; error: string };
 
 export interface EngineStatusRequest {
   type: typeof ENGINE_STATUS;

@@ -237,8 +237,7 @@ export type EngineResultError = LintError & {
   cellLine: number;
 };
 export type EngineLintResponse =
-  | { ok: true; errors: EngineResultError[] }
-  | { ok: false; error: string };
+  { ok: true; errors: EngineResultError[] } | { ok: false; error: string };
 export interface EngineStatusResponse {
   status: EngineStatus;
 }

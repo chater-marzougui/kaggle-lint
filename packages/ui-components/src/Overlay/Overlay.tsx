@@ -79,7 +79,6 @@ export const Overlay: React.FC<OverlayProps> = ({
       '--kaggle-lint-drag-y',
       `${dragOffsetRef.current.y}px`
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stats = calculateStats(errors);

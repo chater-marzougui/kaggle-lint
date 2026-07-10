@@ -51,8 +51,7 @@ export type Flake8ResultError = LintError & {
 };
 
 export type Flake8LintResponse =
-  | { ok: true; errors: Flake8ResultError[] }
-  | { ok: false; error: string };
+  { ok: true; errors: Flake8ResultError[] } | { ok: false; error: string };
 
 export interface Flake8StatusRequest {
   type: typeof FLAKE8_STATUS;
@@ -133,8 +132,7 @@ export type Flake8ResultError = LintError & {
 };
 
 export type Flake8LintResponse =
-  | { ok: true; errors: Flake8ResultError[] }
-  | { ok: false; error: string };
+  { ok: true; errors: Flake8ResultError[] } | { ok: false; error: string };
 
 export interface Flake8StatusRequest {
   type: typeof FLAKE8_STATUS;
@@ -799,8 +797,8 @@ Re-fetch with:
 
 \`\`\`bash
 pip download flake8==6.1.0 pyflakes==3.1.0 pycodestyle==2.11.1 mccabe==0.7.0 \
- --no-deps --only-binary=:all: --python-version 311 --implementation py3 \
- --abi none --platform any -d packages/core/src/pyodide/wheels/
+--no-deps --only-binary=:all: --python-version 311 --implementation py3 \
+--abi none --platform any -d packages/core/src/pyodide/wheels/
 \`\`\`
 
 Downloaded wheel filenames and sha256 (fill in from `sha256sum packages/core/src/pyodide/wheels/*.whl`

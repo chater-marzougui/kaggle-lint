@@ -11,17 +11,15 @@ describe('lintNotebookWithSyntaxIsolation', () => {
       { code: 'import os', cellIndex: 0 },
       { code: 'x = y + 1', cellIndex: 1 },
     ];
-    const runLintPass = jest.fn(
-      async (): Promise<RawDiagnostic[]> => [
-        {
-          line: 1,
-          column: 1,
-          code: 'F401',
-          message: "'os' imported but unused",
-        },
-        { line: 2, column: 5, code: 'F821', message: "undefined name 'y'" },
-      ]
-    );
+    const runLintPass = jest.fn(async (): Promise<RawDiagnostic[]> => [
+      {
+        line: 1,
+        column: 1,
+        code: 'F401',
+        message: "'os' imported but unused",
+      },
+      { line: 2, column: 5, code: 'F821', message: "undefined name 'y'" },
+    ]);
 
     const result = await lintNotebookWithSyntaxIsolation(
       cells,
@@ -126,16 +124,14 @@ describe('lintNotebookWithSyntaxIsolation', () => {
     const cells: NotebookCellInput[] = [{ code: 'x = 1', cellIndex: 0 }];
     // Line 99 is out of range for every cell -> mapDiagnostics drops it,
     // so no cell can be excluded. Must not loop forever.
-    const runLintPass = jest.fn(
-      async (): Promise<RawDiagnostic[]> => [
-        {
-          line: 99,
-          column: 1,
-          code: 'E999',
-          message: 'SyntaxError: unexpected EOF',
-        },
-      ]
-    );
+    const runLintPass = jest.fn(async (): Promise<RawDiagnostic[]> => [
+      {
+        line: 99,
+        column: 1,
+        code: 'E999',
+        message: 'SyntaxError: unexpected EOF',
+      },
+    ]);
 
     const result = await lintNotebookWithSyntaxIsolation(
       cells,
