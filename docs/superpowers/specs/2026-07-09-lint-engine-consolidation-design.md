@@ -15,14 +15,14 @@ This design also adds **ruff** (`@astral-sh/ruff-wasm-web`) as a second, paralle
 ## Scope decisions (from brainstorming)
 
 - One combined project (not split into separate specs) — the engine-selection UI and config system need to account for all pieces together.
-- **nbqa**: reimplement its cell-concatenation/magic-handling *technique* in our own code, not depend on the actual `nbqa` PyPI package (which assumes a CLI/filesystem workflow that doesn't translate cleanly into Pyodide's sandboxed environment).
+- **nbqa**: reimplement its cell-concatenation/magic-handling _technique_ in our own code, not depend on the actual `nbqa` PyPI package (which assumes a CLI/filesystem workflow that doesn't translate cleanly into Pyodide's sandboxed environment).
 - **Real flake8 API**, not raw `pyflakes` — gets pycodestyle (E/W) and mccabe (C90) checks, real `ignore`/`select` config, and native `# noqa` comment support "for free." (The `flake8` wheel bundled since Milestone 3 has been sitting unused until now.)
 - **Engine selection**: mutually exclusive radio (flake8 OR ruff), not simultaneous multi-engine linting. Handmade engine removed entirely, no successor.
 - **Config scope for v1**: just an ignore-codes list per engine (free-text, comma-separated). No max-line-length, no select-list, no per-rule severity override UI.
 - **No settings migration** — this extension isn't distributed beyond the developer yet; stale `linterEngine: 'handmade'` or `rules: {...}` entries in existing local `chrome.storage.sync` are simply ignored going forward, no migration code.
 - **Severity**: keep the 3-value `Severity = 'error' | 'warning' | 'info'` type (not narrowed to 2), even though the new shared heuristic only ever produces `error`/`warning` today — `'info'` stays available for future use (e.g. surfacing a ruff "safe fix available" hint later).
 - **Ruff wasm variant**: `@astral-sh/ruff-wasm-web` (the wasm-pack "web" target — `init(url)` takes an explicit URL/BufferSource and fetches+instantiates, same pattern as how Pyodide's assets are already loaded via `chrome.runtime.getURL(...)`; no webpack `asyncWebAssembly` experiment needed, the `.wasm` file is just a static asset copied via `CopyPlugin`, same as `pyodide/`).
-- **Where ruff runs**: the *same* offscreen document as Pyodide, not the content script. Content scripts inherit the *host page's* CSP for WASM instantiation — this is why Pyodide needed an offscreen document in Milestone 3, and the same restriction applies to any WASM, not just Pyodide. Chrome also only permits one offscreen document per extension, so this isn't a new problem to solve — it's a second runtime inside the document Milestone 3 already built.
+- **Where ruff runs**: the _same_ offscreen document as Pyodide, not the content script. Content scripts inherit the _host page's_ CSP for WASM instantiation — this is why Pyodide needed an offscreen document in Milestone 3, and the same restriction applies to any WASM, not just Pyodide. Chrome also only permits one offscreen document per extension, so this isn't a new problem to solve — it's a second runtime inside the document Milestone 3 already built.
 
 ## Architecture overview
 
@@ -48,7 +48,7 @@ export interface NotebookCellInput {
 
 export interface CellOffset {
   cellIndex: number;
-  startLine: number;   // 1-based line number in the concatenated source where this cell begins
+  startLine: number; // 1-based line number in the concatenated source where this cell begins
   lineCount: number;
 }
 
@@ -59,15 +59,19 @@ export interface NotebookSource {
 
 export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource;
 
-export function mapLineToCell(globalLine: number, cellOffsets: CellOffset[]): { cellIndex: number; cellLine: number } | null;
+export function mapLineToCell(
+  globalLine: number,
+  cellOffsets: CellOffset[]
+): { cellIndex: number; cellLine: number } | null;
 ```
 
 Magic/shell handling (the actual "nbqa technique" this design adopts):
-- If a cell's first non-blank line starts with `%%` (a cell magic — `%%bash`, `%%html`, `%%writefile`, etc. — these change the *whole cell's* language away from Python), every line of that cell is blanked (replaced with an empty line), preserving its line count so later cells' offsets stay correct, but contributing nothing to the lint pass.
+
+- If a cell's first non-blank line starts with `%%` (a cell magic — `%%bash`, `%%html`, `%%writefile`, etc. — these change the _whole cell's_ language away from Python), every line of that cell is blanked (replaced with an empty line), preserving its line count so later cells' offsets stay correct, but contributing nothing to the lint pass.
 - Any other line (in any non-skipped cell) starting with `%` (a line magic, e.g. `%matplotlib inline`) or `!` (a shell escape, e.g. `!pip install x`) is blanked individually — the rest of that cell still lints normally. This is the concrete fix for the current whole-cell-skip bug.
 - Every other line passes through unchanged.
 
-Cells are processed in `cellIndex` order (matching `CodeMirrorManager.getAllCells()`'s existing sort). Pure function, fully unit-testable in Jest — no DOM, no chrome.*, no Pyodide/WASM dependency.
+Cells are processed in `cellIndex` order (matching `CodeMirrorManager.getAllCells()`'s existing sort). Pure function, fully unit-testable in Jest — no DOM, no chrome.\*, no Pyodide/WASM dependency.
 
 ## Component: shared severity/ignore mapping
 
@@ -75,9 +79,9 @@ Cells are processed in `cellIndex` order (matching `CodeMirrorManager.getAllCell
 
 ```ts
 export interface RawDiagnostic {
-  line: number;    // global line number in the concatenated source
+  line: number; // global line number in the concatenated source
   column: number;
-  code: string;    // e.g. "F821", "E501", "RUF100"
+  code: string; // e.g. "F821", "E501", "RUF100"
   message: string;
 }
 
@@ -142,6 +146,7 @@ Confirmed working end-to-end: given a 2-line file with an unused import and an u
 **File:** `packages/extension/src/offscreen/pyodideRuntime.ts` (updated)
 
 `PyodideRuntime.lintNotebook(cells, ignoreCodes)`:
+
 1. Calls `buildNotebookSource(cells)` (imported from `@kaggle-lint/core`) once.
 2. Passes the single concatenated `source` string + `ignoreCodes` into the Python shim's `lint_source` — `ignoreCodes` goes straight into `application.options.ignore` (native flake8 config; already-ignored codes never appear in `collected` at all, per the verified repro above).
 3. Maps the raw `{line, column, code, message}` results (the exact shape `lint_source` returns, matching `RawDiagnostic`) through `mapDiagnostics` (also from `@kaggle-lint/core`, offset+severity only — no ignore-filtering, see the note under "Component: shared severity/ignore mapping") to get `Flake8ResultError[]`.
@@ -153,7 +158,11 @@ No more per-cell Python calls, no more `reset_notebook_context()` between cells 
 **File:** `packages/extension/src/offscreen/ruffRuntime.ts` (new)
 
 ```ts
-import init, { Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
+import init, {
+  Workspace,
+  PositionEncoding,
+  type Diagnostic,
+} from '@astral-sh/ruff-wasm-web';
 
 export class RuffRuntime {
   status: EngineStatus = 'unloaded';
@@ -165,7 +174,10 @@ export class RuffRuntime {
     // is NOT cached here; see lintNotebook below for why.
   }
 
-  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<Array<LintError & {cellIndex: number; cellLine: number}>> {
+  async lintNotebook(
+    cells: NotebookCellInput[],
+    ignoreCodes: string[]
+  ): Promise<Array<LintError & { cellIndex: number; cellLine: number }>> {
     await this.load();
     // Workspace's settings (including lint.ignore) are fixed at
     // construction time, with no way to update them on an existing
@@ -175,7 +187,10 @@ export class RuffRuntime {
     // stale-config risk from reusing a long-lived instance. This is cheap:
     // the expensive part (WASM instantiation) already happened in load().
     const workspace = new Workspace(
-      { 'line-length': 88, lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes } },
+      {
+        'line-length': 88,
+        lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes },
+      },
       PositionEncoding.Utf16
     );
     const { source, cellOffsets } = buildNotebookSource(cells);
@@ -217,9 +232,16 @@ export interface EngineStatusRequest {
   type: typeof ENGINE_STATUS;
   engine: EngineName;
 }
-export type EngineResultError = LintError & { cellIndex: number; cellLine: number };
-export type EngineLintResponse = { ok: true; errors: EngineResultError[] } | { ok: false; error: string };
-export interface EngineStatusResponse { status: EngineStatus; }
+export type EngineResultError = LintError & {
+  cellIndex: number;
+  cellLine: number;
+};
+export type EngineLintResponse =
+  | { ok: true; errors: EngineResultError[] }
+  | { ok: false; error: string };
+export interface EngineStatusResponse {
+  status: EngineStatus;
+}
 
 export const ENGINE_OFFSCREEN_REQUEST = 'ENGINE_OFFSCREEN_REQUEST' as const;
 export interface EngineOffscreenRequest {
@@ -235,21 +257,25 @@ export interface EngineOffscreenRequest {
 ## Settings & UI changes
 
 **Settings shape** (`chrome.storage.sync`):
+
 ```ts
 interface Settings {
-  linterEngine: 'flake8' | 'ruff';   // was 'handmade' | 'flake8'
-  flake8IgnoreCodes: string;          // comma-separated free text, e.g. "E501, F401"
+  linterEngine: 'flake8' | 'ruff'; // was 'handmade' | 'flake8'
+  flake8IgnoreCodes: string; // comma-separated free text, e.g. "E501, F401"
   ruffIgnoreCodes: string;
 }
 ```
+
 `rules: Record<string, boolean>` is dropped. No migration code for old stored values (per scope decision).
 
 **`packages/extension/src/popup/PopupApp.tsx`:**
+
 - Engine radio: `flake8` / `ruff`.
 - Remove the "Built-in Rules" section and its `RULES` array entirely.
 - One text input per engine for ignore-codes, shown for the currently-selected engine.
 
 **`packages/extension/src/content/ContentApp.tsx`:**
+
 - Remove `getHandmadeLintEngine`, `handmadeLintEngineRef`, `LintEngine`/`createEnabledRules`/`defaultRuleToggles` imports, and the `settings.linterEngine === 'handmade'` branch of `runLinter`.
 - `runLinter`'s engine branch becomes `flake8` vs `ruff`, both through `EngineClient.lintNotebook(engine, cells, ignoreCodes)`.
 - Element-stripping/re-attachment-by-`cellIndex` pattern from Milestone 3 is unchanged (still needed — the protocol is still JSON-only).
@@ -284,4 +310,4 @@ interface Settings {
 - Settings migration for existing installs.
 - Config surface beyond an ignore-codes list (no max-line-length, no select-list UI, no per-code severity override).
 - CI-level real Python execution for the flake8 shim.
-- Any change to the Milestone 3 offscreen-document/background-relay *architecture* itself — this design reuses it as-is, just generalizes the message types.
+- Any change to the Milestone 3 offscreen-document/background-relay _architecture_ itself — this design reuses it as-is, just generalizes the message types.

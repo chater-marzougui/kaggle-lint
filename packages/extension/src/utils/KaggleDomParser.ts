@@ -122,7 +122,10 @@ export class KaggleDomParser {
    * window.postMessage. Resolves null on timeout so the caller can fall
    * back to DOM scraping; always removes its listener either way.
    */
-  private requestFromPage(): Promise<{ cells: PageExtractedCell[]; source: 'model' | 'dom' } | null> {
+  private requestFromPage(): Promise<{
+    cells: PageExtractedCell[];
+    source: 'model' | 'dom';
+  } | null> {
     return new Promise((resolve) => {
       const requestId = crypto.randomUUID();
       let settled = false;
@@ -135,7 +138,12 @@ export class KaggleDomParser {
       const handleMessage = (event: MessageEvent) => {
         if (settled || event.source !== window) return;
         const data = event.data;
-        if (!data || data.type !== EXTRACT_RESPONSE || data.requestId !== requestId) return;
+        if (
+          !data ||
+          data.type !== EXTRACT_RESPONSE ||
+          data.requestId !== requestId
+        )
+          return;
 
         settled = true;
         cleanup();
@@ -169,7 +177,11 @@ export class KaggleDomParser {
    * timeout, or if pageExtractor couldn't find a matching cell widget —
    * either case means the caller should fall back to a DOM scrollIntoView.
    */
-  async scrollToCellLine(uuid: string | null, cellIndex: number, line: number): Promise<boolean> {
+  async scrollToCellLine(
+    uuid: string | null,
+    cellIndex: number,
+    line: number
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       const requestId = crypto.randomUUID();
       let settled = false;
@@ -182,7 +194,11 @@ export class KaggleDomParser {
       const handleMessage = (event: MessageEvent) => {
         if (settled || event.source !== window) return;
         const data = event.data;
-        if (!data || data.type !== SCROLL_TO_CELL_LINE_RESPONSE || data.requestId !== requestId) {
+        if (
+          !data ||
+          data.type !== SCROLL_TO_CELL_LINE_RESPONSE ||
+          data.requestId !== requestId
+        ) {
           return;
         }
 
@@ -220,7 +236,10 @@ export class KaggleDomParser {
    * legitimately null for cells Kaggle has virtualized out of the DOM
    * entirely (no `.jp-Cell` node at all, not just a reordered one).
    */
-  private resolveElements(cells: PageExtractedCell[], root: Document): CodeCell[] {
+  private resolveElements(
+    cells: PageExtractedCell[],
+    root: Document
+  ): CodeCell[] {
     const allCellElements = Array.from(root.querySelectorAll('.jp-Cell'));
     const byUuid = new Map<string, Element>();
     const byWindowedIndex = new Map<number, Element>();
@@ -241,7 +260,10 @@ export class KaggleDomParser {
         element = byUuid.get(cell.uuid)!;
       } else if (byWindowedIndex.has(cell.cellIndex)) {
         element = byWindowedIndex.get(cell.cellIndex)!;
-      } else if (cell.cellIndex >= 0 && cell.cellIndex < allCellElements.length) {
+      } else if (
+        cell.cellIndex >= 0 &&
+        cell.cellIndex < allCellElements.length
+      ) {
         element = allCellElements[cell.cellIndex] ?? null;
       }
 

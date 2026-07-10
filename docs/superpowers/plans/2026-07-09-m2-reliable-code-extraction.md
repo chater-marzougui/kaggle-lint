@@ -27,34 +27,48 @@
 
 ## File Structure
 
-| File | Responsibility after this milestone |
-|---|---|
-| `packages/extension/src/page/bridgeProtocol.ts` (new) | Shared message-type constants (`EXTRACT_REQUEST`, `EXTRACT_RESPONSE`) and payload types (`PageExtractedCell`, `ExtractRequestMessage`, `ExtractResponseMessage`) — the single source of truth for the postMessage bridge shape, imported by both worlds. |
-| `packages/extension/src/page/pageExtractor.ts` (new) | MAIN-world script. On `EXTRACT_REQUEST`, walks every `.jp-Cell` for notebook-order indices, then every `.jp-CodeCell .cm-editor` for full CM6 document text (with a `.cm-line` fallback per editor), and posts `EXTRACT_RESPONSE`. |
-| `packages/extension/webpack.config.js` | New `pageExtractor` entry so it's emitted as its own bundle (`dist/pageExtractor.js`). |
-| `packages/extension/public/manifest.json` | New second `content_scripts` entry (`"world": "MAIN"`) loading `pageExtractor.js`, alongside the existing isolated-world entry (untouched). |
-| `packages/extension/src/utils/KaggleDomParser.ts` | `extractCells()` tries the bridge first via a new private `requestFromPage()` (1500 ms timeout), then falls back to the renamed `extractCellsViaDomScrape()`. Dead CM6-API block, `forceRenderCell` scroll hack, and the `scrollToLine()` placeholder are deleted. New `getLastExtractionSource()` reports which path the last call used. |
-| `packages/extension/src/utils/CodeMirrorManager.ts` | `getCellId()` becomes public so `ContentApp` can key into the store with the exact same id formula extraction uses, instead of duplicating it. |
-| `packages/extension/src/content/ContentApp.tsx` | `runLinter()` clears the store before syncing only on a full bridge sweep (so deleted cells don't linger), then lints from `codeMirrorManager.getAllCells()` instead of the raw extraction array — this also fixes a latent bug where `cellIndex` was silently reassigned to the filtered array's position instead of the real notebook index. New debounced `MutationObserver` effect re-lints on `.cm-content` edits. |
+| File                                                  | Responsibility after this milestone                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/extension/src/page/bridgeProtocol.ts` (new) | Shared message-type constants (`EXTRACT_REQUEST`, `EXTRACT_RESPONSE`) and payload types (`PageExtractedCell`, `ExtractRequestMessage`, `ExtractResponseMessage`) — the single source of truth for the postMessage bridge shape, imported by both worlds.                                                                                                                                                                |
+| `packages/extension/src/page/pageExtractor.ts` (new)  | MAIN-world script. On `EXTRACT_REQUEST`, walks every `.jp-Cell` for notebook-order indices, then every `.jp-CodeCell .cm-editor` for full CM6 document text (with a `.cm-line` fallback per editor), and posts `EXTRACT_RESPONSE`.                                                                                                                                                                                      |
+| `packages/extension/webpack.config.js`                | New `pageExtractor` entry so it's emitted as its own bundle (`dist/pageExtractor.js`).                                                                                                                                                                                                                                                                                                                                  |
+| `packages/extension/public/manifest.json`             | New second `content_scripts` entry (`"world": "MAIN"`) loading `pageExtractor.js`, alongside the existing isolated-world entry (untouched).                                                                                                                                                                                                                                                                             |
+| `packages/extension/src/utils/KaggleDomParser.ts`     | `extractCells()` tries the bridge first via a new private `requestFromPage()` (1500 ms timeout), then falls back to the renamed `extractCellsViaDomScrape()`. Dead CM6-API block, `forceRenderCell` scroll hack, and the `scrollToLine()` placeholder are deleted. New `getLastExtractionSource()` reports which path the last call used.                                                                               |
+| `packages/extension/src/utils/CodeMirrorManager.ts`   | `getCellId()` becomes public so `ContentApp` can key into the store with the exact same id formula extraction uses, instead of duplicating it.                                                                                                                                                                                                                                                                          |
+| `packages/extension/src/content/ContentApp.tsx`       | `runLinter()` clears the store before syncing only on a full bridge sweep (so deleted cells don't linger), then lints from `codeMirrorManager.getAllCells()` instead of the raw extraction array — this also fixes a latent bug where `cellIndex` was silently reassigned to the filtered array's position instead of the real notebook index. New debounced `MutationObserver` effect re-lints on `.cm-content` edits. |
 
 ---
 
 ### Task 1: MAIN-world extractor script
 
 **Files:**
+
 - Create: `packages/extension/src/page/bridgeProtocol.ts`
 - Create: `packages/extension/src/page/pageExtractor.ts`
 - Modify: `packages/extension/webpack.config.js` (add entry, currently `entry: { content: ..., popup: ... }` at lines 8-11)
 - Modify: `packages/extension/public/manifest.json` (add second `content_scripts` block; existing block is currently lines 34-46)
 
 **Interfaces:**
+
 - Produces (consumed by Task 2):
+
 ```ts
 export const EXTRACT_REQUEST = 'KAGGLE_LINT_EXTRACT_REQUEST';
 export const EXTRACT_RESPONSE = 'KAGGLE_LINT_EXTRACT_RESPONSE';
-export interface PageExtractedCell { code: string; cellIndex: number; uuid: string | null; }
-export interface ExtractRequestMessage { type: typeof EXTRACT_REQUEST; requestId: string; }
-export interface ExtractResponseMessage { type: typeof EXTRACT_RESPONSE; requestId: string; cells: PageExtractedCell[]; }
+export interface PageExtractedCell {
+  code: string;
+  cellIndex: number;
+  uuid: string | null;
+}
+export interface ExtractRequestMessage {
+  type: typeof EXTRACT_REQUEST;
+  requestId: string;
+}
+export interface ExtractResponseMessage {
+  type: typeof EXTRACT_RESPONSE;
+  requestId: string;
+  cells: PageExtractedCell[];
+}
 ```
 
 - [ ] **Step 1: Create the shared protocol module**
@@ -105,7 +119,12 @@ Create `packages/extension/src/page/pageExtractor.ts`:
  * but has no access to chrome.* APIs.
  */
 
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell, type ExtractResponseMessage } from './bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  type PageExtractedCell,
+  type ExtractResponseMessage,
+} from './bridgeProtocol';
 
 const LOADED_MARKER = '__kaggleLintPageExtractorLoaded';
 
@@ -166,7 +185,9 @@ function extractAllCells(): PageExtractedCell[] {
   const indexMap = new Map<Element, number>();
   allCells.forEach((cell, index) => indexMap.set(cell, index));
 
-  const editors = Array.from(document.querySelectorAll('.jp-CodeCell .cm-editor'));
+  const editors = Array.from(
+    document.querySelectorAll('.jp-CodeCell .cm-editor')
+  );
   const results: PageExtractedCell[] = [];
 
   for (const editor of editors) {
@@ -176,7 +197,10 @@ function extractAllCells(): PageExtractedCell[] {
     }
 
     const cellElement = editor.closest('.jp-Cell');
-    const cellIndex = cellElement && indexMap.has(cellElement) ? indexMap.get(cellElement)! : -1;
+    const cellIndex =
+      cellElement && indexMap.has(cellElement)
+        ? indexMap.get(cellElement)!
+        : -1;
     const uuid = cellElement?.getAttribute('data-uuid') ?? null;
 
     results.push({ code, cellIndex, uuid });
@@ -190,7 +214,11 @@ function handleMessage(event: MessageEvent): void {
     return;
   }
   const data = event.data;
-  if (!data || data.type !== EXTRACT_REQUEST || typeof data.requestId !== 'string') {
+  if (
+    !data ||
+    data.type !== EXTRACT_REQUEST ||
+    typeof data.requestId !== 'string'
+  ) {
     return;
   }
 
@@ -304,9 +332,11 @@ git commit -m "feat(extension): MAIN-world CodeMirror extractor with postMessage
 ### Task 2: Bridge client in KaggleDomParser
 
 **Files:**
+
 - Modify: `packages/extension/src/utils/KaggleDomParser.ts` (entire file — every method below is either new or restructured; the class's public surface for callers outside this file is unchanged except the new `getLastExtractionSource()`)
 
 **Interfaces:**
+
 - Consumes: `EXTRACT_REQUEST`, `EXTRACT_RESPONSE`, `PageExtractedCell` from Task 1's `bridgeProtocol.ts`.
 - Produces: `extractCells(root?: Document): Promise<CodeCell[]>` — signature unchanged (same optional `root` parameter and default the current file already has). `CodeCell.uuid` is now populated when the bridge or a `data-uuid` attribute provides one. New: `getLastExtractionSource(): 'bridge' | 'dom-scrape'` — consumed by Task 3.
 
@@ -330,7 +360,11 @@ Replace the full contents of `packages/extension/src/utils/KaggleDomParser.ts` w
  * whatever `.cm-line` DOM nodes Kaggle currently has rendered.
  */
 
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell } from '../page/bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  type PageExtractedCell,
+} from '../page/bridgeProtocol';
 
 export interface CodeCell {
   code: string;
@@ -442,7 +476,12 @@ export class KaggleDomParser {
       const handleMessage = (event: MessageEvent) => {
         if (settled || event.source !== window) return;
         const data = event.data;
-        if (!data || data.type !== EXTRACT_RESPONSE || data.requestId !== requestId) return;
+        if (
+          !data ||
+          data.type !== EXTRACT_RESPONSE ||
+          data.requestId !== requestId
+        )
+          return;
 
         settled = true;
         cleanup();
@@ -468,7 +507,10 @@ export class KaggleDomParser {
    * cellIndex. Elements are legitimately null for cells Kaggle has
    * virtualized out of the DOM.
    */
-  private resolveElements(cells: PageExtractedCell[], root: Document): CodeCell[] {
+  private resolveElements(
+    cells: PageExtractedCell[],
+    root: Document
+  ): CodeCell[] {
     const allCellElements = Array.from(root.querySelectorAll('.jp-Cell'));
     const byUuid = new Map<string, Element>();
     allCellElements.forEach((el) => {
@@ -480,7 +522,10 @@ export class KaggleDomParser {
       let element: Element | null = null;
       if (cell.uuid && byUuid.has(cell.uuid)) {
         element = byUuid.get(cell.uuid)!;
-      } else if (cell.cellIndex >= 0 && cell.cellIndex < allCellElements.length) {
+      } else if (
+        cell.cellIndex >= 0 &&
+        cell.cellIndex < allCellElements.length
+      ) {
         element = allCellElements[cell.cellIndex] ?? null;
       }
 
@@ -625,10 +670,12 @@ git commit -m "feat(extension): extraction goes through MAIN-world bridge with D
 ### Task 3: Merge extraction into the cell store (fix write-only CodeMirrorManager, F7)
 
 **Files:**
+
 - Modify: `packages/extension/src/utils/CodeMirrorManager.ts` (currently line 31: `private getCellId(...)`)
 - Modify: `packages/extension/src/content/ContentApp.tsx` (`runLinter`, currently lines 105-134)
 
 **Interfaces:**
+
 - Consumes: `CodeMirrorManager.syncCells`/`getAllCells` (existing, unchanged shapes); `domParser.getLastExtractionSource()` from Task 2.
 - Produces: `CodeMirrorManager.getCellId(cellIndex: number, uuid: string | null): string` becomes **public** (was `private`) — `ContentApp` needs the exact same id formula the store uses internally, so extraction results (which have live `element` references) can be matched back to stored cells (which don't) without duplicating the `uuid || 'cell-' + cellIndex` formula in two files.
 
@@ -745,9 +792,11 @@ git commit -m "feat(extension): lint from cell store so virtualized-out cells ke
 ### Task 4: Auto re-lint on edit (F8)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx` (add a new effect; insert after the message-listener effect, currently ending at line 277, and before `handleErrorClick`, currently starting at line 283)
 
 **Interfaces:**
+
 - Consumes: `runLinterRef` and `settingsLoaded` (both already in the file, from Milestone 1).
 
 - [ ] **Step 1: Add the debounced MutationObserver effect**
@@ -765,52 +814,52 @@ In `packages/extension/src/content/ContentApp.tsx`, immediately after the messag
 and before the `handleErrorClick` function (currently starting at line 283 with `const handleErrorClick = (error: any) => {`), insert a new effect:
 
 ```tsx
-  /**
-   * Auto re-lint on cell edits (F8)
-   * Debounced MutationObserver watching for changes inside `.cm-content`
-   * (CodeMirror's editable text), ignoring mutations inside the overlay's
-   * own root (#kaggle-linter-root) so re-rendering lint results doesn't
-   * trigger another lint.
-   */
-  useEffect(() => {
-    if (!settingsLoaded) return undefined;
+/**
+ * Auto re-lint on cell edits (F8)
+ * Debounced MutationObserver watching for changes inside `.cm-content`
+ * (CodeMirror's editable text), ignoring mutations inside the overlay's
+ * own root (#kaggle-linter-root) so re-rendering lint results doesn't
+ * trigger another lint.
+ */
+useEffect(() => {
+  if (!settingsLoaded) return undefined;
 
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleRelint = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        console.log('[Linter] Auto re-lint after edit');
-        runLinterRef.current();
-      }, 800);
-    };
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleRelint = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      console.log('[Linter] Auto re-lint after edit');
+      runLinterRef.current();
+    }, 800);
+  };
 
-    const overlayRoot = document.getElementById('kaggle-linter-root');
+  const overlayRoot = document.getElementById('kaggle-linter-root');
 
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        const target = mutation.target;
-        const el = target instanceof Element ? target : target.parentElement;
-        if (!el) continue;
-        if (overlayRoot && overlayRoot.contains(el)) continue;
-        if (el.closest('.cm-content')) {
-          scheduleRelint();
-          return;
-        }
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      const target = mutation.target;
+      const el = target instanceof Element ? target : target.parentElement;
+      if (!el) continue;
+      if (overlayRoot && overlayRoot.contains(el)) continue;
+      if (el.closest('.cm-content')) {
+        scheduleRelint();
+        return;
       }
-    });
+    }
+  });
 
-    observer.observe(document.body, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
+  observer.observe(document.body, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
 
-    return () => {
-      observer.disconnect();
-      if (debounceTimer) clearTimeout(debounceTimer);
-    };
-  }, [settingsLoaded]);
+  return () => {
+    observer.disconnect();
+    if (debounceTimer) clearTimeout(debounceTimer);
+  };
+}, [settingsLoaded]);
 ```
 
 - [ ] **Step 2: Confirm the self-triggering guard holds**
@@ -849,7 +898,7 @@ This task is not delegable to an agentic worker. It requires a real Chrome brows
 - [ ] **Step 5:** Introduce `undefined_var` in the **first** cell, scroll to the **bottom** of the notebook so the first cell unloads from the DOM, then hit Ctrl+Shift+L. Confirm the `undefined_var` error still appears in the overlay (this is the cell-store coverage from Task 3 — without it, a scrolled-away cell would silently drop out of the lint results).
 - [ ] **Step 6:** Type `x = untrue` into a visible cell and stop typing. Confirm a lint runs automatically within ~1 second without pressing any shortcut, and confirm only **one** lint fires per typing pause (watch for a single `[Linter] Auto re-lint after edit` line per pause, not one per keystroke — this is the Task 4 debounce working).
 - [ ] **Step 7:** Find or create a cell with 200+ lines of code, scrolled so most of it is off-screen. Confirm lint errors appear for lines beyond what's currently rendered (proves the bridge returns the full CM6 document, not just visible `.cm-line` nodes).
-- [ ] **Step 8:** If any check in Steps 4-7 fails, debug with `superpowers:systematic-debugging`. If the failure traces back to a wrong assumption about Kaggle's current DOM/attributes (e.g. `data-uuid` no longer present, `.jp-Cell`/`.cm-editor` class names changed), adapt the code per this plan's *intent* and record the actual selectors/behavior observed in `docs/next_plans/milestone-2-reliable-code-extraction/notes.md` (create it if absent), per `docs/next_plans/README.md` rule 5.
+- [ ] **Step 8:** If any check in Steps 4-7 fails, debug with `superpowers:systematic-debugging`. If the failure traces back to a wrong assumption about Kaggle's current DOM/attributes (e.g. `data-uuid` no longer present, `.jp-Cell`/`.cm-editor` class names changed), adapt the code per this plan's _intent_ and record the actual selectors/behavior observed in `docs/next_plans/milestone-2-reliable-code-extraction/notes.md` (create it if absent), per `docs/next_plans/README.md` rule 5.
 - [ ] **Step 9:** Commit any fixes/notes from Step 8, then this closes out Milestone 2. No further commit is needed if Step 8 wasn't triggered.
 
 ---
@@ -858,10 +907,10 @@ This task is not delegable to an agentic worker. It requires a real Chrome brows
 
 Per `docs/next_plans/README.md` rule 5, documented here rather than re-opening any decision in `docs/next_plans/milestone-2-reliable-code-extraction/plan.md`. None of these reverse a milestone decision — they fill in implementation details the milestone plan intentionally left to the TDD expansion.
 
-1. **`getLastExtractionSource()` added to `KaggleDomParser`.** The milestone plan's Task 3 Step 2 says to clear the store "when extraction returns a full bridge result," but `extractCells()`'s return type (`Promise<CodeCell[]>`, explicitly required "unchanged" by the milestone plan's Task 2 Interfaces section) has no way to signal *which* path produced the result. This plan adds a one-line getter (`getLastExtractionSource()`) that `ContentApp` reads right after `await`ing `extractCells()`. `extractCells()`'s signature itself is untouched, satisfying the milestone plan's literal constraint.
+1. **`getLastExtractionSource()` added to `KaggleDomParser`.** The milestone plan's Task 3 Step 2 says to clear the store "when extraction returns a full bridge result," but `extractCells()`'s return type (`Promise<CodeCell[]>`, explicitly required "unchanged" by the milestone plan's Task 2 Interfaces section) has no way to signal _which_ path produced the result. This plan adds a one-line getter (`getLastExtractionSource()`) that `ContentApp` reads right after `await`ing `extractCells()`. `extractCells()`'s signature itself is untouched, satisfying the milestone plan's literal constraint.
 2. **`CodeMirrorManager.getCellId` made public.** The milestone plan flagged `CodeMirrorManager.ts` as "Modify (only if a method signature needs `element` passthrough)" without specifying what that would look like. In practice no signature needed to change — the actual gap was that `ContentApp` needed the store's existing id formula (`uuid || 'cell-' + cellIndex`) to match live-extraction elements back to stored cells, and duplicating that formula in `ContentApp.tsx` would silently drift from the store's own logic if it ever changed. Widening `getCellId` from `private` to public (no other change) avoids the duplication.
 3. **DOM-scrape fallback now reads `data-uuid` instead of hardcoding `uuid: null`.** The pre-Milestone-2 `extractCellsViaDomScrape` (formerly the only `extractCells` body) always set `uuid: null`. Since the bridge path (Task 2) now populates real UUIDs, leaving the fallback path hardcoded to `null` would mean the same physical cell gets a different store key (`cell-N` vs. its real UUID) depending on which extraction path happened to run that time — causing duplicate store entries instead of one updated entry. Reading `cell.getAttribute('data-uuid')` in the fallback (one line, same attribute the bridge already relies on per the Global Constraints' cell-identity rule) keeps cell identity consistent across both paths.
-4. **Latent `cellIndex` bug fixed as a side effect of Task 3, not called out by name in the milestone plan.** Pre-Milestone-2 `ContentApp.tsx` built `cellsForLinting` with `cellIndex: index` (the position in the *filtered* extraction array) instead of `cell.cellIndex` (the real notebook-order index `KaggleDomParser` computed). Any markdown cell, empty code cell, or cell whose editor wasn't found during the walk shifted every subsequent cell's reported index, corrupting `cellLine`/`cellIndex` in lint results for notebooks with such cells. Switching to `codeMirrorManager.getAllCells()` (Task 3 Step 4), which carries the correct `cellIndex` from extraction time, fixes this without a dedicated task — noted here so it isn't mistaken for a regression during Task 5's manual gate.
+4. **Latent `cellIndex` bug fixed as a side effect of Task 3, not called out by name in the milestone plan.** Pre-Milestone-2 `ContentApp.tsx` built `cellsForLinting` with `cellIndex: index` (the position in the _filtered_ extraction array) instead of `cell.cellIndex` (the real notebook-order index `KaggleDomParser` computed). Any markdown cell, empty code cell, or cell whose editor wasn't found during the walk shifted every subsequent cell's reported index, corrupting `cellLine`/`cellIndex` in lint results for notebooks with such cells. Switching to `codeMirrorManager.getAllCells()` (Task 3 Step 4), which carries the correct `cellIndex` from extraction time, fixes this without a dedicated task — noted here so it isn't mistaken for a regression during Task 5's manual gate.
 5. **`crypto.randomUUID()` used without a feature-detection fallback.** The MAIN-world script this bridges to requires Chrome ≥ 111 (per the milestone plan's own Tech Stack line for `"world": "MAIN"` support), and `crypto.randomUUID()` has been available since Chrome 92 — strictly older than the floor this milestone already assumes. No fallback branch is needed or added.
 
 No other deviations were found: every file path, line range, and signature named in `docs/next_plans/milestone-2-reliable-code-extraction/plan.md` matched the current working tree exactly as of 2026-07-09, and the `data-uuid` attribute assumption was independently confirmed against `old-linter/src/pageInjection.js:55`.

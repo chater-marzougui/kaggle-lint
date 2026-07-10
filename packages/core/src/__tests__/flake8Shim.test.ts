@@ -7,7 +7,9 @@ describe('PYTHON_SHIM lint_source formatter wiring', () => {
     // see this plan's header. Regression test for that ordering
     // requirement: reassigning application.formatter AFTER make_guide()/
     // make_file_checker_manager() silently produces empty results.
-    const formatterAssignIdx = PYTHON_SHIM.indexOf('application.formatter = CollectingFormatter');
+    const formatterAssignIdx = PYTHON_SHIM.indexOf(
+      'application.formatter = CollectingFormatter'
+    );
     const makeGuideIdx = PYTHON_SHIM.indexOf('application.make_guide()');
 
     expect(formatterAssignIdx).toBeGreaterThan(-1);
@@ -16,10 +18,12 @@ describe('PYTHON_SHIM lint_source formatter wiring', () => {
   });
 
   it('suppresses printing by returning None from format()', () => {
-    expect(PYTHON_SHIM).toMatch(/def format\(self, error\):\s*\n\s*return None/);
+    expect(PYTHON_SHIM).toMatch(
+      /def format\(self, error\):\s*\n\s*return None/
+    );
   });
 
-  it('routes ignore_codes into flake8\'s own native config, not a client-side filter', () => {
+  it("routes ignore_codes into flake8's own native config, not a client-side filter", () => {
     expect(PYTHON_SHIM).toContain('application.options.ignore = ignore_codes');
   });
 });

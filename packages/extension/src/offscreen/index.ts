@@ -66,7 +66,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse(response);
       })
       .catch((error) => {
-        const response: EngineLintResponse = { ok: false, error: String(error) };
+        const response: EngineLintResponse = {
+          ok: false,
+          error: String(error),
+        };
         sendResponse(response);
       });
     return true;

@@ -8,10 +8,10 @@ execution rather than reopening the milestone plan itself.
 The milestone plan's Task 1 sketch had the background service worker forward
 client messages to the offscreen document via a raw `chrome.runtime.sendMessage(message)`
 re-broadcast. This doesn't work as written: `chrome.runtime.sendMessage()`
-broadcasts to *every* registered `chrome.runtime.onMessage` listener in the
+broadcasts to _every_ registered `chrome.runtime.onMessage` listener in the
 extension, not just the intended recipient — so once the offscreen document
 existed, a content script's original `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS`
-message reached the offscreen listener directly *and* reached background,
+message reached the offscreen listener directly _and_ reached background,
 which then re-broadcast the same message, reaching offscreen a second time.
 Each of Task 2's future `PyodideRuntime.lintNotebook()` calls would have run
 twice per logical request, racing on shared Python interpreter state
@@ -57,7 +57,7 @@ dedicated documentation pass (candidate: fold into Milestone 6's README/docs
 truth pass, which already owns F24).
 
 `README.md`'s Flake8 usage example (`Flake8Engine` class, deleted by this
-milestone) *was* fixed in this milestone's own final-review fix round — that
+milestone) _was_ fixed in this milestone's own final-review fix round — that
 one is a direct regression this milestone caused (a user-facing code sample
 that now throws an import error), not pre-existing drift, so it didn't wait
 for a later milestone.

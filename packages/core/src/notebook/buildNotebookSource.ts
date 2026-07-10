@@ -44,7 +44,10 @@ interface LineScanResult {
  * concrete false-positive/false-negative cases a naive character count hits
  * in real notebooks.
  */
-function scanLine(line: string, tripleQuoteOpenAtStart: TripleQuote): LineScanResult {
+function scanLine(
+  line: string,
+  tripleQuoteOpenAtStart: TripleQuote
+): LineScanResult {
   let bracketDelta = 0;
   let tripleQuoteOpen = tripleQuoteOpenAtStart;
   let singleLineQuote: string | null = null;
@@ -102,7 +105,8 @@ function scanLine(line: string, tripleQuoteOpenAtStart: TripleQuote): LineScanRe
 
 function blankCellLines(lines: string[]): string[] {
   const firstNonBlank = lines.find((line) => line.trim().length > 0);
-  const isCellMagic = firstNonBlank !== undefined && firstNonBlank.trimStart().startsWith('%%');
+  const isCellMagic =
+    firstNonBlank !== undefined && firstNonBlank.trimStart().startsWith('%%');
 
   if (isCellMagic) {
     // A cell magic (%%bash, %%html, %%writefile, ...) changes the whole
@@ -123,7 +127,8 @@ function blankCellLines(lines: string[]): string[] {
   return lines.map((line) => {
     const trimmed = line.trimStart();
     const isContinuation = bracketDepth > 0 || tripleQuoteOpen !== null;
-    const shouldBlank = !isContinuation && (trimmed.startsWith('%') || trimmed.startsWith('!'));
+    const shouldBlank =
+      !isContinuation && (trimmed.startsWith('%') || trimmed.startsWith('!'));
 
     const scan = scanLine(line, tripleQuoteOpen);
     bracketDepth += scan.bracketDelta;
@@ -135,7 +140,9 @@ function blankCellLines(lines: string[]): string[] {
   });
 }
 
-export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource {
+export function buildNotebookSource(
+  cells: NotebookCellInput[]
+): NotebookSource {
   const sorted = [...cells].sort((a, b) => a.cellIndex - b.cellIndex);
   const allLines: string[] = [];
   const cellOffsets: CellOffset[] = [];
@@ -143,7 +150,11 @@ export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource 
 
   for (const cell of sorted) {
     const lines = cell.code.split('\n');
-    cellOffsets.push({ cellIndex: cell.cellIndex, startLine: currentLine, lineCount: lines.length });
+    cellOffsets.push({
+      cellIndex: cell.cellIndex,
+      startLine: currentLine,
+      lineCount: lines.length,
+    });
     allLines.push(...blankCellLines(lines));
     currentLine += lines.length;
   }
@@ -156,8 +167,14 @@ export function mapLineToCell(
   cellOffsets: CellOffset[]
 ): { cellIndex: number; cellLine: number } | null {
   for (const offset of cellOffsets) {
-    if (globalLine >= offset.startLine && globalLine < offset.startLine + offset.lineCount) {
-      return { cellIndex: offset.cellIndex, cellLine: globalLine - offset.startLine + 1 };
+    if (
+      globalLine >= offset.startLine &&
+      globalLine < offset.startLine + offset.lineCount
+    ) {
+      return {
+        cellIndex: offset.cellIndex,
+        cellLine: globalLine - offset.startLine + 1,
+      };
     }
   }
   return null;

@@ -49,7 +49,11 @@ function requestApplyMarkers(targets: LineMarkerTarget[]): Promise<number> {
     const handleMessage = (event: MessageEvent) => {
       if (settled || event.source !== window) return;
       const data = event.data;
-      if (!data || data.type !== APPLY_LINE_MARKERS_RESPONSE || data.requestId !== requestId) {
+      if (
+        !data ||
+        data.type !== APPLY_LINE_MARKERS_RESPONSE ||
+        data.requestId !== requestId
+      ) {
         return;
       }
       settled = true;
@@ -66,7 +70,10 @@ function requestApplyMarkers(targets: LineMarkerTarget[]): Promise<number> {
       resolve(0);
     }, BRIDGE_TIMEOUT_MS);
 
-    window.postMessage({ type: APPLY_LINE_MARKERS_REQUEST, requestId, targets }, '*');
+    window.postMessage(
+      { type: APPLY_LINE_MARKERS_REQUEST, requestId, targets },
+      '*'
+    );
   });
 }
 
@@ -87,7 +94,9 @@ export async function applyLineMarkers(targets: MarkerTarget[]): Promise<void> {
     title: target.code ? `${target.code}: ${target.msg}` : target.msg,
   }));
   const markedCount = await requestApplyMarkers(bridgeTargets);
-  logger.log(`applyLineMarkers: ${targets.length} targets, ${markedCount} lines marked`);
+  logger.log(
+    `applyLineMarkers: ${targets.length} targets, ${markedCount} lines marked`
+  );
 }
 
 /** Clears every marker. Used on overlay hide/disable. */

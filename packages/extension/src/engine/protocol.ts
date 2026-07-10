@@ -21,7 +21,10 @@ export interface EngineLintRequest {
   ignoreCodes: string[];
 }
 
-export type EngineResultError = LintError & { cellIndex: number; cellLine: number };
+export type EngineResultError = LintError & {
+  cellIndex: number;
+  cellLine: number;
+};
 
 export type EngineLintResponse =
   | { ok: true; errors: EngineResultError[] }

@@ -12,11 +12,11 @@ Documentation for the Kaggle Python Linter Chrome extension monorepo.
 
 The repo is an npm-workspaces + Turborepo monorepo with three packages:
 
-| Package | Role |
-| --- | --- |
-| `packages/core` | Pure-TS lint engine: 9 custom rules + a Pyodide/Flake8 engine. No DOM deps. |
-| `packages/ui-components` | React overlay UI (Overlay, ErrorList, ErrorItem). |
-| `packages/extension` | Chrome MV3 extension wiring core + UI into Kaggle notebook pages. |
+| Package                  | Role                                                                        |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `packages/core`          | Pure-TS lint engine: 9 custom rules + a Pyodide/Flake8 engine. No DOM deps. |
+| `packages/ui-components` | React overlay UI (Overlay, ErrorList, ErrorItem).                           |
+| `packages/extension`     | Chrome MV3 extension wiring core + UI into Kaggle notebook pages.           |
 
 `old-linter/` is the original vanilla-JS implementation. It is mostly a migration reference, **but** the extension's webpack build still copies `popup.css` from it, and it contains `pageInjection.js` — a MAIN-world script the migration dropped, whose absence is the root cause of the two most severe bugs (see review findings F1 and F2).
 

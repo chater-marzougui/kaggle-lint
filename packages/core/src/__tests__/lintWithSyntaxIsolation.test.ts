@@ -11,10 +11,17 @@ describe('lintNotebookWithSyntaxIsolation', () => {
       { code: 'import os', cellIndex: 0 },
       { code: 'x = y + 1', cellIndex: 1 },
     ];
-    const runLintPass = jest.fn(async (): Promise<RawDiagnostic[]> => [
-      { line: 1, column: 1, code: 'F401', message: "'os' imported but unused" },
-      { line: 2, column: 5, code: 'F821', message: "undefined name 'y'" },
-    ]);
+    const runLintPass = jest.fn(
+      async (): Promise<RawDiagnostic[]> => [
+        {
+          line: 1,
+          column: 1,
+          code: 'F401',
+          message: "'os' imported but unused",
+        },
+        { line: 2, column: 5, code: 'F821', message: "undefined name 'y'" },
+      ]
+    );
 
     const result = await lintNotebookWithSyntaxIsolation(
       cells,
@@ -60,12 +67,24 @@ describe('lintNotebookWithSyntaxIsolation', () => {
         if (source.includes('bad + syntax = 1')) {
           // First pass: whole notebook including the broken cell -> only
           // a syntax error, nothing else (matches real flake8 behavior).
-          return [{ line: 2, column: 1, code: 'E999', message: 'SyntaxError: invalid syntax' }];
+          return [
+            {
+              line: 2,
+              column: 1,
+              code: 'E999',
+              message: 'SyntaxError: invalid syntax',
+            },
+          ];
         }
         // Second pass: the broken cell has been excluded -> real findings
         // for the remaining, now-valid, 2-line source.
         return [
-          { line: 1, column: 1, code: 'F401', message: "'os' imported but unused" },
+          {
+            line: 1,
+            column: 1,
+            code: 'F401',
+            message: "'os' imported but unused",
+          },
           { line: 2, column: 5, code: 'F821', message: "undefined name 'y'" },
         ];
       }
@@ -107,9 +126,16 @@ describe('lintNotebookWithSyntaxIsolation', () => {
     const cells: NotebookCellInput[] = [{ code: 'x = 1', cellIndex: 0 }];
     // Line 99 is out of range for every cell -> mapDiagnostics drops it,
     // so no cell can be excluded. Must not loop forever.
-    const runLintPass = jest.fn(async (): Promise<RawDiagnostic[]> => [
-      { line: 99, column: 1, code: 'E999', message: 'SyntaxError: unexpected EOF' },
-    ]);
+    const runLintPass = jest.fn(
+      async (): Promise<RawDiagnostic[]> => [
+        {
+          line: 99,
+          column: 1,
+          code: 'E999',
+          message: 'SyntaxError: unexpected EOF',
+        },
+      ]
+    );
 
     const result = await lintNotebookWithSyntaxIsolation(
       cells,
@@ -129,10 +155,19 @@ describe('lintNotebookWithSyntaxIsolation', () => {
     ];
     // Every pass reports a fresh syntax error on whatever the first
     // remaining cell's line is - simulates two independently-broken cells.
-    const runLintPass = jest.fn(async (source: string): Promise<RawDiagnostic[]> => {
-      if (source.trim().length === 0) return [];
-      return [{ line: 1, column: 1, code: 'E999', message: 'SyntaxError: invalid syntax' }];
-    });
+    const runLintPass = jest.fn(
+      async (source: string): Promise<RawDiagnostic[]> => {
+        if (source.trim().length === 0) return [];
+        return [
+          {
+            line: 1,
+            column: 1,
+            code: 'E999',
+            message: 'SyntaxError: invalid syntax',
+          },
+        ];
+      }
+    );
 
     const result = await lintNotebookWithSyntaxIsolation(
       cells,
@@ -155,7 +190,9 @@ describe('lintNotebookWithSyntaxIsolation', () => {
       cells,
       'ruff',
       runLintPass,
-      (diagnostics) => diagnostics.length > 0 && diagnostics.every((d) => d.code === 'invalid-syntax')
+      (diagnostics) =>
+        diagnostics.length > 0 &&
+        diagnostics.every((d) => d.code === 'invalid-syntax')
     );
 
     expect(runLintPass).toHaveBeenCalledTimes(1);

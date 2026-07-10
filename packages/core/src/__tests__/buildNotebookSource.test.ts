@@ -1,4 +1,7 @@
-import { buildNotebookSource, mapLineToCell } from '../notebook/buildNotebookSource';
+import {
+  buildNotebookSource,
+  mapLineToCell,
+} from '../notebook/buildNotebookSource';
 
 describe('buildNotebookSource', () => {
   it('concatenates cells in cellIndex order with correct line offsets', () => {
@@ -24,7 +27,10 @@ describe('buildNotebookSource', () => {
 
   it('blanks an individual line-magic line but keeps linting the rest of the cell', () => {
     const { source } = buildNotebookSource([
-      { code: "%matplotlib inline\nimport pandas as pd\ndf = pd.read_csv('x.csv')", cellIndex: 0 },
+      {
+        code: "%matplotlib inline\nimport pandas as pd\ndf = pd.read_csv('x.csv')",
+        cellIndex: 0,
+      },
     ]);
     expect(source).toBe("\nimport pandas as pd\ndf = pd.read_csv('x.csv')");
   });
@@ -84,7 +90,9 @@ describe('buildNotebookSource', () => {
         cellIndex: 0,
       },
     ]);
-    expect(source).toBe('message = ("Error: %s, code: %d"\n           % ("bad", 42))');
+    expect(source).toBe(
+      'message = ("Error: %s, code: %d"\n           % ("bad", 42))'
+    );
   });
 
   // Same class of bug for shell-escape blanking: a real != continuation
@@ -100,7 +108,7 @@ describe('buildNotebookSource', () => {
   it('still blanks a line magic/shell escape that starts a fresh statement after a closed paren', () => {
     const { source } = buildNotebookSource([
       {
-        code: "x = (1 + 2)\n%matplotlib inline\n!pip install foo\ny = 3",
+        code: 'x = (1 + 2)\n%matplotlib inline\n!pip install foo\ny = 3',
         cellIndex: 0,
       },
     ]);
@@ -133,7 +141,9 @@ describe('buildNotebookSource', () => {
         cellIndex: 0,
       },
     ]);
-    expect(source).toBe('greeting = "hi :)"\nmessage = ("Error: %s"\n           % ("bad",))');
+    expect(source).toBe(
+      'greeting = "hi :)"\nmessage = ("Error: %s"\n           % ("bad",))'
+    );
   });
 
   // Regression: an escaped quote inside a string literal (e.g. `\"` inside
@@ -174,9 +184,18 @@ describe('mapLineToCell', () => {
   ];
 
   it('maps a global line back to the correct cell and cell-relative line', () => {
-    expect(mapLineToCell(1, cellOffsets)).toEqual({ cellIndex: 0, cellLine: 1 });
-    expect(mapLineToCell(2, cellOffsets)).toEqual({ cellIndex: 0, cellLine: 2 });
-    expect(mapLineToCell(3, cellOffsets)).toEqual({ cellIndex: 1, cellLine: 1 });
+    expect(mapLineToCell(1, cellOffsets)).toEqual({
+      cellIndex: 0,
+      cellLine: 1,
+    });
+    expect(mapLineToCell(2, cellOffsets)).toEqual({
+      cellIndex: 0,
+      cellLine: 2,
+    });
+    expect(mapLineToCell(3, cellOffsets)).toEqual({
+      cellIndex: 1,
+      cellLine: 1,
+    });
   });
 
   it('returns null for a line outside any cell range', () => {

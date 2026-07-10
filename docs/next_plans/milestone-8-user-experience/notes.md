@@ -7,7 +7,7 @@ access (no DevTools, no ability to open a real Kaggle notebook), so Step
 1's live probe of
 
 ```js
-document.querySelector('.jp-CodeCell .cm-gutters .cm-lineNumbers')
+document.querySelector('.jp-CodeCell .cm-gutters .cm-lineNumbers');
 ```
 
 and the gutter/`.cm-line` count-parity check was never run against a real
@@ -25,7 +25,7 @@ Concretely, whoever runs that gate should:
 1. Open a real Kaggle notebook in edit mode, select any code cell, and run
    the two probe snippets from Step 1 of the Task 3 brief in DevTools —
    confirm the gutter element exists, and confirm gutter-element count
-   equals `.cm-line` count with the *first visible* gutter element's text
+   equals `.cm-line` count with the _first visible_ gutter element's text
    not equal to `"1"` after scrolling a 200+ line cell partway down.
 2. If both checks pass, `lineMarkers.ts` needs no change — markers should
    already track the correct line at any scroll position.

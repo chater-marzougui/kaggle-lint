@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the linter feel like a product a Kaggle user keeps enabled: instant results on open (ruff default), problems visible *at the line* in the editor, one-click muting of noisy codes, a glanceable count when the panel is tucked away, and a panel that stays where you put it.
+**Goal:** Make the linter feel like a product a Kaggle user keeps enabled: instant results on open (ruff default), problems visible _at the line_ in the editor, one-click muting of noisy codes, a glanceable count when the panel is tucked away, and a panel that stays where you put it.
 
 **Architecture:** Task 1 is the overlay React rewrite **moved here from Milestone 6 Task 1** (see the note added there) so every feature in this milestone builds on the clean React overlay instead of extending the imperative-DOM pattern. Everything else layers on M7's plumbing: errors carry `uuid` + exact line, and the bridge/scroll machinery already exists.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Every task ends with `npm run type-check && npm run build && npm test` green (Git Bash, repo root).
-- Settings storage **shape** stays `{ linterEngine, flake8IgnoreCodes, ruffIgnoreCodes }` — Tasks 2 and 4 change *values/defaults* only, never keys or types.
+- Settings storage **shape** stays `{ linterEngine, flake8IgnoreCodes, ruffIgnoreCodes }` — Tasks 2 and 4 change _values/defaults_ only, never keys or types.
 - New UI is React-state + CSS only; no new imperative style-writing (refs for drag geometry are fine — see Task 1).
 - No new runtime dependencies.
 
@@ -24,6 +24,7 @@
 Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed here instead:
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx`, `packages/ui-components/src/Overlay/Overlay.css`
 
 - [ ] **Step 1:** Replace the minimize/expand imperative block (direct `style.width/right/bottom/opacity` writes and nested setTimeouts in `handleToggleMinimize`) with the `kaggle-lint-minimized` class driven by `isMinimized` state; all geometry/opacity/transition rules move into `Overlay.css`.
@@ -37,6 +38,7 @@ Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed h
 ### Task 2: Ruff as the default engine
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx` (`DEFAULT_SETTINGS`), `packages/extension/src/popup/PopupApp.tsx` (its default + engine labels)
 
 - [ ] **Step 1:** Default `linterEngine: 'ruff'` in both DEFAULT_SETTINGS objects. Rationale: ruff-wasm initializes in milliseconds; flake8's first Pyodide load is ~30 s — a first-run user should see results before they wonder if the extension works. Users with saved settings are untouched (defaults only apply when `linterSettings` is absent).
@@ -49,11 +51,12 @@ Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed h
 ### Task 3: In-editor line markers (the flagship)
 
 **Files:**
+
 - Create: `packages/extension/src/content/lineMarkers.ts`
 - Modify: `packages/extension/src/content/ContentApp.tsx`, `packages/extension/public/content.css`
 
 - [ ] **Step 1:** Approach (decided — don't re-litigate): content-script DOM tagging, **not** CM6 decorations. Injecting CodeMirror StateEffects from our bundle into the page's editor instances is a cross-instance trap, and `cmView` is unreachable on Kaggle's build regardless (see `pageExtractor.ts`'s doc comment). Instead: after each lint, for every error whose line is currently rendered, add a severity class (`kaggle-lint-line-error|warning|info`) and a `title="<code>: <msg>"` to the `.cm-line` element; styles in `content.css` (wavy underline or subtle background tint, both themes).
-- [ ] **Step 2:** The hard part is line→element mapping under virtualization: in long cells, `.cm-line` children correspond to the *rendered viewport*, not document lines 1..N, so `children[line-1]` is wrong exactly where markers matter most. Probe live for a usable anchor (line-number gutter text within the same cell is the most promising isolated-world signal). If no reliable isolated-world mapping exists, extend the bridge (additive, M7 conventions) with a `LINE_GEOMETRY`-style request answered from the Jupyter editor API. Start with the cheapest path that survives a 200+ line cell test; record the chosen mechanism in `notes.md`.
+- [ ] **Step 2:** The hard part is line→element mapping under virtualization: in long cells, `.cm-line` children correspond to the _rendered viewport_, not document lines 1..N, so `children[line-1]` is wrong exactly where markers matter most. Probe live for a usable anchor (line-number gutter text within the same cell is the most promising isolated-world signal). If no reliable isolated-world mapping exists, extend the bridge (additive, M7 conventions) with a `LINE_GEOMETRY`-style request answered from the Jupyter editor API. Start with the cheapest path that survives a 200+ line cell test; record the chosen mechanism in `notes.md`.
 - [ ] **Step 3:** Refresh markers on: lint completion, and a debounced scroll/mutation pass (virtualization mounts/unmounts lines; reuse the existing MutationObserver's debounce pattern, and make sure marker churn doesn't trigger the auto-relint observer — markers must not mutate anything the observer treats as an edit... note the observer only schedules when the mutated cell has focus, but verify).
 - [ ] **Step 4:** Remove markers for errors that disappear on the next lint; full clear on overlay close/disable.
 - [ ] **Step 5: Verify** — manual: markers on short cells; markers correct in a 200+ line cell at multiple scroll positions; editing clears/re-adds within ~1 s of the auto-relint; no relint storm from marker writes.
@@ -64,6 +67,7 @@ Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed h
 ### Task 4: One-click ignore from an error item
 
 **Files:**
+
 - Modify: `packages/ui-components/src/ErrorItem/ErrorItem.tsx`, `packages/ui-components/src/types/index.ts` (`onIgnoreCode?: (code: string) => void` threaded Overlay → ErrorList → ErrorItem), `packages/extension/src/content/ContentApp.tsx`
 
 - [ ] **Step 1:** ErrorItem: a small mute button (visible on hover, `title="Ignore <code> everywhere"`), rendered only when `error.code` exists; clicking it calls `onIgnoreCode(error.code)` and does **not** trigger the row's scroll-to click.
@@ -76,6 +80,7 @@ Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed h
 ### Task 5: Glanceable status (minimized pill + toolbar badge)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` + `Overlay.css` (minimized pill shows `❌ n  ⚠️ m`, worst-severity accent color), `packages/extension/src/content/ContentApp.tsx` (post lint stats), `packages/extension/src/background/index.ts` (badge)
 
 - [ ] **Step 1:** Minimized state currently shows only the title — render the error/warning counts in the pill (they exist in `stats`), colored by worst severity present.
@@ -88,6 +93,7 @@ Scope identical to `../milestone-6-ux-and-release/plan.md` Task 1 — executed h
 ### Task 6: Overlay state persistence
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (accept initial state + change callback), `packages/extension/src/content/ContentApp.tsx` (load/save)
 
 - [ ] **Step 1:** Persist `{ position, isMinimized }` to `chrome.storage.local` (per-machine UI state — deliberately not `sync`, and deliberately **not** `visible`: a user who closed the panel should get it back on the next notebook, a persisted-closed overlay looks like a broken extension). Debounce writes (drag-end, not per-mousemove).

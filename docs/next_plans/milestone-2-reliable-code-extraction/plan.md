@@ -22,10 +22,12 @@
 ### Task 1: MAIN-world extractor script
 
 **Files:**
+
 - Create: `packages/extension/src/page/pageExtractor.ts` (new webpack entry `pageExtractor`)
 - Modify: `packages/extension/webpack.config.js` (add entry), `packages/extension/public/manifest.json` (register second content script with `"world": "MAIN"`, same `matches` as the existing one, `"run_at": "document_idle"`)
 
 **Interfaces:**
+
 - Produces (bridge protocol, consumed by Task 2):
 
 ```ts
@@ -42,7 +44,10 @@
 
 ```json
 {
-  "matches": ["https://www.kaggle.com/code/*/*/edit", "https://kkb-production.jupyter-proxy.kaggle.net/*"],
+  "matches": [
+    "https://www.kaggle.com/code/*/*/edit",
+    "https://kkb-production.jupyter-proxy.kaggle.net/*"
+  ],
   "js": ["pageExtractor.js"],
   "world": "MAIN",
   "run_at": "document_idle",
@@ -58,9 +63,11 @@
 ### Task 2: Bridge client in KaggleDomParser
 
 **Files:**
+
 - Modify: `packages/extension/src/utils/KaggleDomParser.ts`
 
 **Interfaces:**
+
 - Produces: `extractCells(): Promise<CodeCell[]>` (signature unchanged) — now tries the bridge with a 1500 ms timeout, then falls back to the current DOM scrape. `CodeCell.uuid` is now populated when available.
 - Consumes: bridge protocol from Task 1.
 
@@ -75,14 +82,16 @@
 ### Task 3: Merge extraction into the cell store (fix write-only CodeMirrorManager, F7)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx` (runLinter), `packages/extension/src/utils/CodeMirrorManager.ts` (only if a method signature needs `element` passthrough)
 
 **Interfaces:**
+
 - Consumes: `CodeMirrorManager.syncCells / getAllCells` (existing).
 - Produces: `runLinter` now lints the union — `getAllCells()` (store) enriched with live `element` references from the current extraction.
 
 - [ ] **Step 1:** In `runLinter`, after `syncCells(cells)`, build the lint input from `codeMirrorManager.getAllCells()` (sorted by `cellIndex`), attaching `element` from the just-extracted `cells` when the same uuid/index is present (else `element: null`). Cells that scrolled out of the DOM now still lint with their last-known code.
-- [ ] **Step 2:** Add store invalidation: on `settingsChanged` engine switch nothing changes, but when extraction returns a *full* bridge result (bridge success), call `clear()` before `syncCells` so deleted cells don't linger; keep stale entries only in the DOM-fallback path (where partial views are expected).
+- [ ] **Step 2:** Add store invalidation: on `settingsChanged` engine switch nothing changes, but when extraction returns a _full_ bridge result (bridge success), call `clear()` before `syncCells` so deleted cells don't linger; keep stale entries only in the DOM-fallback path (where partial views are expected).
 - [ ] **Step 3: Verify** — type-check + build; `grep -n "getAllCells" packages/extension/src/` shows the store is read.
 - [ ] **Step 4: Commit** — `feat(extension): lint from cell store so virtualized-out cells keep coverage`
 
@@ -91,9 +100,11 @@
 ### Task 4: Auto re-lint on edit (F8)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx`
 
 **Interfaces:**
+
 - Consumes: `runLinterRef` from Milestone 1 Task 1.
 
 - [ ] **Step 1:** Add an effect (deps `[settingsLoaded]`) that creates a debounced trigger (800 ms trailing) wrapping `runLinterRef.current()`, and a `MutationObserver` on `document.body` filtered to mutations inside `.cm-content` (check `mutation.target` ancestry; ignore mutations inside `#kaggle-linter-root`). Disconnect + cancel pending debounce in cleanup.

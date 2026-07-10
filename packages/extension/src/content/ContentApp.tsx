@@ -48,10 +48,16 @@ export const ContentApp: React.FC = () => {
   const [isLinting, setIsLinting] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [engineStatus, setEngineStatus] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
-  const [overlayUiState, setOverlayUiState] = useState<OverlayUiState>(DEFAULT_OVERLAY_UI_STATE);
+  const [engineStatus, setEngineStatus] = useState<
+    'unloaded' | 'loading' | 'ready' | 'failed'
+  >('unloaded');
+  const [overlayUiState, setOverlayUiState] = useState<OverlayUiState>(
+    DEFAULT_OVERLAY_UI_STATE
+  );
   const [overlayUiStateLoaded, setOverlayUiStateLoaded] = useState(false);
-  const overlayStateSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overlayStateSaveTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   /**
    * Overlay position/minimize state is deliberately chrome.storage.local
@@ -90,7 +96,8 @@ export const ContentApp: React.FC = () => {
   const handleOverlayStateChange = (state: OverlayUiState) => {
     setOverlayUiState(state);
     if (typeof chrome === 'undefined' || !chrome.storage) return;
-    if (overlayStateSaveTimerRef.current) clearTimeout(overlayStateSaveTimerRef.current);
+    if (overlayStateSaveTimerRef.current)
+      clearTimeout(overlayStateSaveTimerRef.current);
     overlayStateSaveTimerRef.current = setTimeout(() => {
       chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: state });
     }, 300);
@@ -158,16 +165,19 @@ export const ContentApp: React.FC = () => {
         cellIndex: stored.cellIndex,
         uuid: stored.uuid,
         element:
-          elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
+          elementByCellId.get(
+            codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)
+          ) ?? null,
       }));
 
       // The protocol is JSON-only (no DOM elements cross chrome.runtime
       // messaging), so strip elements before sending and re-attach them
       // to the returned errors by cellIndex — error-click-to-scroll needs
       // them.
-      const ignoreCodes = (settings.linterEngine === 'flake8'
-        ? settings.flake8IgnoreCodes
-        : settings.ruffIgnoreCodes
+      const ignoreCodes = (
+        settings.linterEngine === 'flake8'
+          ? settings.flake8IgnoreCodes
+          : settings.ruffIgnoreCodes
       )
         .split(',')
         .map((code) => code.trim())
@@ -198,7 +208,9 @@ export const ContentApp: React.FC = () => {
           };
         });
         setEngineStatus('ready');
-        logger.log(`${settings.linterEngine} engine found ${lintErrors.length} errors`);
+        logger.log(
+          `${settings.linterEngine} engine found ${lintErrors.length} errors`
+        );
       } catch (error) {
         setEngineStatus('failed');
         throw error;
@@ -218,11 +230,15 @@ export const ContentApp: React.FC = () => {
       }
     } catch (error) {
       logger.error('Error during linting:', error);
-      logger.warn(`${settings.linterEngine} failed, you may need to reload the page`);
+      logger.warn(
+        `${settings.linterEngine} failed, you may need to reload the page`
+      );
     } finally {
       isLintingRef.current = false;
       setIsLinting(false);
-      logger.log(`Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
+      logger.log(
+        `Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`
+      );
     }
   }, [domParser, codeMirrorManager, settings, engineClientRef]);
 
@@ -493,7 +509,9 @@ export const ContentApp: React.FC = () => {
       for (const mutation of mutations) {
         const removedCell = Array.from(mutation.removedNodes).some(
           (node) =>
-            node instanceof Element && (node.classList.contains('jp-Cell') || node.querySelector('.jp-Cell'))
+            node instanceof Element &&
+            (node.classList.contains('jp-Cell') ||
+              node.querySelector('.jp-Cell'))
         );
         if (removedCell) {
           scheduleRelint();
@@ -575,7 +593,10 @@ export const ContentApp: React.FC = () => {
    */
   const handleIgnoreCode = (code: string) => {
     setSettings((prev) => {
-      const key = prev.linterEngine === 'flake8' ? 'flake8IgnoreCodes' : 'ruffIgnoreCodes';
+      const key =
+        prev.linterEngine === 'flake8'
+          ? 'flake8IgnoreCodes'
+          : 'ruffIgnoreCodes';
       const existing = prev[key]
         .split(',')
         .map((c) => c.trim())
@@ -583,7 +604,10 @@ export const ContentApp: React.FC = () => {
       if (existing.includes(code)) {
         return prev;
       }
-      const updated: Settings = { ...prev, [key]: [...existing, code].join(', ') };
+      const updated: Settings = {
+        ...prev,
+        [key]: [...existing, code].join(', '),
+      };
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.sync.set({ linterSettings: updated });
       }

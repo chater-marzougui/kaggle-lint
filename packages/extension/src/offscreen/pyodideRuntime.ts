@@ -61,7 +61,9 @@ export class PyodideRuntime {
         if (!window.loadPyodide) {
           await this.loadPyodideScript();
         }
-        this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
+        this.pyodide = await window.loadPyodide!({
+          indexURL: PYODIDE_INDEX_URL,
+        });
         await this.pyodide!.loadPackage('micropip');
 
         const wheelUrls = WHEEL_FILENAMES.map((name) =>
@@ -97,7 +99,10 @@ export class PyodideRuntime {
     });
   }
 
-  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
+  async lintNotebook(
+    cells: NotebookCellInput[],
+    ignoreCodes: string[]
+  ): Promise<EngineResultError[]> {
     await this.load();
 
     return lintNotebookWithSyntaxIsolation(
@@ -114,7 +119,8 @@ json.dumps(lint_source(${JSON.stringify(source)}, ${JSON.stringify(ignoreCodes)}
       // ONLY E999 (confirmed by direct repro against the real flake8
       // wheel) — a single-cell syntax error must not suppress every
       // other cell's real findings (see lintWithSyntaxIsolation.ts).
-      (diagnostics) => diagnostics.length > 0 && diagnostics.every((d) => d.code === 'E999')
+      (diagnostics) =>
+        diagnostics.length > 0 && diagnostics.every((d) => d.code === 'E999')
     );
   }
 }

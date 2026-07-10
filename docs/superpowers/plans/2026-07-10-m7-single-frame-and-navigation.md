@@ -4,7 +4,7 @@
 
 **Goal:** Exactly one overlay, mounted in the frame that actually hosts the notebook; clicking an error lands on the exact line even in long/virtualized cells; deleting a cell removes its errors on the next lint.
 
-**Architecture:** F32 is a runtime mount gate in `content/index.tsx` — the manifest's `matches`/`all_frames` can't express "the frame with the notebook in it," so the gate waits for `.jp-Notebook` to exist in *this frame's* DOM before mounting anything (overlay, keyboard listeners, `chrome.runtime` listener). F33 and F34 both extend the existing MAIN-world bridge (`bridgeProtocol.ts` / `pageExtractor.ts`, built in Milestone 2) — the same `window.jupyterapp` object that already makes cell-text extraction reliable also owns virtualization-aware scrolling (F33) and the authoritative full-cell-list path (F34, `extractViaJupyterModel()`).
+**Architecture:** F32 is a runtime mount gate in `content/index.tsx` — the manifest's `matches`/`all_frames` can't express "the frame with the notebook in it," so the gate waits for `.jp-Notebook` to exist in _this frame's_ DOM before mounting anything (overlay, keyboard listeners, `chrome.runtime` listener). F33 and F34 both extend the existing MAIN-world bridge (`bridgeProtocol.ts` / `pageExtractor.ts`, built in Milestone 2) — the same `window.jupyterapp` object that already makes cell-text extraction reliable also owns virtualization-aware scrolling (F33) and the authoritative full-cell-list path (F34, `extractViaJupyterModel()`).
 
 **Tech Stack:** Chrome MV3 content scripts, `window.postMessage` bridge, JupyterLab 4 widget/editor APIs (Task 3's exact API shape is a live-probe target, not verified fact — see Task 3), React 18.
 
@@ -30,29 +30,31 @@ No deviations were needed to make the milestone plan's file/line references line
 - Settings storage shape (`{ linterEngine, flake8IgnoreCodes, ruffIgnoreCodes }` under `linterSettings`) is frozen — no task touches it.
 - Bridge protocol changes are additive only: new message-type constants, new optional fields on existing message shapes. A stale-cached `pageExtractor.js` (old, missing a new field) talking to a freshly-reloaded content script (new, expects the field) must degrade to safe default behavior, not throw or hang. Task 4 specifically must treat a missing `source` field as `'dom'` (the more conservative, merge-only path), never assume `'model'`.
 - No DOM elements or page expandos cross the `postMessage`/`chrome.runtime` boundary — plain JSON only (unchanged from Milestone 2).
-- Task 3's Jupyter API calls (`content.scrollToItem`, `editor.setCursorPosition`, `editor.revealPosition`) are this plan's **expected shape to live-probe on a real notebook**, not verified fact — they were never confirmed against a live page during this plan's authoring (unlike `extractViaJupyterModel`'s `sharedModel.getSource()`/`model.id`, which Milestone 2's `notes.md` *did* confirm live). Task 3 is written probe-first with a DOM-scroll fallback that must survive the API shape being wrong.
+- Task 3's Jupyter API calls (`content.scrollToItem`, `editor.setCursorPosition`, `editor.revealPosition`) are this plan's **expected shape to live-probe on a real notebook**, not verified fact — they were never confirmed against a live page during this plan's authoring (unlike `extractViaJupyterModel`'s `sharedModel.getSource()`/`model.id`, which Milestone 2's `notes.md` _did_ confirm live). Task 3 is written probe-first with a DOM-scroll fallback that must survive the API shape being wrong.
 
 ## File Structure
 
-| File | Responsibility after this milestone |
-|---|---|
-| `packages/extension/src/content/index.tsx` | Gates mounting on `.jp-Notebook` existing in this frame; unmounted frames (the outer `kaggle.com` shell) get no overlay, no keyboard listener, no `chrome.runtime` listener (F32). |
-| `packages/extension/src/content/ContentApp.tsx` | `cellsForLinting`/lint-error re-attachment now also carries `uuid`; `handleErrorClick` drives the bridge scroll-to-line request with a DOM fallback (F33); store sync replaces instead of merges when the model path was used (F34). |
-| `packages/extension/src/page/bridgeProtocol.ts` | Gains the `SCROLL_TO_CELL_LINE_REQUEST`/`_RESPONSE` message pair (Task 3) and an optional `source: 'model' \| 'dom'` field on `ExtractResponseMessage` (Task 4). |
-| `packages/extension/src/page/pageExtractor.ts` | Gains a `scrollToCellLine()` handler using Jupyter's own widget/editor APIs (Task 3); `extractAllCells()` now reports which internal path (`extractViaJupyterModel` vs. the DOM fallback) produced its result (Task 4). |
-| `packages/extension/src/utils/KaggleDomParser.ts` | Gains `scrollToCellLine()` (bridge client, same request/timeout pattern as `requestFromPage`); `getLastExtractionSource()` widens from `'bridge' \| 'dom-scrape'` to `'model' \| 'dom' \| 'dom-scrape'`. |
-| `packages/ui-components/src/Overlay/Overlay.tsx` | Loses its internal `scrollToError`/`highlightCell` — scrolling is the app's job via `onErrorClick` now (single scroll path). |
-| `packages/ui-components/src/types/index.ts` | `OverlayProps['errors']` element type gains `uuid?: string \| null`. |
+| File                                              | Responsibility after this milestone                                                                                                                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/extension/src/content/index.tsx`        | Gates mounting on `.jp-Notebook` existing in this frame; unmounted frames (the outer `kaggle.com` shell) get no overlay, no keyboard listener, no `chrome.runtime` listener (F32).                                                   |
+| `packages/extension/src/content/ContentApp.tsx`   | `cellsForLinting`/lint-error re-attachment now also carries `uuid`; `handleErrorClick` drives the bridge scroll-to-line request with a DOM fallback (F33); store sync replaces instead of merges when the model path was used (F34). |
+| `packages/extension/src/page/bridgeProtocol.ts`   | Gains the `SCROLL_TO_CELL_LINE_REQUEST`/`_RESPONSE` message pair (Task 3) and an optional `source: 'model' \| 'dom'` field on `ExtractResponseMessage` (Task 4).                                                                     |
+| `packages/extension/src/page/pageExtractor.ts`    | Gains a `scrollToCellLine()` handler using Jupyter's own widget/editor APIs (Task 3); `extractAllCells()` now reports which internal path (`extractViaJupyterModel` vs. the DOM fallback) produced its result (Task 4).              |
+| `packages/extension/src/utils/KaggleDomParser.ts` | Gains `scrollToCellLine()` (bridge client, same request/timeout pattern as `requestFromPage`); `getLastExtractionSource()` widens from `'bridge' \| 'dom-scrape'` to `'model' \| 'dom' \| 'dom-scrape'`.                             |
+| `packages/ui-components/src/Overlay/Overlay.tsx`  | Loses its internal `scrollToError`/`highlightCell` — scrolling is the app's job via `onErrorClick` now (single scroll path).                                                                                                         |
+| `packages/ui-components/src/types/index.ts`       | `OverlayProps['errors']` element type gains `uuid?: string \| null`.                                                                                                                                                                 |
 
 ---
 
 ### Task 1: Mount only in the notebook frame (F32)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/index.tsx` (entire 43-line file)
 - Create: `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`
 
 **Interfaces:**
+
 - Produces: nothing consumed by later tasks — this is a self-contained runtime gate.
 
 - [ ] **Step 1: Replace `content/index.tsx`'s unconditional `init()` with a per-frame notebook gate**
@@ -159,7 +161,7 @@ Create `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`:
 
 ## Task 1: intentional behavior changes from the F32 mount gate
 
-1. **Popup broadcasts still hit every frame; only one now answers.** `chrome.tabs.sendMessage` (used by the popup for `runLinter`/`toggleOverlay`/`settingsChanged`) has always broadcast to every frame in the tab — that part is unchanged. What changes is that before this fix, *two* content-script instances (outer shell + notebook iframe) both registered a `chrome.runtime.onMessage` listener, so both replied; after this fix, only the frame that actually mounted (the one with `.jp-Notebook`) has a listener at all, so exactly one frame answers. This is the assumption Milestone 6 Task 3's "ping" design for page detection is built on — a response from *any* frame now reliably means "the real notebook frame is listening," not "one of possibly two frames happened to answer."
+1. **Popup broadcasts still hit every frame; only one now answers.** `chrome.tabs.sendMessage` (used by the popup for `runLinter`/`toggleOverlay`/`settingsChanged`) has always broadcast to every frame in the tab — that part is unchanged. What changes is that before this fix, _two_ content-script instances (outer shell + notebook iframe) both registered a `chrome.runtime.onMessage` listener, so both replied; after this fix, only the frame that actually mounted (the one with `.jp-Notebook`) has a listener at all, so exactly one frame answers. This is the assumption Milestone 6 Task 3's "ping" design for page detection is built on — a response from _any_ frame now reliably means "the real notebook frame is listening," not "one of possibly two frames happened to answer."
 2. **Keyboard shortcuts now only fire with focus inside the notebook iframe.** Ctrl+Shift+L (re-lint) and Ctrl+Shift+H (toggle overlay) are bound via `document.addEventListener('keydown', ...)` inside `ContentApp`, which now only mounts in the notebook iframe. Previously the outer-shell instance's listener could theoretically catch these keystrokes too (though its lint always ran on zero cells, so pressing the shortcut there was already a no-op in every way that mattered). This is where typing happens anyway, so no behavior a user would notice changes.
 
 ## Task 1: manual per-frame verification (see plan Task 5 for the full gate)
@@ -179,10 +181,12 @@ git commit -m "fix(extension): mount only in the frame that hosts the notebook (
 ### Task 2: Errors carry the cell uuid
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx` (the `cellsForLinting` build and the `lintErrors` re-attachment inside `runLinter`, currently lines 86-121)
 - Modify: `packages/ui-components/src/types/index.ts` (`OverlayProps['errors']` inline element type, currently lines 20-30)
 
 **Interfaces:**
+
 - Consumes: `CodeMirrorManager.getAllCells()` (existing, already returns `{ code, cellIndex, uuid }` per `CodeMirrorManager.ts:73-86` — `uuid` was already there, just not read this far downstream).
 - Produces: `cellsForLinting` entries gain `uuid: string | null`; the errors `ContentApp` hands to `<Overlay>` gain `uuid: string | null` alongside the existing `element`. Consumed by Task 3 (the scroll-to-line request needs a `uuid`).
 
@@ -191,24 +195,28 @@ git commit -m "fix(extension): mount only in the frame that hosts the notebook (
 In `packages/extension/src/content/ContentApp.tsx`, find (currently lines 86-91):
 
 ```tsx
-      const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
-        code: stored.code,
-        cellIndex: stored.cellIndex,
-        element:
-          elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
-      }));
+const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
+  code: stored.code,
+  cellIndex: stored.cellIndex,
+  element:
+    elementByCellId.get(
+      codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)
+    ) ?? null,
+}));
 ```
 
 Replace with:
 
 ```tsx
-      const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
-        code: stored.code,
-        cellIndex: stored.cellIndex,
-        uuid: stored.uuid,
-        element:
-          elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
-      }));
+const cellsForLinting = codeMirrorManager.getAllCells().map((stored) => ({
+  code: stored.code,
+  cellIndex: stored.cellIndex,
+  uuid: stored.uuid,
+  element:
+    elementByCellId.get(
+      codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)
+    ) ?? null,
+}));
 ```
 
 - [ ] **Step 2: Re-attach `uuid` (alongside `element`) to the returned lint errors**
@@ -216,58 +224,62 @@ Replace with:
 In the same file, find (currently lines 108-127):
 
 ```tsx
-      let lintErrors;
-      try {
-        const elementByCellIndex = new Map(
-          cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
-        );
-        const rawErrors = await engineClientRef.lintNotebook(
-          settings.linterEngine,
-          cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
-          ignoreCodes
-        );
-        lintErrors = rawErrors.map((error) => ({
-          ...error,
-          element: elementByCellIndex.get(error.cellIndex) ?? null,
-        }));
-        setEngineStatus('ready');
-        console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
-      } catch (error) {
-        setEngineStatus('failed');
-        throw error;
-      }
+let lintErrors;
+try {
+  const elementByCellIndex = new Map(
+    cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
+  );
+  const rawErrors = await engineClientRef.lintNotebook(
+    settings.linterEngine,
+    cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
+    ignoreCodes
+  );
+  lintErrors = rawErrors.map((error) => ({
+    ...error,
+    element: elementByCellIndex.get(error.cellIndex) ?? null,
+  }));
+  setEngineStatus('ready');
+  console.log(
+    `[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`
+  );
+} catch (error) {
+  setEngineStatus('failed');
+  throw error;
+}
 ```
 
 Replace with:
 
 ```tsx
-      let lintErrors;
-      try {
-        const cellByCellIndex = new Map(
-          cellsForLinting.map((cell) => [
-            cell.cellIndex,
-            { element: cell.element, uuid: cell.uuid },
-          ])
-        );
-        const rawErrors = await engineClientRef.lintNotebook(
-          settings.linterEngine,
-          cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
-          ignoreCodes
-        );
-        lintErrors = rawErrors.map((error) => {
-          const cell = cellByCellIndex.get(error.cellIndex);
-          return {
-            ...error,
-            element: cell?.element ?? null,
-            uuid: cell?.uuid ?? null,
-          };
-        });
-        setEngineStatus('ready');
-        console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
-      } catch (error) {
-        setEngineStatus('failed');
-        throw error;
-      }
+let lintErrors;
+try {
+  const cellByCellIndex = new Map(
+    cellsForLinting.map((cell) => [
+      cell.cellIndex,
+      { element: cell.element, uuid: cell.uuid },
+    ])
+  );
+  const rawErrors = await engineClientRef.lintNotebook(
+    settings.linterEngine,
+    cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
+    ignoreCodes
+  );
+  lintErrors = rawErrors.map((error) => {
+    const cell = cellByCellIndex.get(error.cellIndex);
+    return {
+      ...error,
+      element: cell?.element ?? null,
+      uuid: cell?.uuid ?? null,
+    };
+  });
+  setEngineStatus('ready');
+  console.log(
+    `[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`
+  );
+} catch (error) {
+  setEngineStatus('failed');
+  throw error;
+}
 ```
 
 No other change in `runLinter` — the rest of the function (ignore-codes split, `setErrors(lintErrors)`, `finally`) already consumes whatever shape `lintErrors` has.
@@ -332,6 +344,7 @@ git commit -m "feat(extension): thread cell uuid onto lint errors"
 ### Task 3: Scroll to the exact line via the MAIN-world bridge (F33)
 
 **Files:**
+
 - Modify: `packages/extension/src/page/bridgeProtocol.ts` (add new message pair)
 - Modify: `packages/extension/src/page/pageExtractor.ts` (add scroll handler; restructure `handleMessage` to dispatch on `data.type`)
 - Modify: `packages/extension/src/utils/KaggleDomParser.ts` (add `scrollToCellLine()` bridge client)
@@ -339,18 +352,21 @@ git commit -m "feat(extension): thread cell uuid onto lint errors"
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (remove internal scroll)
 
 **Interfaces:**
+
 - Consumes: `error.uuid`, `error.cellIndex`, `error.cellLine` from Task 2.
 - Produces: `KaggleDomParser.scrollToCellLine(uuid: string | null, cellIndex: number, line: number): Promise<boolean>` — consumed by `ContentApp.handleErrorClick`.
 
-**Live-probe caveat:** Steps 2-3 below sketch `content.scrollToItem(index)` / `content.activeCellIndex = index` / `editor.setCursorPosition(...)` / `editor.revealPosition(...)` as the *expected* JupyterLab 4 widget/editor API shape. This has **not** been confirmed against a live notebook (unlike `extractViaJupyterModel`'s `sharedModel.getSource()`, which Milestone 2 did live-probe and record in its `notes.md`). Implement it as written, but Task 5's manual gate is where it gets checked against reality — if any of these members don't exist or behave differently on the actual page, adapt `pageExtractor.ts`'s `scrollToCellLine()` function to match what DevTools shows (e.g. `console.log(Object.keys(content))` / `Object.keys(widget.editor)` against a real `window.jupyterapp`), keep the request/response contract (`{ requestId, ok }`) unchanged, and record the actual shape found in `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`. The DOM-scroll fallback in Step 4 below must work regardless of whether the live API matches this sketch — it activates whenever the bridge returns `ok: false` or times out, which covers "the JupyterLab API shape guessed here was wrong" as well as "no `jupyterapp` in this frame."
+**Live-probe caveat:** Steps 2-3 below sketch `content.scrollToItem(index)` / `content.activeCellIndex = index` / `editor.setCursorPosition(...)` / `editor.revealPosition(...)` as the _expected_ JupyterLab 4 widget/editor API shape. This has **not** been confirmed against a live notebook (unlike `extractViaJupyterModel`'s `sharedModel.getSource()`, which Milestone 2 did live-probe and record in its `notes.md`). Implement it as written, but Task 5's manual gate is where it gets checked against reality — if any of these members don't exist or behave differently on the actual page, adapt `pageExtractor.ts`'s `scrollToCellLine()` function to match what DevTools shows (e.g. `console.log(Object.keys(content))` / `Object.keys(widget.editor)` against a real `window.jupyterapp`), keep the request/response contract (`{ requestId, ok }`) unchanged, and record the actual shape found in `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`. The DOM-scroll fallback in Step 4 below must work regardless of whether the live API matches this sketch — it activates whenever the bridge returns `ok: false` or times out, which covers "the JupyterLab API shape guessed here was wrong" as well as "no `jupyterapp` in this frame."
 
 - [ ] **Step 1: Add the scroll message pair to the protocol**
 
 In `packages/extension/src/page/bridgeProtocol.ts`, append after the existing `ExtractResponseMessage` interface:
 
 ```ts
-export const SCROLL_TO_CELL_LINE_REQUEST = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
-export const SCROLL_TO_CELL_LINE_RESPONSE = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_RESPONSE' as const;
+export const SCROLL_TO_CELL_LINE_REQUEST =
+  'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
+export const SCROLL_TO_CELL_LINE_RESPONSE =
+  'KAGGLE_LINT_SCROLL_TO_CELL_LINE_RESPONSE' as const;
 
 export interface ScrollToCellLineRequestMessage {
   type: typeof SCROLL_TO_CELL_LINE_REQUEST;
@@ -372,7 +388,12 @@ export interface ScrollToCellLineResponseMessage {
 In `packages/extension/src/page/pageExtractor.ts`, update the import line (currently line 11):
 
 ```ts
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell, type ExtractResponseMessage } from './bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  type PageExtractedCell,
+  type ExtractResponseMessage,
+} from './bridgeProtocol';
 ```
 
 Replace with:
@@ -433,7 +454,11 @@ function findCellWidget(
  * file's DOM-fallback extraction path looks for doesn't exist on Kaggle's
  * current build anyway (see extractViaJupyterModel's doc comment above).
  */
-function scrollToCellLine(uuid: string | null, cellIndex: number, line: number): boolean {
+function scrollToCellLine(
+  uuid: string | null,
+  cellIndex: number,
+  line: number
+): boolean {
   try {
     const found = findCellWidget(uuid, cellIndex);
     if (!found) {
@@ -471,7 +496,11 @@ function handleMessage(event: MessageEvent): void {
     return;
   }
   const data = event.data;
-  if (!data || data.type !== EXTRACT_REQUEST || typeof data.requestId !== 'string') {
+  if (
+    !data ||
+    data.type !== EXTRACT_REQUEST ||
+    typeof data.requestId !== 'string'
+  ) {
     return;
   }
 
@@ -529,7 +558,11 @@ function handleMessage(event: MessageEvent): void {
 In `packages/extension/src/utils/KaggleDomParser.ts`, update the import (currently line 14):
 
 ```ts
-import { EXTRACT_REQUEST, EXTRACT_RESPONSE, type PageExtractedCell } from '../page/bridgeProtocol';
+import {
+  EXTRACT_REQUEST,
+  EXTRACT_RESPONSE,
+  type PageExtractedCell,
+} from '../page/bridgeProtocol';
 ```
 
 Replace with:
@@ -599,49 +632,49 @@ Then add a new public method, right after `requestFromPage` (currently ending at
 In `packages/extension/src/content/ContentApp.tsx`, find (currently lines 331-343):
 
 ```tsx
-  /**
-   * Handle error click
-   */
-  const handleErrorClick = (error: any) => {
-    if (error.element) {
-      error.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Highlight cell
-      error.element.classList.add('kaggle-lint-highlight');
-      setTimeout(() => {
-        error.element.classList.remove('kaggle-lint-highlight');
-      }, 2000);
-    }
-  };
+/**
+ * Handle error click
+ */
+const handleErrorClick = (error: any) => {
+  if (error.element) {
+    error.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Highlight cell
+    error.element.classList.add('kaggle-lint-highlight');
+    setTimeout(() => {
+      error.element.classList.remove('kaggle-lint-highlight');
+    }, 2000);
+  }
+};
 ```
 
 Replace with:
 
 ```tsx
-  /**
-   * Handle error click (F33): ask the MAIN-world bridge to scroll via
-   * Jupyter's own virtualization-aware APIs and reveal the exact line.
-   * Falls back to a plain DOM scrollIntoView only if the bridge can't
-   * find the cell (pageExtractor not loaded in this frame, or the live
-   * JupyterLab API shape doesn't match what pageExtractor.ts expects) —
-   * 'auto' behavior, not 'smooth': an animated scroll can drift once
-   * virtualization reflows mid-animation, which is the bug F33 reports.
-   */
-  const handleErrorClick = async (error: any) => {
-    const ok = await domParser.scrollToCellLine(
-      error.uuid ?? null,
-      error.cellIndex ?? 0,
-      error.cellLine ?? error.line ?? 1
-    );
-    if (!ok && error.element) {
-      error.element.scrollIntoView({ behavior: 'auto', block: 'center' });
-    }
-    if (error.element) {
-      error.element.classList.add('kaggle-lint-highlight');
-      setTimeout(() => {
-        error.element.classList.remove('kaggle-lint-highlight');
-      }, 2000);
-    }
-  };
+/**
+ * Handle error click (F33): ask the MAIN-world bridge to scroll via
+ * Jupyter's own virtualization-aware APIs and reveal the exact line.
+ * Falls back to a plain DOM scrollIntoView only if the bridge can't
+ * find the cell (pageExtractor not loaded in this frame, or the live
+ * JupyterLab API shape doesn't match what pageExtractor.ts expects) —
+ * 'auto' behavior, not 'smooth': an animated scroll can drift once
+ * virtualization reflows mid-animation, which is the bug F33 reports.
+ */
+const handleErrorClick = async (error: any) => {
+  const ok = await domParser.scrollToCellLine(
+    error.uuid ?? null,
+    error.cellIndex ?? 0,
+    error.cellLine ?? error.line ?? 1
+  );
+  if (!ok && error.element) {
+    error.element.scrollIntoView({ behavior: 'auto', block: 'center' });
+  }
+  if (error.element) {
+    error.element.classList.add('kaggle-lint-highlight');
+    setTimeout(() => {
+      error.element.classList.remove('kaggle-lint-highlight');
+    }, 2000);
+  }
+};
 ```
 
 `error.element` may be `null` here — for a cell rendered at lint time but virtualized out again before the click, cell-level highlighting is simply skipped, same as today; the bridge scroll itself no longer depends on `error.element` being present at all (an improvement on the pre-fix behavior, which needed the DOM element for scrolling too).
@@ -677,30 +710,30 @@ function highlightCell(element: Element): void {
 Then find the component's internal `handleErrorClick` (currently lines 196-202):
 
 ```tsx
-  /**
-   * Handle error click
-   * EXACT LOGIC from old-linter/src/ui/overlay.js error item click handling
-   */
-  const handleErrorClick = (error: OverlayProps['errors'][0]) => {
-    scrollToError(error);
-    if (onErrorClick) {
-      onErrorClick(error);
-    }
-  };
+/**
+ * Handle error click
+ * EXACT LOGIC from old-linter/src/ui/overlay.js error item click handling
+ */
+const handleErrorClick = (error: OverlayProps['errors'][0]) => {
+  scrollToError(error);
+  if (onErrorClick) {
+    onErrorClick(error);
+  }
+};
 ```
 
 Replace with:
 
 ```tsx
-  /**
-   * Handle error click. Scrolling is the app's responsibility now (F33) —
-   * ContentApp's onErrorClick drives the MAIN-world bridge scroll with its
-   * own DOM fallback; Overlay no longer scrolls on its own, which used to
-   * mean every click scrolled twice.
-   */
-  const handleErrorClick = (error: OverlayProps['errors'][0]) => {
-    onErrorClick?.(error);
-  };
+/**
+ * Handle error click. Scrolling is the app's responsibility now (F33) —
+ * ContentApp's onErrorClick drives the MAIN-world bridge scroll with its
+ * own DOM fallback; Overlay no longer scrolls on its own, which used to
+ * mean every click scrolled twice.
+ */
+const handleErrorClick = (error: OverlayProps['errors'][0]) => {
+  onErrorClick?.(error);
+};
 ```
 
 - [ ] **Step 5: Verify**
@@ -738,12 +771,14 @@ git commit -m "fix(extension): scroll to exact error line via Jupyter APIs in MA
 ### Task 4: Model-authoritative store reconciliation (F34)
 
 **Files:**
+
 - Modify: `packages/extension/src/page/bridgeProtocol.ts` (`ExtractResponseMessage` gains optional `source`)
 - Modify: `packages/extension/src/page/pageExtractor.ts` (`extractAllCells()` reports its path; `EXTRACT_REQUEST` branch of `handleMessage` includes it)
 - Modify: `packages/extension/src/utils/KaggleDomParser.ts` (`getLastExtractionSource()` widens; `requestFromPage()`/`extractCells()` propagate `source`)
 - Modify: `packages/extension/src/content/ContentApp.tsx` (replace the merge-only comment/logic in `runLinter`, currently lines 64-75)
 
 **Interfaces:**
+
 - Consumes: `CodeMirrorManager.clear()` (already exists, `CodeMirrorManager.ts:134-137` — no change needed there).
 - Produces: `KaggleDomParser.getLastExtractionSource(): 'model' | 'dom' | 'dom-scrape'` (was `'bridge' | 'dom-scrape'`).
 
@@ -786,7 +821,10 @@ function extractAllCells(): PageExtractedCell[] {
 Replace with:
 
 ```ts
-function extractAllCells(): { cells: PageExtractedCell[]; source: 'model' | 'dom' } {
+function extractAllCells(): {
+  cells: PageExtractedCell[];
+  source: 'model' | 'dom';
+} {
   const modelCells = extractViaJupyterModel();
   if (modelCells) {
     return { cells: modelCells, source: 'model' };
@@ -798,31 +836,31 @@ function extractAllCells(): { cells: PageExtractedCell[]; source: 'model' | 'dom
 Then update the `EXTRACT_REQUEST` branch inside `handleMessage` (added/edited by Task 3 — find the current version, which reads):
 
 ```ts
-  if (data.type === EXTRACT_REQUEST) {
-    const response: ExtractResponseMessage = {
-      type: EXTRACT_RESPONSE,
-      requestId: data.requestId,
-      cells: extractAllCells(),
-    };
-    window.postMessage(response, '*');
-    return;
-  }
+if (data.type === EXTRACT_REQUEST) {
+  const response: ExtractResponseMessage = {
+    type: EXTRACT_RESPONSE,
+    requestId: data.requestId,
+    cells: extractAllCells(),
+  };
+  window.postMessage(response, '*');
+  return;
+}
 ```
 
 Replace with:
 
 ```ts
-  if (data.type === EXTRACT_REQUEST) {
-    const { cells, source } = extractAllCells();
-    const response: ExtractResponseMessage = {
-      type: EXTRACT_RESPONSE,
-      requestId: data.requestId,
-      cells,
-      source,
-    };
-    window.postMessage(response, '*');
-    return;
-  }
+if (data.type === EXTRACT_REQUEST) {
+  const { cells, source } = extractAllCells();
+  const response: ExtractResponseMessage = {
+    type: EXTRACT_RESPONSE,
+    requestId: data.requestId,
+    cells,
+    source,
+  };
+  window.postMessage(response, '*');
+  return;
+}
 ```
 
 - [ ] **Step 3: `KaggleDomParser` propagates and widens the source**
@@ -998,40 +1036,40 @@ Replace with:
 In `packages/extension/src/content/ContentApp.tsx`, find the comment block and `syncCells` call (currently lines 64-75):
 
 ```tsx
-      // Never clear() the store here. Both extraction paths are DOM-based:
-      // the MAIN-world bridge sees full CodeMirror document text for
-      // editors that ARE rendered, but — like the DOM-scrape fallback — it
-      // has no visibility into cells Kaggle hasn't mounted a `.cm-editor`
-      // for at all (i.e. cells scrolled out of a virtualized notebook). So
-      // "bridge succeeded" never means "saw every cell," and clearing on
-      // that basis would wipe exactly the virtualized-out coverage this
-      // store exists to provide. We only ever merge; a cell the user
-      // deletes leaves a stale store entry until the page reloads, which
-      // is an accepted tradeoff (extraction can't tell "deleted" apart
-      // from "not currently rendered").
-      codeMirrorManager.syncCells(cells);
+// Never clear() the store here. Both extraction paths are DOM-based:
+// the MAIN-world bridge sees full CodeMirror document text for
+// editors that ARE rendered, but — like the DOM-scrape fallback — it
+// has no visibility into cells Kaggle hasn't mounted a `.cm-editor`
+// for at all (i.e. cells scrolled out of a virtualized notebook). So
+// "bridge succeeded" never means "saw every cell," and clearing on
+// that basis would wipe exactly the virtualized-out coverage this
+// store exists to provide. We only ever merge; a cell the user
+// deletes leaves a stale store entry until the page reloads, which
+// is an accepted tradeoff (extraction can't tell "deleted" apart
+// from "not currently rendered").
+codeMirrorManager.syncCells(cells);
 ```
 
 Replace with:
 
 ```tsx
-      // The Jupyter-model path (pageExtractor.ts's extractViaJupyterModel)
-      // is rendering-independent — it reads every cell's source straight
-      // off the notebook model via sharedModel.getSource(), so it sees
-      // cells Kaggle has virtualized out of the DOM just as reliably as
-      // ones currently rendered. That result is a complete, authoritative
-      // sweep, so the store can safely be replaced: a cell the user
-      // deleted simply isn't in the new sweep and drops out (F34). Both
-      // DOM-based paths — the bridge's own internal DOM fallback, and this
-      // class's isolated-world DOM-scrape fallback used when the bridge
-      // doesn't respond at all — only ever see cells/lines Kaggle
-      // currently has mounted, so they stay merge-only; replacing on a
-      // partial sweep would wipe exactly the virtualized-out coverage this
-      // store exists to provide.
-      if (domParser.getLastExtractionSource() === 'model') {
-        codeMirrorManager.clear();
-      }
-      codeMirrorManager.syncCells(cells);
+// The Jupyter-model path (pageExtractor.ts's extractViaJupyterModel)
+// is rendering-independent — it reads every cell's source straight
+// off the notebook model via sharedModel.getSource(), so it sees
+// cells Kaggle has virtualized out of the DOM just as reliably as
+// ones currently rendered. That result is a complete, authoritative
+// sweep, so the store can safely be replaced: a cell the user
+// deleted simply isn't in the new sweep and drops out (F34). Both
+// DOM-based paths — the bridge's own internal DOM fallback, and this
+// class's isolated-world DOM-scrape fallback used when the bridge
+// doesn't respond at all — only ever see cells/lines Kaggle
+// currently has mounted, so they stay merge-only; replacing on a
+// partial sweep would wipe exactly the virtualized-out coverage this
+// store exists to provide.
+if (domParser.getLastExtractionSource() === 'model') {
+  codeMirrorManager.clear();
+}
+codeMirrorManager.syncCells(cells);
 ```
 
 - [ ] **Step 5: No extension unit test — extension package has no test runner**
@@ -1077,7 +1115,7 @@ git commit -m "fix(extension): model-sourced extraction replaces the cell store;
 - [ ] **Step 7 (F33):** Scroll a cell with an error far out of the viewport (virtualized out of the DOM — confirm via DevTools that its `.cm-editor` isn't currently in the document), then click that error in the overlay. Confirm it still lands on the correct cell and line (this is the case that used to silently do nothing, per finding F33(c)).
 - [ ] **Step 8 (F34):** Delete a cell that has at least one active lint error. Trigger a re-lint (edit any cell to trigger the debounced auto-relint, or Ctrl+Shift+L). Confirm the deleted cell's errors are gone from the overlay's list.
 - [ ] **Step 9 (regression):** Confirm error count is stable across several repeated re-lints at different scroll positions (this was Milestone 2's own regression class — don't reintroduce it). Confirm both engines (flake8 and ruff, switch via the popup) still lint successfully.
-- [ ] **Step 10:** If any check in Steps 4–9 fails, debug with `superpowers:systematic-debugging`. If the failure traces to a wrong assumption about Kaggle's current DOM or the JupyterLab widget/editor API shape sketched in Task 3 (e.g. `content.scrollToItem`/`editor.setCursorPosition`/`editor.revealPosition` don't exist or behave differently), adapt `pageExtractor.ts`'s `scrollToCellLine()` per this plan's *intent* — keep the `{ requestId, ok }` response contract, keep the DOM-scroll fallback as the safety net — and record what was actually found in `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`, per `docs/next_plans/README.md` rule 5.
+- [ ] **Step 10:** If any check in Steps 4–9 fails, debug with `superpowers:systematic-debugging`. If the failure traces to a wrong assumption about Kaggle's current DOM or the JupyterLab widget/editor API shape sketched in Task 3 (e.g. `content.scrollToItem`/`editor.setCursorPosition`/`editor.revealPosition` don't exist or behave differently), adapt `pageExtractor.ts`'s `scrollToCellLine()` per this plan's _intent_ — keep the `{ requestId, ok }` response contract, keep the DOM-scroll fallback as the safety net — and record what was actually found in `docs/next_plans/milestone-7-single-frame-and-navigation/notes.md`, per `docs/next_plans/README.md` rule 5.
 - [ ] **Step 11:** Commit any fixes/notes from Step 10. If Step 10 wasn't triggered, no further commit is needed — this closes out Milestone 7.
 
 ---
@@ -1089,6 +1127,6 @@ Per `docs/next_plans/README.md` rule 5, documented here rather than reopening an
 1. **`getLastExtractionSource()`'s return type widened in place rather than adding a second getter.** The milestone plan's Task 4 Step 2 says "extend `getLastExtractionSource()` to `'model' | 'dom' | 'dom-scrape'` or similar" — this plan does exactly that (widen, not add a parallel method), since every existing caller (just `ContentApp.runLinter`, one call site) already reads it as a single decision point and a second getter would just be two sources of truth for the same underlying `lastSource` field.
 2. **`ExtractResponseMessage.source` made optional, not required.** The milestone plan's own Task 4 Step 1 text says the message "gains `source: 'model' | 'dom'`" without specifying optionality, but the Global Constraints section (both the milestone plan's and this plan's) requires additive-only, backward-degrading protocol changes. Since `pageExtractor.js` and `content.js` are two separately-bundled scripts that can be at different versions after a partial extension reload (a stale cached MAIN-world script talking to a freshly-reloaded isolated-world one), the field must be optional with a safe default (`'dom'`) on the reading side — this plan's Step 1/Step 3 for Task 4 implement that explicitly.
 3. **Cell-level highlight kept, no line-level highlight added.** The milestone plan's Task 3 Step 4 says "highlight the line rather than (or in addition to) the whole cell" — explicitly optional phrasing. This plan keeps the existing whole-cell `kaggle-lint-highlight` class toggle (already implemented, no new CSS/DOM-query work needed) rather than adding line-level highlighting, since the milestone's own wording treats it as optional and the core F33 fix (correct scroll position) doesn't depend on it. If a future milestone wants line-level highlighting, `pageExtractor.ts`'s `scrollToCellLine` already resolves the exact widget/editor for the target cell and could be extended to return which DOM line was revealed.
-4. **`findCellWidget`'s uuid-miss fallback uses positional `cellIndex` into the live `widgets` array, not a "give up" response.** The milestone plan's Task 3 Step 2 says "fallback: `widgets[cellIndex]`" — this plan implements that literally (`findCellWidget` tries `uuid` first, then `widgets[cellIndex]`), rather than treating a uuid-miss as an automatic `ok: false`. This matches the milestone's own stated fallback order and gives the DOM-scroll fallback (Step 4) a strictly smaller failure surface (only fires when *neither* lookup succeeds, or no `jupyterapp` exists in the frame at all).
+4. **`findCellWidget`'s uuid-miss fallback uses positional `cellIndex` into the live `widgets` array, not a "give up" response.** The milestone plan's Task 3 Step 2 says "fallback: `widgets[cellIndex]`" — this plan implements that literally (`findCellWidget` tries `uuid` first, then `widgets[cellIndex]`), rather than treating a uuid-miss as an automatic `ok: false`. This matches the milestone's own stated fallback order and gives the DOM-scroll fallback (Step 4) a strictly smaller failure surface (only fires when _neither_ lookup succeeds, or no `jupyterapp` exists in the frame at all).
 
 No other deviations were found: every file path, line range, and signature named in `docs/next_plans/milestone-7-single-frame-and-navigation/plan.md` matched the current working tree exactly as of 2026-07-10.

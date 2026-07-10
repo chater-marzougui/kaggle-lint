@@ -111,7 +111,7 @@ MV3. Content script matches `https://www.kaggle.com/code/*/*/edit` and the Kaggl
 
 ## CI/CD
 
-- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`; each package now defines a real `"lint": "eslint src --ext .ts,.tsx"` script as of Milestone 4, so this job actually checks something for the first time — F4 was the *CI-wiring* finding and is formally credited to Milestone 5, but the underlying no-op is gone as of this milestone), type-check, test (core and now the lint-engine-consolidation project's additional core test suites; extension still has no test runner), build (uploads extension dist artifact). F5 (dead coverage upload) is still open, Milestone 5.
+- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`; each package now defines a real `"lint": "eslint src --ext .ts,.tsx"` script as of Milestone 4, so this job actually checks something for the first time — F4 was the _CI-wiring_ finding and is formally credited to Milestone 5, but the underlying no-op is gone as of this milestone), type-check, test (core and now the lint-engine-consolidation project's additional core test suites; extension still has no test runner), build (uploads extension dist artifact). F5 (dead coverage upload) is still open, Milestone 5.
 - **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with hardcoded "What's New" notes (F28, still open, Milestone 6).
 
 ## Settings & versioning

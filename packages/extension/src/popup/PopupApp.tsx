@@ -93,7 +93,10 @@ export const PopupApp: React.FC = () => {
     saveSettings({ ...settings, linterEngine: engine });
   };
 
-  const handleIgnoreCodesChange = (engine: 'flake8' | 'ruff', value: string) => {
+  const handleIgnoreCodesChange = (
+    engine: 'flake8' | 'ruff',
+    value: string
+  ) => {
     if (engine === 'flake8') {
       saveSettings({ ...settings, flake8IgnoreCodes: value });
     } else {
@@ -153,7 +156,9 @@ export const PopupApp: React.FC = () => {
   }
 
   const currentIgnoreCodes =
-    settings.linterEngine === 'flake8' ? settings.flake8IgnoreCodes : settings.ruffIgnoreCodes;
+    settings.linterEngine === 'flake8'
+      ? settings.flake8IgnoreCodes
+      : settings.ruffIgnoreCodes;
 
   return (
     <div className="popup-container">
@@ -188,9 +193,12 @@ export const PopupApp: React.FC = () => {
                   onChange={() => handleEngineChange('flake8')}
                 />
                 <div className="option-info">
-                  <span className="option-label">Flake8 (slower first load)</span>
+                  <span className="option-label">
+                    Flake8 (slower first load)
+                  </span>
                   <span className="option-description">
-                    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
+                    Industry-standard Python linter (pyflakes + pycodestyle +
+                    mccabe)
                   </span>
                 </div>
               </label>
@@ -203,7 +211,9 @@ export const PopupApp: React.FC = () => {
                   onChange={() => handleEngineChange('ruff')}
                 />
                 <div className="option-info">
-                  <span className="option-label">Ruff (recommended — instant)</span>
+                  <span className="option-label">
+                    Ruff (recommended — instant)
+                  </span>
                   <span className="option-description">
                     Fast Rust-based Python linter — no Python runtime needed
                   </span>
@@ -224,12 +234,15 @@ export const PopupApp: React.FC = () => {
           <div className="section-content">
             <label className="option-item" style={{ display: 'block' }}>
               <span className="option-description">
-                Comma-separated codes to ignore for {settings.linterEngine} (e.g. E501, F401)
+                Comma-separated codes to ignore for {settings.linterEngine}{' '}
+                (e.g. E501, F401)
               </span>
               <input
                 type="text"
                 value={currentIgnoreCodes}
-                onChange={(e) => handleIgnoreCodesChange(settings.linterEngine, e.target.value)}
+                onChange={(e) =>
+                  handleIgnoreCodesChange(settings.linterEngine, e.target.value)
+                }
                 placeholder="E501, F401"
               />
             </label>

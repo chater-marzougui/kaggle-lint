@@ -29,8 +29,10 @@ export interface ExtractResponseMessage {
   source?: 'model' | 'dom';
 }
 
-export const SCROLL_TO_CELL_LINE_REQUEST = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
-export const SCROLL_TO_CELL_LINE_RESPONSE = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_RESPONSE' as const;
+export const SCROLL_TO_CELL_LINE_REQUEST =
+  'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
+export const SCROLL_TO_CELL_LINE_RESPONSE =
+  'KAGGLE_LINT_SCROLL_TO_CELL_LINE_RESPONSE' as const;
 
 export interface ScrollToCellLineRequestMessage {
   type: typeof SCROLL_TO_CELL_LINE_REQUEST;
@@ -54,8 +56,10 @@ export interface ScrollToCellLineResponseMessage {
 // number to its live `.cm-line` DOM node via the real CM6 EditorView's
 // domAtPos() — the same technique SCROLL_TO_CELL_LINE_REQUEST's highlight
 // already uses successfully — instead of guessing from isolated-world DOM.
-export const APPLY_LINE_MARKERS_REQUEST = 'KAGGLE_LINT_APPLY_LINE_MARKERS_REQUEST' as const;
-export const APPLY_LINE_MARKERS_RESPONSE = 'KAGGLE_LINT_APPLY_LINE_MARKERS_RESPONSE' as const;
+export const APPLY_LINE_MARKERS_REQUEST =
+  'KAGGLE_LINT_APPLY_LINE_MARKERS_REQUEST' as const;
+export const APPLY_LINE_MARKERS_RESPONSE =
+  'KAGGLE_LINT_APPLY_LINE_MARKERS_RESPONSE' as const;
 
 export interface LineMarkerTarget {
   uuid: string | null;

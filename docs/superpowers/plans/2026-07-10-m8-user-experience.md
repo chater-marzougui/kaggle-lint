@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the linter feel like a product a Kaggle user keeps enabled: instant results on open (ruff default), problems visible *at the line* in the editor, one-click muting of noisy codes, a glanceable count when the panel is tucked away, and a panel that stays where you put it.
+**Goal:** Make the linter feel like a product a Kaggle user keeps enabled: instant results on open (ruff default), problems visible _at the line_ in the editor, one-click muting of noisy codes, a glanceable count when the panel is tucked away, and a panel that stays where you put it.
 
 **Architecture:** Task 1 rewrites `Overlay` from imperative DOM manipulation to React state + CSS (F11 full, moved here from Milestone 6 Task 1) so every later task in this milestone builds on a clean, typed component instead of extending the old pattern. Tasks 2–6 each layer one independent feature on top of Task 1's interfaces and on M7's plumbing (errors already carry `uuid` + exact `cellLine`; the MAIN-world scroll bridge already exists).
 
@@ -15,14 +15,14 @@
 - Confirmed live (per `docs/next_plans/DEVELOPER_PROMPTS.md`'s M8 note): M7 already added `uuid?: string | null` to `OverlayProps['errors']` and deleted `Overlay.tsx`'s internal `scrollToError`/`highlightCell` plus its own `handleErrorClick`'s scroll call — `onErrorClick` is now a pure pass-through. Task 1 below is written against this actual current file, not the pre-M7 shape the milestone plan's Task 1 text paraphrases.
 - **`packages/extension/public/content.css` does not exist.** The milestone plan's Task 3 lists it as a file to modify, but per `webpack.config.js`'s `CopyPlugin` config, the bundle's `content.css` is a straight copy of `packages/ui-components/src/Overlay/Overlay.css` — there is no separate extension-owned stylesheet. Task 3's marker CSS goes into `Overlay.css`, which already doubles as the page-level stylesheet the manifest injects (`content_scripts[0].css: ["content.css"]`), so rules targeting `.cm-line` (a Kaggle page element, not something inside the overlay's own subtree) apply correctly from there.
 - `packages/extension/package.json` and `packages/ui-components/package.json` confirm neither package has a `test` script — this repo has exactly one Jest project (`packages/core`, per `CLAUDE.md`). Every task below substitutes `type-check && build` plus static `grep` checks for what would otherwise be a failing-test-first step, mirroring the established convention from `docs/superpowers/plans/2026-07-09-m2-reliable-code-extraction.md` and `docs/superpowers/plans/2026-07-10-m7-single-frame-and-navigation.md`. Do not add a Jest suite for either package; that's Milestone 5's job.
-- `packages/ui-components/src/types/index.ts` still keeps its own local `Severity`/`LintError` duplicated from core (finding F15) — this plan does not fix that duplication; it is explicitly Milestone 4 Task 4's job (per `docs/architecture.md`). Task 1 below adds a new `LintUIError` type in the *same* file, extending that local `LintError`, not core's — consistent with the file's existing (if duplicated) convention, and not a new instance of the drift since it's additive to what F15 already covers.
+- `packages/ui-components/src/types/index.ts` still keeps its own local `Severity`/`LintError` duplicated from core (finding F15) — this plan does not fix that duplication; it is explicitly Milestone 4 Task 4's job (per `docs/architecture.md`). Task 1 below adds a new `LintUIError` type in the _same_ file, extending that local `LintError`, not core's — consistent with the file's existing (if duplicated) convention, and not a new instance of the drift since it's additive to what F15 already covers.
 - `packages/extension/public/manifest.json` already declares an `"action"` key (popup + icons) with no separate `"action"` permission string required for `chrome.action.setBadgeText`/`setBadgeBackgroundColor` in MV3 — Task 5 needs no manifest change.
 - The milestone plan's Task 5 Step 1 says "Minimized state currently shows only the title." Reading `Overlay.css` shows this is not quite accurate: only `.kaggle-lint-errors` and `.kaggle-lint-success` collapse to zero height when minimized (`Overlay.css:28-47`); `.kaggle-lint-summary` (the error/warning/info counts) has no such rule and stays visible today. Task 5 below is scoped down accordingly — it adds the worst-severity accent color (the part not already true) rather than re-adding counts that already render; this is noted again in Task 5 and in "Deviations."
 
 ## Global Constraints
 
 - Every task ends with `npm run type-check && npm run build && npm test` green (Git Bash, repo root). `npm test` only exercises `packages/core`, which no task in this plan touches — it is a regression guard, not a new-test signal for this milestone's own work.
-- Settings storage **shape** stays `{ linterEngine, flake8IgnoreCodes, ruffIgnoreCodes }` under the `linterSettings` key in `chrome.storage.sync` — Tasks 2 and 4 change *values* only, never keys or types. New UI-only state (Task 6) goes in a *new* `chrome.storage.local` key, never reusing or restructuring `linterSettings`.
+- Settings storage **shape** stays `{ linterEngine, flake8IgnoreCodes, ruffIgnoreCodes }` under the `linterSettings` key in `chrome.storage.sync` — Tasks 2 and 4 change _values_ only, never keys or types. New UI-only state (Task 6) goes in a _new_ `chrome.storage.local` key, never reusing or restructuring `linterSettings`.
 - New UI is React-state + CSS only; no new imperative style-writing except ref-based drag-offset writes (Task 1), which the milestone plan explicitly allows.
 - No new npm dependencies in any `package.json`.
 - No test runner exists for `packages/extension` or `packages/ui-components` (confirmed above) — every task substitutes `type-check && build` plus static `grep`/`ls` checks for a failing-test-first step. Do not add one; that's Milestone 5's job.
@@ -31,30 +31,32 @@
 
 ## File Structure
 
-| File | Responsibility after this milestone |
-|---|---|
-| `packages/ui-components/src/types/index.ts` | Gains `LintUIError` (the enriched error shape `Overlay`/`ErrorList`/`ErrorItem` actually render); `OverlayProps`/`ErrorListProps`/`ErrorItemProps` use it instead of `any`; gains `onIgnoreCode`, `initialPosition`, `initialMinimized`, `onStateChange`. |
-| `packages/ui-components/src/Overlay/Overlay.tsx` | Minimize/expand driven entirely by the `kaggle-lint-minimized` class + CSS; drag writes a ref-held offset to CSS custom properties; typed props throughout; accepts persisted UI state and reports changes via `onStateChange`. |
-| `packages/ui-components/src/Overlay/Overlay.css` | Owns minimize/drag geometry (was inline JS), the mute-button hover reveal, the in-editor line-marker classes (doubles as the page-injected `content.css`), and the worst-severity pill accent. |
-| `packages/ui-components/src/ErrorItem/ErrorItem.tsx` | Gains a per-row mute button that calls `onIgnoreCode(code)` without triggering the row's scroll-to click. |
-| `packages/ui-components/src/ErrorList/ErrorList.tsx` | Threads `onIgnoreCode` through to each `ErrorItem`. |
-| `packages/extension/src/content/lineMarkers.ts` | New. Maps lint errors to rendered `.cm-line` elements via the CM6 line-number gutter (virtualization-safe) and applies/clears severity classes + tooltips. |
-| `packages/extension/src/content/ContentApp.tsx` | Typed `errors` state; ruff-first default; wires line markers (apply on lint, refresh on notebook mutation, clear on hide); one-click-ignore handler; sends lint-stats to the background worker; loads/saves/clamps persisted overlay UI state. |
-| `packages/extension/src/background/statsProtocol.ts` | New. Shared message type for content→background lint-count reporting (kept separate from `engine/protocol.ts`, which is engine-specific). |
-| `packages/extension/src/background/index.ts` | Gains a badge-setting branch for the new stats message, alongside its existing engine-message relay. |
-| `packages/extension/src/popup/PopupApp.tsx` | Ruff-first default; engine labels note load-time tradeoff. |
+| File                                                 | Responsibility after this milestone                                                                                                                                                                                                                       |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/ui-components/src/types/index.ts`          | Gains `LintUIError` (the enriched error shape `Overlay`/`ErrorList`/`ErrorItem` actually render); `OverlayProps`/`ErrorListProps`/`ErrorItemProps` use it instead of `any`; gains `onIgnoreCode`, `initialPosition`, `initialMinimized`, `onStateChange`. |
+| `packages/ui-components/src/Overlay/Overlay.tsx`     | Minimize/expand driven entirely by the `kaggle-lint-minimized` class + CSS; drag writes a ref-held offset to CSS custom properties; typed props throughout; accepts persisted UI state and reports changes via `onStateChange`.                           |
+| `packages/ui-components/src/Overlay/Overlay.css`     | Owns minimize/drag geometry (was inline JS), the mute-button hover reveal, the in-editor line-marker classes (doubles as the page-injected `content.css`), and the worst-severity pill accent.                                                            |
+| `packages/ui-components/src/ErrorItem/ErrorItem.tsx` | Gains a per-row mute button that calls `onIgnoreCode(code)` without triggering the row's scroll-to click.                                                                                                                                                 |
+| `packages/ui-components/src/ErrorList/ErrorList.tsx` | Threads `onIgnoreCode` through to each `ErrorItem`.                                                                                                                                                                                                       |
+| `packages/extension/src/content/lineMarkers.ts`      | New. Maps lint errors to rendered `.cm-line` elements via the CM6 line-number gutter (virtualization-safe) and applies/clears severity classes + tooltips.                                                                                                |
+| `packages/extension/src/content/ContentApp.tsx`      | Typed `errors` state; ruff-first default; wires line markers (apply on lint, refresh on notebook mutation, clear on hide); one-click-ignore handler; sends lint-stats to the background worker; loads/saves/clamps persisted overlay UI state.            |
+| `packages/extension/src/background/statsProtocol.ts` | New. Shared message type for content→background lint-count reporting (kept separate from `engine/protocol.ts`, which is engine-specific).                                                                                                                 |
+| `packages/extension/src/background/index.ts`         | Gains a badge-setting branch for the new stats message, alongside its existing engine-message relay.                                                                                                                                                      |
+| `packages/extension/src/popup/PopupApp.tsx`          | Ruff-first default; engine labels note load-time tradeoff.                                                                                                                                                                                                |
 
 ---
 
 ### Task 1: React-pure Overlay (F11 full)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/types/index.ts` (entire file)
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (entire file)
 - Modify: `packages/ui-components/src/Overlay/Overlay.css` (4 targeted edits)
 - Modify: `packages/extension/src/content/ContentApp.tsx` (import + 2 targeted edits)
 
 **Interfaces:**
+
 - Consumes: nothing from an earlier task (this is the milestone's foundation task).
 - Produces: `LintUIError` (exported from `packages/ui-components/src/types/index.ts`, re-exported via `@kaggle-lint/ui-components`'s `export * from './types'`) — the shape every later task's error-handling code uses. `Overlay`'s internal `dragOffsetRef: { x: number; y: number }` and the `--kaggle-lint-drag-x`/`--kaggle-lint-drag-y` CSS custom properties it writes — Task 6 reads/seeds these. The `kaggle-lint-btn-toggle` class on the minimize button and the `kaggle-lint-minimized` root class — Task 5 keys its pill accent off the same class.
 
@@ -360,8 +362,8 @@ export const Overlay: React.FC<OverlayProps> = ({
         {engineStatus === 'failed' && (
           <div className="kaggle-lint-engine-status">
             Linter engine failed to load — check the offscreen document's
-            console (chrome://extensions → this extension → inspect the
-            "service worker" / "offscreen document" links) or try re-linting.
+            console (chrome://extensions → this extension → inspect the "service
+            worker" / "offscreen document" links) or try re-linting.
           </div>
         )}
 
@@ -400,11 +402,13 @@ In `packages/ui-components/src/Overlay/Overlay.css`, find the top rule block (cu
   z-index: 10000;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', sans-serif;
   font-size: 13px;
   overflow: hidden;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -425,8 +429,9 @@ Replace with:
   z-index: 10000;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', sans-serif;
   font-size: 13px;
   overflow: hidden;
   /* Overlay.tsx writes these two directly via ref on drag, never through
@@ -434,7 +439,8 @@ Replace with:
   --kaggle-lint-drag-x: 0px;
   --kaggle-lint-drag-y: 0px;
   transform: translate(var(--kaggle-lint-drag-x), var(--kaggle-lint-drag-y));
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 ```
@@ -482,7 +488,9 @@ Replace with:
   max-width: 160px;
   opacity: 1;
   margin: 0;
-  transition: opacity 0.2s ease, max-width 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    max-width 0.2s ease;
 }
 
 .kaggle-lint-minimized .kaggle-lint-title-text {
@@ -535,13 +543,13 @@ import type { LintUIError } from '@kaggle-lint/ui-components';
 Find (currently line 30):
 
 ```tsx
-  const [errors, setErrors] = useState<any[]>([]);
+const [errors, setErrors] = useState<any[]>([]);
 ```
 
 Replace with:
 
 ```tsx
-  const [errors, setErrors] = useState<LintUIError[]>([]);
+const [errors, setErrors] = useState<LintUIError[]>([]);
 ```
 
 Find `handleErrorClick` (currently lines 372-396, the doc comment plus function):
@@ -595,10 +603,12 @@ git commit -m "refactor(ui): overlay state and animation via React + CSS; typed 
 ### Task 2: Ruff as the default engine
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx` (`DEFAULT_SETTINGS`, currently lines 23-27)
 - Modify: `packages/extension/src/popup/PopupApp.tsx` (`DEFAULT_SETTINGS` at lines 14-18, and the two `option-label` spans at lines 191 and 206)
 
 **Interfaces:**
+
 - Consumes: nothing from Task 1.
 - Produces: nothing consumed by later tasks — this is a self-contained default-value change.
 
@@ -656,45 +666,45 @@ const DEFAULT_SETTINGS: Settings = {
 Find (currently lines 190-196):
 
 ```tsx
-                <div className="option-info">
-                  <span className="option-label">Flake8</span>
-                  <span className="option-description">
-                    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
-                  </span>
-                </div>
+<div className="option-info">
+  <span className="option-label">Flake8</span>
+  <span className="option-description">
+    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
+  </span>
+</div>
 ```
 
 Replace with:
 
 ```tsx
-                <div className="option-info">
-                  <span className="option-label">Flake8 (slower first load)</span>
-                  <span className="option-description">
-                    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
-                  </span>
-                </div>
+<div className="option-info">
+  <span className="option-label">Flake8 (slower first load)</span>
+  <span className="option-description">
+    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
+  </span>
+</div>
 ```
 
 Find (currently lines 205-211):
 
 ```tsx
-                <div className="option-info">
-                  <span className="option-label">Ruff</span>
-                  <span className="option-description">
-                    Fast Rust-based Python linter — no Python runtime needed
-                  </span>
-                </div>
+<div className="option-info">
+  <span className="option-label">Ruff</span>
+  <span className="option-description">
+    Fast Rust-based Python linter — no Python runtime needed
+  </span>
+</div>
 ```
 
 Replace with:
 
 ```tsx
-                <div className="option-info">
-                  <span className="option-label">Ruff (recommended — instant)</span>
-                  <span className="option-description">
-                    Fast Rust-based Python linter — no Python runtime needed
-                  </span>
-                </div>
+<div className="option-info">
+  <span className="option-label">Ruff (recommended — instant)</span>
+  <span className="option-description">
+    Fast Rust-based Python linter — no Python runtime needed
+  </span>
+</div>
 ```
 
 - [ ] **Step 4: Verify**
@@ -722,12 +732,14 @@ git commit -m "feat(extension): default new installs to the ruff engine"
 ### Task 3: In-editor line markers (the flagship)
 
 **Files:**
+
 - Create: `packages/extension/src/content/lineMarkers.ts`
 - Modify: `packages/extension/src/content/ContentApp.tsx`
 - Modify: `packages/ui-components/src/Overlay/Overlay.css` (**not** `packages/extension/public/content.css` — see the source-of-truth note above; that file doesn't exist, and `Overlay.css` is the actual source of the bundled `content.css`)
 - Create: `docs/next_plans/milestone-8-user-experience/notes.md`
 
 **Interfaces:**
+
 - Consumes: `LintUIError` (Task 1), specifically `.element` (the `.jp-Cell`), `.cellLine`/`.line`, `.severity`, `.code`, `.msg`.
 - Produces: `applyLineMarkers(targets: MarkerTarget[]): void` and `clearAllLineMarkers(root?: ParentNode): void`, exported from `lineMarkers.ts` — used only within `ContentApp.tsx` in this plan, but self-contained enough for a later task to reuse.
 
@@ -738,14 +750,16 @@ git commit -m "feat(extension): default new installs to the ruff engine"
 On a real Kaggle notebook in edit mode, open DevTools, select any code cell's editor, and run in the console:
 
 ```js
-document.querySelector('.jp-CodeCell .cm-gutters .cm-lineNumbers')
+document.querySelector('.jp-CodeCell .cm-gutters .cm-lineNumbers');
 ```
 
-Expected: a non-null element containing one `.cm-gutterElement` child per currently-rendered line, each with a `textContent` equal to that line's real document line number (test this explicitly: scroll a 200+ line cell partway down and confirm the *first visible* gutter element's text is **not** `"1"`).
+Expected: a non-null element containing one `.cm-gutterElement` child per currently-rendered line, each with a `textContent` equal to that line's real document line number (test this explicitly: scroll a 200+ line cell partway down and confirm the _first visible_ gutter element's text is **not** `"1"`).
 
 ```js
 document.querySelectorAll('.jp-CodeCell .cm-content > .cm-line').length ===
-  document.querySelectorAll('.jp-CodeCell .cm-gutters .cm-lineNumbers .cm-gutterElement').length
+  document.querySelectorAll(
+    '.jp-CodeCell .cm-gutters .cm-lineNumbers .cm-gutterElement'
+  ).length;
 ```
 
 Expected: `true` — confirms the gutter and content render the same number of visible lines in the same order, which is what lets Step 3 pair them positionally without ever assuming "line N" means "the Nth `.cm-line` child."
@@ -849,11 +863,18 @@ function severityClass(severity: Severity): string {
 function buildLineElementMap(cellElement: Element): Map<number, HTMLElement> {
   const map = new Map<number, HTMLElement>();
   const gutterElements = Array.from(
-    cellElement.querySelectorAll('.cm-gutters .cm-lineNumbers .cm-gutterElement')
+    cellElement.querySelectorAll(
+      '.cm-gutters .cm-lineNumbers .cm-gutterElement'
+    )
   );
-  const lineElements = Array.from(cellElement.querySelectorAll('.cm-content > .cm-line'));
+  const lineElements = Array.from(
+    cellElement.querySelectorAll('.cm-content > .cm-line')
+  );
 
-  if (gutterElements.length === 0 || gutterElements.length !== lineElements.length) {
+  if (
+    gutterElements.length === 0 ||
+    gutterElements.length !== lineElements.length
+  ) {
     return map;
   }
 
@@ -879,7 +900,10 @@ function buildLineElementMap(cellElement: Element): Map<number, HTMLElement> {
  * cells/lines are silently skipped; they'll get marked once the user
  * scrolls them into view and a refresh pass re-runs this function.
  */
-export function applyLineMarkers(targets: MarkerTarget[], root: ParentNode = document): void {
+export function applyLineMarkers(
+  targets: MarkerTarget[],
+  root: ParentNode = document
+): void {
   clearAllLineMarkers(root);
 
   const mapByCell = new Map<Element, Map<number, HTMLElement>>();
@@ -943,83 +967,85 @@ import { applyLineMarkers, clearAllLineMarkers } from './lineMarkers';
 After the `errors`/`visible` state declarations (currently lines 30-31), add a ref that mirrors the latest `errors` for the mutation-driven refresh effect below (same "read the latest value inside a long-lived listener without adding it to deps" pattern this file already uses for `runLinterRef`/`isLintingRef`):
 
 ```tsx
-  const [errors, setErrors] = useState<LintUIError[]>([]);
-  const [visible, setVisible] = useState(true);
+const [errors, setErrors] = useState<LintUIError[]>([]);
+const [visible, setVisible] = useState(true);
 ```
 
 Replace with:
 
 ```tsx
-  const [errors, setErrors] = useState<LintUIError[]>([]);
-  const errorsRef = React.useRef<LintUIError[]>([]);
-  const [visible, setVisible] = useState(true);
+const [errors, setErrors] = useState<LintUIError[]>([]);
+const errorsRef = React.useRef<LintUIError[]>([]);
+const [visible, setVisible] = useState(true);
 ```
 
 Add a small local helper plus two new effects right after the keyboard-shortcut effect (currently ending at line 271, just before the "Setup message listener" comment):
 
 ```tsx
-  /**
-   * In-editor line markers (Task 3). Converts the current error list into
-   * lineMarkers.ts's MarkerTarget shape — only errors whose cell element
-   * is still live get a target; a virtualized-out cell simply gets no
-   * marker until it's scrolled back into view and this reruns.
-   */
-  const buildMarkerTargets = (list: LintUIError[]) =>
-    list
-      .filter((error): error is LintUIError & { element: Element } => Boolean(error.element))
-      .map((error) => ({
-        cellElement: error.element,
-        cellLine: error.cellLine ?? error.line,
-        severity: error.severity,
-        code: error.code,
-        msg: error.msg,
-      }));
+/**
+ * In-editor line markers (Task 3). Converts the current error list into
+ * lineMarkers.ts's MarkerTarget shape — only errors whose cell element
+ * is still live get a target; a virtualized-out cell simply gets no
+ * marker until it's scrolled back into view and this reruns.
+ */
+const buildMarkerTargets = (list: LintUIError[]) =>
+  list
+    .filter((error): error is LintUIError & { element: Element } =>
+      Boolean(error.element)
+    )
+    .map((error) => ({
+      cellElement: error.element,
+      cellLine: error.cellLine ?? error.line,
+      severity: error.severity,
+      code: error.code,
+      msg: error.msg,
+    }));
 
-  /** Refresh markers whenever the error list itself changes (a completed lint). */
-  useEffect(() => {
-    errorsRef.current = errors;
-    applyLineMarkers(buildMarkerTargets(errors));
-  }, [errors]);
+/** Refresh markers whenever the error list itself changes (a completed lint). */
+useEffect(() => {
+  errorsRef.current = errors;
+  applyLineMarkers(buildMarkerTargets(errors));
+}, [errors]);
 
-  /**
-   * Refresh markers on notebook DOM mutations too: Kaggle's virtualization
-   * mounts/unmounts `.cm-line` nodes on scroll independently of any lint
-   * running, so a cell whose errors are already known can still need its
-   * markers reapplied without a new lint. This observer only ever calls
-   * classList.add/removeAttribute('title') (attribute mutations), which the
-   * separate auto-relint observer above does NOT watch (its config is
-   * childList/characterData/subtree only, no `attributes: true`) — so
-   * marker writes never trigger a relint loop. `.jp-Notebook` is guaranteed
-   * present here: content/index.tsx only mounts ContentApp once it exists.
-   */
-  useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleMarkerRefresh = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        applyLineMarkers(buildMarkerTargets(errorsRef.current));
-      }, 300);
-    };
+/**
+ * Refresh markers on notebook DOM mutations too: Kaggle's virtualization
+ * mounts/unmounts `.cm-line` nodes on scroll independently of any lint
+ * running, so a cell whose errors are already known can still need its
+ * markers reapplied without a new lint. This observer only ever calls
+ * classList.add/removeAttribute('title') (attribute mutations), which the
+ * separate auto-relint observer above does NOT watch (its config is
+ * childList/characterData/subtree only, no `attributes: true`) — so
+ * marker writes never trigger a relint loop. `.jp-Notebook` is guaranteed
+ * present here: content/index.tsx only mounts ContentApp once it exists.
+ */
+useEffect(() => {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleMarkerRefresh = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      applyLineMarkers(buildMarkerTargets(errorsRef.current));
+    }, 300);
+  };
 
-    const notebook = document.querySelector('.jp-Notebook');
-    if (!notebook) return undefined;
+  const notebook = document.querySelector('.jp-Notebook');
+  if (!notebook) return undefined;
 
-    const observer = new MutationObserver(scheduleMarkerRefresh);
-    observer.observe(notebook, { childList: true, subtree: true });
+  const observer = new MutationObserver(scheduleMarkerRefresh);
+  observer.observe(notebook, { childList: true, subtree: true });
 
-    return () => {
-      observer.disconnect();
-      if (debounceTimer) clearTimeout(debounceTimer);
-    };
-  }, []);
+  return () => {
+    observer.disconnect();
+    if (debounceTimer) clearTimeout(debounceTimer);
+  };
+}, []);
 
-  /** Full clear when the overlay is hidden (F-free feature, but same discipline as the rest of this file: no stale markers left behind). */
-  useEffect(() => {
-    if (!visible) {
-      clearAllLineMarkers();
-    }
-  }, [visible]);
+/** Full clear when the overlay is hidden (F-free feature, but same discipline as the rest of this file: no stale markers left behind). */
+useEffect(() => {
+  if (!visible) {
+    clearAllLineMarkers();
+  }
+}, [visible]);
 ```
 
 - [ ] **Step 5: Verify**
@@ -1065,6 +1091,7 @@ git commit -m "feat(extension): in-editor severity markers on error lines"
 ### Task 4: One-click ignore from an error item
 
 **Files:**
+
 - Modify: `packages/ui-components/src/types/index.ts` (add `onIgnoreCode` to three interfaces)
 - Modify: `packages/ui-components/src/ErrorItem/ErrorItem.tsx`
 - Modify: `packages/ui-components/src/ErrorList/ErrorList.tsx`
@@ -1073,6 +1100,7 @@ git commit -m "feat(extension): in-editor severity markers on error lines"
 - Modify: `packages/extension/src/content/ContentApp.tsx` (handler)
 
 **Interfaces:**
+
 - Consumes: `LintUIError.code` (Task 1); the `Settings` interface/`DEFAULT_SETTINGS` already in `ContentApp.tsx`.
 - Produces: `OverlayProps.onIgnoreCode?: (code: string) => void` — Task 6 does not depend on this, but both features live on the same `<Overlay>` call site in `ContentApp.tsx`, so this task's edit and Task 6's edit to that same JSX block must both be applied (order doesn't matter between them).
 
@@ -1343,13 +1371,17 @@ export const Overlay: React.FC<OverlayProps> = ({
 Find the `<ErrorList>` call:
 
 ```tsx
-        <ErrorList errors={errors} onErrorClick={handleErrorClick} />
+<ErrorList errors={errors} onErrorClick={handleErrorClick} />
 ```
 
 Replace with:
 
 ```tsx
-        <ErrorList errors={errors} onErrorClick={handleErrorClick} onIgnoreCode={onIgnoreCode} />
+<ErrorList
+  errors={errors}
+  onErrorClick={handleErrorClick}
+  onIgnoreCode={onIgnoreCode}
+/>
 ```
 
 - [ ] **Step 5: Style the mute button (hover-revealed, doesn't shift layout)**
@@ -1370,7 +1402,9 @@ In `packages/ui-components/src/Overlay/Overlay.css`, append (before the line-mar
   cursor: pointer;
   font-size: 12px;
   opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .kaggle-lint-error-item:hover .kaggle-lint-btn-ignore {
@@ -1392,67 +1426,71 @@ In `packages/ui-components/src/Overlay/Overlay.css`, append (before the line-mar
 In `packages/extension/src/content/ContentApp.tsx`, add a handler right after `handleErrorClick` (the one Task 1 retyped):
 
 ```tsx
-  /**
-   * One-click ignore (Task 4): appends the code to whichever engine is
-   * active, deduped, reusing the exact same chrome.storage.sync write and
-   * `linterSettings` key the popup uses — so the popup's own ignore-codes
-   * input reflects this immediately next time it's opened (it already
-   * reads storage on mount). Writing to `settings` state also re-triggers
-   * the existing settings-changed effect, which debounces and re-lints —
-   * no separate re-lint call needed here.
-   */
-  const handleIgnoreCode = (code: string) => {
-    setSettings((prev) => {
-      const key = prev.linterEngine === 'flake8' ? 'flake8IgnoreCodes' : 'ruffIgnoreCodes';
-      const existing = prev[key]
-        .split(',')
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0);
-      if (existing.includes(code)) {
-        return prev;
-      }
-      const updated: Settings = { ...prev, [key]: [...existing, code].join(', ') };
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.set({ linterSettings: updated });
-      }
-      return updated;
-    });
-  };
+/**
+ * One-click ignore (Task 4): appends the code to whichever engine is
+ * active, deduped, reusing the exact same chrome.storage.sync write and
+ * `linterSettings` key the popup uses — so the popup's own ignore-codes
+ * input reflects this immediately next time it's opened (it already
+ * reads storage on mount). Writing to `settings` state also re-triggers
+ * the existing settings-changed effect, which debounces and re-lints —
+ * no separate re-lint call needed here.
+ */
+const handleIgnoreCode = (code: string) => {
+  setSettings((prev) => {
+    const key =
+      prev.linterEngine === 'flake8' ? 'flake8IgnoreCodes' : 'ruffIgnoreCodes';
+    const existing = prev[key]
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (existing.includes(code)) {
+      return prev;
+    }
+    const updated: Settings = {
+      ...prev,
+      [key]: [...existing, code].join(', '),
+    };
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.sync.set({ linterSettings: updated });
+    }
+    return updated;
+  });
+};
 ```
 
 Find the render's `<Overlay>` call:
 
 ```tsx
-  return (
-    <Overlay
-      errors={errors}
-      visible={visible}
-      theme={theme}
-      onErrorClick={handleErrorClick}
-      onRefresh={runLinter}
-      onClose={() => setVisible(false)}
-      isLoading={isLinting}
-      engineStatus={engineStatus}
-    />
-  );
+return (
+  <Overlay
+    errors={errors}
+    visible={visible}
+    theme={theme}
+    onErrorClick={handleErrorClick}
+    onRefresh={runLinter}
+    onClose={() => setVisible(false)}
+    isLoading={isLinting}
+    engineStatus={engineStatus}
+  />
+);
 ```
 
 Replace with:
 
 ```tsx
-  return (
-    <Overlay
-      errors={errors}
-      visible={visible}
-      theme={theme}
-      onErrorClick={handleErrorClick}
-      onIgnoreCode={handleIgnoreCode}
-      onRefresh={runLinter}
-      onClose={() => setVisible(false)}
-      isLoading={isLinting}
-      engineStatus={engineStatus}
-    />
-  );
+return (
+  <Overlay
+    errors={errors}
+    visible={visible}
+    theme={theme}
+    onErrorClick={handleErrorClick}
+    onIgnoreCode={handleIgnoreCode}
+    onRefresh={runLinter}
+    onClose={() => setVisible(false)}
+    isLoading={isLinting}
+    engineStatus={engineStatus}
+  />
+);
 ```
 
 - [ ] **Step 7: Verify**
@@ -1480,6 +1518,7 @@ git commit -m "feat: one-click ignore of a violation code from the error list"
 ### Task 5: Glanceable status (minimized pill accent + toolbar badge)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (worst-severity class on the root)
 - Modify: `packages/ui-components/src/Overlay/Overlay.css` (accent color rules)
 - Create: `packages/extension/src/background/statsProtocol.ts`
@@ -1487,6 +1526,7 @@ git commit -m "feat: one-click ignore of a violation code from the error list"
 - Modify: `packages/extension/src/background/index.ts` (set the badge)
 
 **Interfaces:**
+
 - Consumes: `stats` (already computed inside `Overlay` via `calculateStats`, from Task 1); `errors` state in `ContentApp.tsx`.
 - Produces: `LINT_STATS` message type + `LintStatsMessage` interface (`statsProtocol.ts`) — self-contained to this task, not consumed elsewhere in this plan.
 
@@ -1532,11 +1572,15 @@ In `packages/ui-components/src/Overlay/Overlay.css`, append:
    colors in .kaggle-lint-summary, so an accent border there would be
    redundant. */
 .kaggle-lint-overlay.kaggle-lint-minimized.kaggle-lint-worst-error {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px #f48771;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 2px #f48771;
 }
 
 .kaggle-lint-overlay.kaggle-lint-minimized.kaggle-lint-worst-warning {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px #deb887;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 2px #deb887;
 }
 ```
 
@@ -1581,26 +1625,26 @@ import { LINT_STATS, type LintStatsMessage } from '../background/statsProtocol';
 Find, inside `runLinter`, the line right after `setErrors(lintErrors);` (currently followed by a `logger.log` call):
 
 ```tsx
-      // Update errors state
-      setErrors(lintErrors);
-      logger.log('Updated errors state with', lintErrors.length, 'errors');
+// Update errors state
+setErrors(lintErrors);
+logger.log('Updated errors state with', lintErrors.length, 'errors');
 ```
 
 Replace with:
 
 ```tsx
-      // Update errors state
-      setErrors(lintErrors);
-      logger.log('Updated errors state with', lintErrors.length, 'errors');
+// Update errors state
+setErrors(lintErrors);
+logger.log('Updated errors state with', lintErrors.length, 'errors');
 
-      if (typeof chrome !== 'undefined' && chrome.runtime) {
-        const statsMessage: LintStatsMessage = {
-          type: LINT_STATS,
-          errors: lintErrors.filter((e) => e.severity === 'error').length,
-          warnings: lintErrors.filter((e) => e.severity === 'warning').length,
-        };
-        chrome.runtime.sendMessage(statsMessage);
-      }
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+  const statsMessage: LintStatsMessage = {
+    type: LINT_STATS,
+    errors: lintErrors.filter((e) => e.severity === 'error').length,
+    warnings: lintErrors.filter((e) => e.severity === 'warning').length,
+  };
+  chrome.runtime.sendMessage(statsMessage);
+}
 ```
 
 - [ ] **Step 4: Set the badge in the background worker**
@@ -1608,13 +1652,21 @@ Replace with:
 In `packages/extension/src/background/index.ts`, add the import:
 
 ```ts
-import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
+import {
+  ENGINE_LINT_NOTEBOOK,
+  ENGINE_OFFSCREEN_REQUEST,
+  ENGINE_STATUS,
+} from '../engine/protocol';
 ```
 
 Replace with:
 
 ```ts
-import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
+import {
+  ENGINE_LINT_NOTEBOOK,
+  ENGINE_OFFSCREEN_REQUEST,
+  ENGINE_STATUS,
+} from '../engine/protocol';
 import { LINT_STATS, type LintStatsMessage } from './statsProtocol';
 ```
 
@@ -1679,11 +1731,13 @@ git commit -m "feat: error counts on minimized pill accent and toolbar badge"
 ### Task 6: Overlay state persistence
 
 **Files:**
+
 - Modify: `packages/ui-components/src/types/index.ts` (add 3 props to `OverlayProps`)
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (accept initial state, report changes)
 - Modify: `packages/extension/src/content/ContentApp.tsx` (load/save/clamp)
 
 **Interfaces:**
+
 - Consumes: `dragOffsetRef`, `isMinimized` state, `handleToggleMinimize` (all from Task 1); this task extends each rather than introducing new state.
 - Produces: nothing consumed by a later task — this is the milestone's last feature task before the gate.
 
@@ -1800,52 +1854,55 @@ export const Overlay: React.FC<OverlayProps> = ({
 Find the drag effect's `handleMouseUp` (as left by Task 1):
 
 ```tsx
-    const handleMouseUp = () => {
-      isDragging = false;
-    };
+const handleMouseUp = () => {
+  isDragging = false;
+};
 ```
 
 Replace with:
 
 ```tsx
-    const handleMouseUp = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      onStateChange?.({ position: dragOffsetRef.current, isMinimized: isMinimizedRef.current });
-    };
+const handleMouseUp = () => {
+  if (!isDragging) return;
+  isDragging = false;
+  onStateChange?.({
+    position: dragOffsetRef.current,
+    isMinimized: isMinimizedRef.current,
+  });
+};
 ```
 
 Find `handleToggleMinimize` (as left by Task 1):
 
 ```tsx
-  const handleToggleMinimize = () => {
-    setIsMinimized((prev) => {
-      const next = !prev;
-      if (next && overlayRef.current) {
-        dragOffsetRef.current = { x: 0, y: 0 };
-        overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
-        overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
-      }
-      return next;
-    });
-  };
+const handleToggleMinimize = () => {
+  setIsMinimized((prev) => {
+    const next = !prev;
+    if (next && overlayRef.current) {
+      dragOffsetRef.current = { x: 0, y: 0 };
+      overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
+      overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
+    }
+    return next;
+  });
+};
 ```
 
 Replace with:
 
 ```tsx
-  const handleToggleMinimize = () => {
-    setIsMinimized((prev) => {
-      const next = !prev;
-      if (next && overlayRef.current) {
-        dragOffsetRef.current = { x: 0, y: 0 };
-        overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
-        overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
-      }
-      onStateChange?.({ position: dragOffsetRef.current, isMinimized: next });
-      return next;
-    });
-  };
+const handleToggleMinimize = () => {
+  setIsMinimized((prev) => {
+    const next = !prev;
+    if (next && overlayRef.current) {
+      dragOffsetRef.current = { x: 0, y: 0 };
+      overlayRef.current.style.setProperty('--kaggle-lint-drag-x', '0px');
+      overlayRef.current.style.setProperty('--kaggle-lint-drag-y', '0px');
+    }
+    onStateChange?.({ position: dragOffsetRef.current, isMinimized: next });
+    return next;
+  });
+};
 ```
 
 Note: `handleMouseDown`'s existing `isDragging = true;` line needs no change — the `if (!isDragging) return;` guard added to `handleMouseUp` above only affects the case where mouseup fires without a preceding drag (e.g. a stray click), which now correctly skips calling `onStateChange` for a no-op "drag."
@@ -1878,95 +1935,100 @@ const DEFAULT_OVERLAY_UI_STATE: OverlayUiState = {
 Add state and a load effect near the other settings-loading state (after `const [settingsLoaded, setSettingsLoaded] = useState(false);`):
 
 ```tsx
-  const [overlayUiState, setOverlayUiState] = useState<OverlayUiState>(DEFAULT_OVERLAY_UI_STATE);
-  const [overlayUiStateLoaded, setOverlayUiStateLoaded] = useState(false);
-  const overlayStateSaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+const [overlayUiState, setOverlayUiState] = useState<OverlayUiState>(
+  DEFAULT_OVERLAY_UI_STATE
+);
+const [overlayUiStateLoaded, setOverlayUiStateLoaded] = useState(false);
+const overlayStateSaveTimerRef = React.useRef<ReturnType<
+  typeof setTimeout
+> | null>(null);
 
-  /**
-   * Overlay position/minimize state is deliberately chrome.storage.local
-   * (per-machine UI state), not .sync, and deliberately a separate key
-   * from `linterSettings` — it's not a linter setting, and mixing it in
-   * would violate this milestone's frozen-settings-shape constraint.
-   * `visible` is intentionally NOT persisted here: a user who closed the
-   * panel should get it back on the next notebook, since a
-   * persisted-closed overlay looks like a broken extension, not a
-   * deliberate choice.
-   */
-  useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      setOverlayUiStateLoaded(true);
-      return;
+/**
+ * Overlay position/minimize state is deliberately chrome.storage.local
+ * (per-machine UI state), not .sync, and deliberately a separate key
+ * from `linterSettings` — it's not a linter setting, and mixing it in
+ * would violate this milestone's frozen-settings-shape constraint.
+ * `visible` is intentionally NOT persisted here: a user who closed the
+ * panel should get it back on the next notebook, since a
+ * persisted-closed overlay looks like a broken extension, not a
+ * deliberate choice.
+ */
+useEffect(() => {
+  if (typeof chrome === 'undefined' || !chrome.storage) {
+    setOverlayUiStateLoaded(true);
+    return;
+  }
+  chrome.storage.local.get([OVERLAY_UI_STATE_KEY], (result: any) => {
+    const stored = result[OVERLAY_UI_STATE_KEY] as OverlayUiState | undefined;
+    if (stored) {
+      // Window size can differ between sessions; clamp so a
+      // previously-dragged-far position can't land off-screen.
+      const maxX = Math.max(0, window.innerWidth - 100);
+      const maxY = Math.max(0, window.innerHeight - 60);
+      setOverlayUiState({
+        position: {
+          x: Math.min(Math.max(stored.position.x, -maxX), maxX),
+          y: Math.min(Math.max(stored.position.y, -maxY), maxY),
+        },
+        isMinimized: Boolean(stored.isMinimized),
+      });
     }
-    chrome.storage.local.get([OVERLAY_UI_STATE_KEY], (result: any) => {
-      const stored = result[OVERLAY_UI_STATE_KEY] as OverlayUiState | undefined;
-      if (stored) {
-        // Window size can differ between sessions; clamp so a
-        // previously-dragged-far position can't land off-screen.
-        const maxX = Math.max(0, window.innerWidth - 100);
-        const maxY = Math.max(0, window.innerHeight - 60);
-        setOverlayUiState({
-          position: {
-            x: Math.min(Math.max(stored.position.x, -maxX), maxX),
-            y: Math.min(Math.max(stored.position.y, -maxY), maxY),
-          },
-          isMinimized: Boolean(stored.isMinimized),
-        });
-      }
-      setOverlayUiStateLoaded(true);
-    });
-  }, []);
+    setOverlayUiStateLoaded(true);
+  });
+}, []);
 
-  const handleOverlayStateChange = (state: OverlayUiState) => {
-    setOverlayUiState(state);
-    if (typeof chrome === 'undefined' || !chrome.storage) return;
-    if (overlayStateSaveTimerRef.current) clearTimeout(overlayStateSaveTimerRef.current);
-    overlayStateSaveTimerRef.current = setTimeout(() => {
-      chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: state });
-    }, 300);
-  };
+const handleOverlayStateChange = (state: OverlayUiState) => {
+  setOverlayUiState(state);
+  if (typeof chrome === 'undefined' || !chrome.storage) return;
+  if (overlayStateSaveTimerRef.current)
+    clearTimeout(overlayStateSaveTimerRef.current);
+  overlayStateSaveTimerRef.current = setTimeout(() => {
+    chrome.storage.local.set({ [OVERLAY_UI_STATE_KEY]: state });
+  }, 300);
+};
 ```
 
 Find the render (as left by Task 4):
 
 ```tsx
-  return (
-    <Overlay
-      errors={errors}
-      visible={visible}
-      theme={theme}
-      onErrorClick={handleErrorClick}
-      onIgnoreCode={handleIgnoreCode}
-      onRefresh={runLinter}
-      onClose={() => setVisible(false)}
-      isLoading={isLinting}
-      engineStatus={engineStatus}
-    />
-  );
+return (
+  <Overlay
+    errors={errors}
+    visible={visible}
+    theme={theme}
+    onErrorClick={handleErrorClick}
+    onIgnoreCode={handleIgnoreCode}
+    onRefresh={runLinter}
+    onClose={() => setVisible(false)}
+    isLoading={isLinting}
+    engineStatus={engineStatus}
+  />
+);
 ```
 
 Replace with:
 
 ```tsx
-  if (!overlayUiStateLoaded) {
-    return null;
-  }
+if (!overlayUiStateLoaded) {
+  return null;
+}
 
-  return (
-    <Overlay
-      errors={errors}
-      visible={visible}
-      theme={theme}
-      onErrorClick={handleErrorClick}
-      onIgnoreCode={handleIgnoreCode}
-      onRefresh={runLinter}
-      onClose={() => setVisible(false)}
-      isLoading={isLinting}
-      engineStatus={engineStatus}
-      initialPosition={overlayUiState.position}
-      initialMinimized={overlayUiState.isMinimized}
-      onStateChange={handleOverlayStateChange}
-    />
-  );
+return (
+  <Overlay
+    errors={errors}
+    visible={visible}
+    theme={theme}
+    onErrorClick={handleErrorClick}
+    onIgnoreCode={handleIgnoreCode}
+    onRefresh={runLinter}
+    onClose={() => setVisible(false)}
+    isLoading={isLinting}
+    engineStatus={engineStatus}
+    initialPosition={overlayUiState.position}
+    initialMinimized={overlayUiState.isMinimized}
+    onStateChange={handleOverlayStateChange}
+  />
+);
 ```
 
 `chrome.storage.local.get` is typically near-instant, so gating the initial render on `overlayUiStateLoaded` costs an imperceptible delay in exchange for never flashing the overlay at its default position before snapping to the restored one.

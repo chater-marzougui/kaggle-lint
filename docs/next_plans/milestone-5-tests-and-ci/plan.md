@@ -31,6 +31,7 @@
 > **RESCOPED 2026-07-10.** `packages/core/src/__tests__/LintEngine.test.ts` and the file it tested (`LintEngine.ts`) are both deleted. The specific behaviors this task wanted covered (cross-cell context accumulation, per-rule error isolation) don't exist in that form anymore — cross-cell scoping is now achieved via real Python/Rust semantics over one concatenated whole-notebook source (`buildNotebookSource.ts`, already tested), and per-cell error isolation is now `lintWithSyntaxIsolation.ts`'s syntax-error retry loop (already tested, 5 test cases covering termination/correctness). Before writing anything new, read those three test files and judge whether they already cover this task's intent. If a real gap remains (e.g. `mapDiagnostics`'s `engineName` tagging, or an end-to-end multi-engine scenario), write it against the current `packages/core/src/notebook/*` modules — do not target the deleted `LintEngine.test.ts` path.
 
 **Files:**
+
 - Modify or extend: `packages/core/src/__tests__/{buildNotebookSource,severityMapping,lintWithSyntaxIsolation}.test.ts` as needed, not `LintEngine.test.ts` (deleted)
 
 - [ ] **Step 1:** Run `cd packages/core && npx jest --coverage -v` and read the actual coverage for `notebook/*`. Identify any genuine gap against this task's original intent (grouping/stats/error-isolation/cross-cell behaviors) that isn't already exercised.
@@ -43,6 +44,7 @@
 ### Task 3: Extension test infra + pure-logic tests
 
 **Files:**
+
 - Create: `packages/extension/jest.config.js` (ts-jest preset, `testEnvironment: 'jsdom'`), `packages/extension/src/__tests__/CodeMirrorManager.test.ts`, `packages/extension/src/__tests__/KaggleDomParser.test.ts`, `packages/extension/src/__tests__/fixtures/notebook.html` (minimal `.jp-Cell`/`.jp-CodeCell`/`.cm-editor`/`.cm-line` markup — derive from a saved snippet of a real Kaggle notebook DOM, 2 code cells + 1 markdown cell)
 - Modify: `packages/extension/package.json` (add `"test": "jest"`, devDeps `jest`, `ts-jest`, `@types/jest`, `jest-environment-jsdom`)
 
@@ -58,6 +60,7 @@
 > **2026-07-10 note:** Milestone 4 (merged) already landed Step 1's `"lint": "eslint src --ext .ts,.tsx"` script in all three packages' `package.json`s, plus a root `eslint-plugin-react-hooks` registration and 3 `prefer-const` fixes that a real lint run surfaced for the first time — `.github/workflows/ci.yml`'s lint job already calls `npm run lint`, so it has been enforcing (not a no-op) since M4 merged, with a currently-clean run (0 errors, ~23 warnings, all `@typescript-eslint/no-explicit-any` plus one accepted `react-hooks/exhaustive-deps` in `Overlay.tsx:131`). Step 1 below is now just a verification step, not new work — confirm the scripts are still present and the sanity check (break a file, confirm `npm run lint` fails, revert) still holds, don't re-add what's already there.
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`, `packages/core/jest.config.js`
 
 - [ ] **Step 1:** Lint job: verify every package still has `"lint": "eslint src --ext .ts,.tsx"` (landed in Milestone 4) so `turbo run lint` does real work. Sanity: break a file locally, confirm `npm run lint` fails, revert.

@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md` — read for full rationale; this plan implements it task-by-task. Every design decision there is pre-made — do not re-open them.
 
 **Source-of-truth verification (done 2026-07-09):** every file this plan touches was read in full from the current working tree (`packages/core/src/{rules/**,engines/**,types/index.ts,index.ts,__tests__/**}`, `packages/extension/src/{background,offscreen,flake8,content,popup}/**`, `packages/extension/{webpack.config.js,package.json,public/manifest.json}`, `packages/ui-components/src/{types/index.ts,Overlay/Overlay.tsx}`, `CLAUDE.md`, `README.md`). Additionally, **the two riskiest technical claims in the spec were independently re-verified by direct execution, not re-trusted from the spec doc**:
+
 - flake8's real API wiring (`Application`/`StyleGuide`/`BaseFormatter`, formatter-before-`make_guide()` ordering, file-based not string-based `check_files`) — re-confirmed via the same repro technique against the actual bundled flake8 6.1.0 wheel.
 - ruff-wasm's row/column indexing — **newly verified for this plan** (the spec doc did not test this): ran `@astral-sh/ruff-wasm-web` 0.15.21 directly in Node 22 (`initSync` with the raw `.wasm` buffer, bypassing the browser-`fetch` path) against `'import os\n\nx = y + 1\n'`. Confirmed `start_location.row` is **1-indexed** (F821 on `x = y + 1`, the 3rd line, reported `row: 3`) and `start_location.column` is also 1-indexed (F401's `os` in `import os` reported `column: 8`, matching the 1-indexed position of `o`) — i.e., **identical indexing convention to flake8's `line_number`/`column_number`**, so the `Diagnostic → RawDiagnostic` normalization needs no off-by-one adjustment. This was a real risk (many WASM/compiler tools use 0-indexed positions) now closed by direct evidence.
 
@@ -21,54 +22,70 @@
 - `tsconfig.base.json` has `"noUnusedLocals": true`, `"noUnusedParameters": true`, `"isolatedModules": true` — type-only imports across module boundaries use `import type` / `import { type X }`.
 - Extension package has **no test runner** (only `packages/core` has Jest, confirmed unchanged from Milestone 3). New pure-logic modules (`buildNotebookSource`, `severityMapping`) belong in `packages/core` specifically so they get real Jest coverage; anything that must live in `packages/extension` (the two runtimes, protocol, client, UI) gets `type-check`/`build` verification only, same as Milestone 3's convention.
 - Do not touch `packages/extension/src/utils/KaggleDomParser.ts`, `packages/extension/src/utils/CodeMirrorManager.ts`, `packages/extension/src/page/pageExtractor.ts`, or the Milestone 2 extraction pipeline — out of scope, untouched by this plan.
-- Do not touch the Milestone 3 offscreen-document/background-relay *architecture* (single offscreen document, `ensureOffscreen()`'s in-flight lock, the disjoint-message-namespace pattern) — this plan generalizes the message *types* it carries, not the mechanism itself.
+- Do not touch the Milestone 3 offscreen-document/background-relay _architecture_ (single offscreen document, `ensureOffscreen()`'s in-flight lock, the disjoint-message-namespace pattern) — this plan generalizes the message _types_ it carries, not the mechanism itself.
 - **No settings migration** (per spec) — do not write code to detect/migrate old `linterEngine: 'handmade'` or `rules: {...}` values.
 - Ignore-codes customization is routed to each engine's own native config (flake8's `application.options.ignore`, ruff's `Workspace` `lint.ignore`) — there is deliberately no client-side ignore-filter function anywhere in this plan (see spec's self-review note on the removed `filterIgnored`).
 
 ## File Structure
 
-| File | Responsibility after this plan |
-|---|---|
-| `packages/core/src/notebook/buildNotebookSource.ts` (new) | Concatenates notebook cells into one source string (nbqa-style magic/shell-line blanking) + per-cell offset table. Pure TS, Jest-tested. |
-| `packages/core/src/notebook/severityMapping.ts` (new) | `classifySeverity` (code-prefix heuristic) + `mapDiagnostics` (offset-mapping + severity tagging), engine-agnostic. Pure TS, Jest-tested. |
-| `packages/core/src/notebook/index.ts` (new) | Re-exports the above two modules. |
-| `packages/core/src/engines/flake8Shim.ts` | Rewritten: `PYTHON_SHIM` now defines `lint_source(source, ignore_codes)` calling flake8's real `Application`/`StyleGuide`/`BaseFormatter` API once per call, instead of the old per-cell `ContextAwareChecker`/`_notebook_context` machinery. |
-| `packages/core/src/engines/flake8Mapping.ts` | **Deleted** — superseded by `notebook/severityMapping.ts`. |
-| `packages/core/src/engines/index.ts`, `packages/core/src/index.ts` | Updated exports across the plan: Task 1 adds `notebook/*` to `core/src/index.ts` early (its consumers need it from Task 3 on); Task 3 drops `flake8Mapping` from `engines/index.ts` (its consumer is fixed in the same task) but deliberately *keeps* `LintEngine`'s export (its consumer, `ContentApp.tsx`, isn't migrated until Task 6); Task 9 drops both `LintEngine` (from `engines/index.ts`) and `rules` (from `core/src/index.ts`) once nothing references them. |
-| `packages/core/src/rules/` | **Deleted** — entire directory (9 rule classes, `BaseRule`, `registry.ts`, `index.ts`). |
-| `packages/core/src/engines/LintEngine.ts` | **Deleted**. |
-| `packages/core/src/types/index.ts` | `LintRule`, `LintContext`, `LintResult`, `LintEngineConfig`, `CodeCell` removed (rule-system-specific); `LintError`, `Severity` kept. |
-| `packages/core/src/__tests__/{LintEngine,UndefinedVariablesRule,registry,flake8Mapping}.test.ts` | **Deleted** (test the deleted code). |
-| `packages/core/src/__tests__/flake8Shim.test.ts` | Rewritten — old `ContextAwareChecker`-ordering test replaced with a new one asserting `application.formatter` is assigned before `make_guide()` is called (the ordering that matters in the *new* shim). |
-| `packages/extension/src/offscreen/pyodideRuntime.ts` | Rewritten: `lintNotebook(cells, ignoreCodes)` builds the notebook source once, makes one Python call, maps results via the shared `notebook/*` pipeline — no more per-cell loop. |
-| `packages/extension/src/offscreen/ruffRuntime.ts` (new) | `RuffRuntime` class: one-time WASM bootstrap in `load()`, a fresh `Workspace` constructed per `lintNotebook()` call (so a changed ignore-list takes effect immediately), same shared `notebook/*` pipeline. |
-| `packages/extension/src/offscreen/index.ts` | Dispatches `ENGINE_OFFSCREEN_REQUEST` envelopes by `payload.engine` to `PyodideRuntime` or `RuffRuntime`. |
-| `packages/extension/src/background/index.ts` | Generalized from flake8-specific message types to `ENGINE_LINT_NOTEBOOK`/`ENGINE_STATUS`, same disjoint-namespace/lock mechanism. |
-| `packages/extension/src/flake8/` | **Renamed** to `packages/extension/src/engine/` — `protocol.ts` (generalized `ENGINE_*` types), `EngineClient.ts` (renamed/generalized from `Flake8Client.ts`). |
-| `packages/extension/src/content/ContentApp.tsx` | Handmade engine entirely removed; `runLinter`'s branch becomes `flake8` vs `ruff`, both via `EngineClient.lintNotebook(engine, cells, ignoreCodes)`; `flake8Status` state renamed `engineStatus`. |
-| `packages/extension/src/popup/PopupApp.tsx` | Engine radio becomes `flake8`/`ruff`; "Built-in Rules" section removed entirely; one ignore-codes text input per engine added. |
-| `packages/ui-components/src/types/index.ts`, `Overlay.tsx` | `OverlayProps.flake8Status` renamed `engineStatus` (same type, new name — generalizing past a single engine). |
-| `packages/extension/package.json` | Add `@astral-sh/ruff-wasm-web` dependency. |
-| `packages/extension/webpack.config.js` | Add a `CopyPlugin` pattern for `ruff_wasm_bg.wasm`. |
-| `CLAUDE.md`, `README.md` | Sections describing the deleted rule system / old engine shape rewritten to match. |
+| File                                                                                             | Responsibility after this plan                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/core/src/notebook/buildNotebookSource.ts` (new)                                        | Concatenates notebook cells into one source string (nbqa-style magic/shell-line blanking) + per-cell offset table. Pure TS, Jest-tested.                                                                                                                                                                                                                                                                                                                                 |
+| `packages/core/src/notebook/severityMapping.ts` (new)                                            | `classifySeverity` (code-prefix heuristic) + `mapDiagnostics` (offset-mapping + severity tagging), engine-agnostic. Pure TS, Jest-tested.                                                                                                                                                                                                                                                                                                                                |
+| `packages/core/src/notebook/index.ts` (new)                                                      | Re-exports the above two modules.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `packages/core/src/engines/flake8Shim.ts`                                                        | Rewritten: `PYTHON_SHIM` now defines `lint_source(source, ignore_codes)` calling flake8's real `Application`/`StyleGuide`/`BaseFormatter` API once per call, instead of the old per-cell `ContextAwareChecker`/`_notebook_context` machinery.                                                                                                                                                                                                                            |
+| `packages/core/src/engines/flake8Mapping.ts`                                                     | **Deleted** — superseded by `notebook/severityMapping.ts`.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `packages/core/src/engines/index.ts`, `packages/core/src/index.ts`                               | Updated exports across the plan: Task 1 adds `notebook/*` to `core/src/index.ts` early (its consumers need it from Task 3 on); Task 3 drops `flake8Mapping` from `engines/index.ts` (its consumer is fixed in the same task) but deliberately _keeps_ `LintEngine`'s export (its consumer, `ContentApp.tsx`, isn't migrated until Task 6); Task 9 drops both `LintEngine` (from `engines/index.ts`) and `rules` (from `core/src/index.ts`) once nothing references them. |
+| `packages/core/src/rules/`                                                                       | **Deleted** — entire directory (9 rule classes, `BaseRule`, `registry.ts`, `index.ts`).                                                                                                                                                                                                                                                                                                                                                                                  |
+| `packages/core/src/engines/LintEngine.ts`                                                        | **Deleted**.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `packages/core/src/types/index.ts`                                                               | `LintRule`, `LintContext`, `LintResult`, `LintEngineConfig`, `CodeCell` removed (rule-system-specific); `LintError`, `Severity` kept.                                                                                                                                                                                                                                                                                                                                    |
+| `packages/core/src/__tests__/{LintEngine,UndefinedVariablesRule,registry,flake8Mapping}.test.ts` | **Deleted** (test the deleted code).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `packages/core/src/__tests__/flake8Shim.test.ts`                                                 | Rewritten — old `ContextAwareChecker`-ordering test replaced with a new one asserting `application.formatter` is assigned before `make_guide()` is called (the ordering that matters in the _new_ shim).                                                                                                                                                                                                                                                                 |
+| `packages/extension/src/offscreen/pyodideRuntime.ts`                                             | Rewritten: `lintNotebook(cells, ignoreCodes)` builds the notebook source once, makes one Python call, maps results via the shared `notebook/*` pipeline — no more per-cell loop.                                                                                                                                                                                                                                                                                         |
+| `packages/extension/src/offscreen/ruffRuntime.ts` (new)                                          | `RuffRuntime` class: one-time WASM bootstrap in `load()`, a fresh `Workspace` constructed per `lintNotebook()` call (so a changed ignore-list takes effect immediately), same shared `notebook/*` pipeline.                                                                                                                                                                                                                                                              |
+| `packages/extension/src/offscreen/index.ts`                                                      | Dispatches `ENGINE_OFFSCREEN_REQUEST` envelopes by `payload.engine` to `PyodideRuntime` or `RuffRuntime`.                                                                                                                                                                                                                                                                                                                                                                |
+| `packages/extension/src/background/index.ts`                                                     | Generalized from flake8-specific message types to `ENGINE_LINT_NOTEBOOK`/`ENGINE_STATUS`, same disjoint-namespace/lock mechanism.                                                                                                                                                                                                                                                                                                                                        |
+| `packages/extension/src/flake8/`                                                                 | **Renamed** to `packages/extension/src/engine/` — `protocol.ts` (generalized `ENGINE_*` types), `EngineClient.ts` (renamed/generalized from `Flake8Client.ts`).                                                                                                                                                                                                                                                                                                          |
+| `packages/extension/src/content/ContentApp.tsx`                                                  | Handmade engine entirely removed; `runLinter`'s branch becomes `flake8` vs `ruff`, both via `EngineClient.lintNotebook(engine, cells, ignoreCodes)`; `flake8Status` state renamed `engineStatus`.                                                                                                                                                                                                                                                                        |
+| `packages/extension/src/popup/PopupApp.tsx`                                                      | Engine radio becomes `flake8`/`ruff`; "Built-in Rules" section removed entirely; one ignore-codes text input per engine added.                                                                                                                                                                                                                                                                                                                                           |
+| `packages/ui-components/src/types/index.ts`, `Overlay.tsx`                                       | `OverlayProps.flake8Status` renamed `engineStatus` (same type, new name — generalizing past a single engine).                                                                                                                                                                                                                                                                                                                                                            |
+| `packages/extension/package.json`                                                                | Add `@astral-sh/ruff-wasm-web` dependency.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `packages/extension/webpack.config.js`                                                           | Add a `CopyPlugin` pattern for `ruff_wasm_bg.wasm`.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `CLAUDE.md`, `README.md`                                                                         | Sections describing the deleted rule system / old engine shape rewritten to match.                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ---
 
 ### Task 1: Shared notebook-source builder
 
 **Files:**
+
 - Create: `packages/core/src/notebook/buildNotebookSource.ts`
 - Test: `packages/core/src/__tests__/buildNotebookSource.test.ts`
 - Modify: `packages/core/src/index.ts` (add the `notebook` export — done now, not deferred to Task 9, because Task 3's `PyodideRuntime` imports `buildNotebookSource`/`mapDiagnostics` via the package root `@kaggle-lint/core`, the same way it already imports `PYTHON_SHIM` — deferring this export would leave that import unresolvable from Task 3 through Task 8)
 
 **Interfaces:**
+
 - Produces (consumed by Task 2, Task 4, Task 5):
+
 ```ts
-export interface NotebookCellInput { code: string; cellIndex: number; }
-export interface CellOffset { cellIndex: number; startLine: number; lineCount: number; }
-export interface NotebookSource { source: string; cellOffsets: CellOffset[]; }
+export interface NotebookCellInput {
+  code: string;
+  cellIndex: number;
+}
+export interface CellOffset {
+  cellIndex: number;
+  startLine: number;
+  lineCount: number;
+}
+export interface NotebookSource {
+  source: string;
+  cellOffsets: CellOffset[];
+}
 export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource;
-export function mapLineToCell(globalLine: number, cellOffsets: CellOffset[]): { cellIndex: number; cellLine: number } | null;
+export function mapLineToCell(
+  globalLine: number,
+  cellOffsets: CellOffset[]
+): { cellIndex: number; cellLine: number } | null;
 ```
 
 - [ ] **Step 1: Write the failing tests**
@@ -76,7 +93,10 @@ export function mapLineToCell(globalLine: number, cellOffsets: CellOffset[]): { 
 Create `packages/core/src/__tests__/buildNotebookSource.test.ts`:
 
 ```ts
-import { buildNotebookSource, mapLineToCell } from '../notebook/buildNotebookSource';
+import {
+  buildNotebookSource,
+  mapLineToCell,
+} from '../notebook/buildNotebookSource';
 
 describe('buildNotebookSource', () => {
   it('concatenates cells in cellIndex order with correct line offsets', () => {
@@ -102,7 +122,10 @@ describe('buildNotebookSource', () => {
 
   it('blanks an individual line-magic line but keeps linting the rest of the cell', () => {
     const { source } = buildNotebookSource([
-      { code: "%matplotlib inline\nimport pandas as pd\ndf = pd.read_csv('x.csv')", cellIndex: 0 },
+      {
+        code: "%matplotlib inline\nimport pandas as pd\ndf = pd.read_csv('x.csv')",
+        cellIndex: 0,
+      },
     ]);
     expect(source).toBe("\nimport pandas as pd\ndf = pd.read_csv('x.csv')");
   });
@@ -148,9 +171,18 @@ describe('mapLineToCell', () => {
   ];
 
   it('maps a global line back to the correct cell and cell-relative line', () => {
-    expect(mapLineToCell(1, cellOffsets)).toEqual({ cellIndex: 0, cellLine: 1 });
-    expect(mapLineToCell(2, cellOffsets)).toEqual({ cellIndex: 0, cellLine: 2 });
-    expect(mapLineToCell(3, cellOffsets)).toEqual({ cellIndex: 1, cellLine: 1 });
+    expect(mapLineToCell(1, cellOffsets)).toEqual({
+      cellIndex: 0,
+      cellLine: 1,
+    });
+    expect(mapLineToCell(2, cellOffsets)).toEqual({
+      cellIndex: 0,
+      cellLine: 2,
+    });
+    expect(mapLineToCell(3, cellOffsets)).toEqual({
+      cellIndex: 1,
+      cellLine: 1,
+    });
   });
 
   it('returns null for a line outside any cell range', () => {
@@ -198,7 +230,8 @@ export interface NotebookSource {
 
 function blankCellLines(lines: string[]): string[] {
   const firstNonBlank = lines.find((line) => line.trim().length > 0);
-  const isCellMagic = firstNonBlank !== undefined && firstNonBlank.trimStart().startsWith('%%');
+  const isCellMagic =
+    firstNonBlank !== undefined && firstNonBlank.trimStart().startsWith('%%');
 
   if (isCellMagic) {
     // A cell magic (%%bash, %%html, %%writefile, ...) changes the whole
@@ -218,7 +251,9 @@ function blankCellLines(lines: string[]): string[] {
   });
 }
 
-export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource {
+export function buildNotebookSource(
+  cells: NotebookCellInput[]
+): NotebookSource {
   const sorted = [...cells].sort((a, b) => a.cellIndex - b.cellIndex);
   const allLines: string[] = [];
   const cellOffsets: CellOffset[] = [];
@@ -226,7 +261,11 @@ export function buildNotebookSource(cells: NotebookCellInput[]): NotebookSource 
 
   for (const cell of sorted) {
     const lines = cell.code.split('\n');
-    cellOffsets.push({ cellIndex: cell.cellIndex, startLine: currentLine, lineCount: lines.length });
+    cellOffsets.push({
+      cellIndex: cell.cellIndex,
+      startLine: currentLine,
+      lineCount: lines.length,
+    });
     allLines.push(...blankCellLines(lines));
     currentLine += lines.length;
   }
@@ -239,8 +278,14 @@ export function mapLineToCell(
   cellOffsets: CellOffset[]
 ): { cellIndex: number; cellLine: number } | null {
   for (const offset of cellOffsets) {
-    if (globalLine >= offset.startLine && globalLine < offset.startLine + offset.lineCount) {
-      return { cellIndex: offset.cellIndex, cellLine: globalLine - offset.startLine + 1 };
+    if (
+      globalLine >= offset.startLine &&
+      globalLine < offset.startLine + offset.lineCount
+    ) {
+      return {
+        cellIndex: offset.cellIndex,
+        cellLine: globalLine - offset.startLine + 1,
+      };
     }
   }
   return null;
@@ -302,20 +347,32 @@ git commit -m "feat(core): shared notebook-source builder with magic/shell-line 
 ### Task 2: Shared severity/diagnostic mapping
 
 **Files:**
+
 - Create: `packages/core/src/notebook/severityMapping.ts`
 - Test: `packages/core/src/__tests__/severityMapping.test.ts`
 - Modify: `packages/core/src/notebook/index.ts` (add re-export)
 
 **Interfaces:**
+
 - Consumes: `CellOffset`, `mapLineToCell` from `./buildNotebookSource` (Task 1).
 - Produces (consumed by Task 3's tests, Task 4, Task 5):
+
 ```ts
-export interface RawDiagnostic { line: number; column: number; code: string; message: string; }
+export interface RawDiagnostic {
+  line: number;
+  column: number;
+  code: string;
+  message: string;
+}
 export function classifySeverity(code: string): Severity;
-export function mapDiagnostics(diagnostics: RawDiagnostic[], cellOffsets: CellOffset[], engineName: string): Array<LintError & { cellIndex: number; cellLine: number }>;
+export function mapDiagnostics(
+  diagnostics: RawDiagnostic[],
+  cellOffsets: CellOffset[],
+  engineName: string
+): Array<LintError & { cellIndex: number; cellLine: number }>;
 ```
 
-**Note on the `engineName` parameter:** the spec's sketch of `mapDiagnostics` omitted this, but the old `mapFlake8Results` it supersedes hardcoded `rule: 'flake8'` — since this function is now shared between two engines, `rule` needs to say *which* engine produced the diagnostic rather than being hardcoded. This is a mechanical consequence of sharing the function, not a design change.
+**Note on the `engineName` parameter:** the spec's sketch of `mapDiagnostics` omitted this, but the old `mapFlake8Results` it supersedes hardcoded `rule: 'flake8'` — since this function is now shared between two engines, `rule` needs to say _which_ engine produced the diagnostic rather than being hardcoded. This is a mechanical consequence of sharing the function, not a design change.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -369,7 +426,14 @@ describe('mapDiagnostics', () => {
 
   it('tags rule with whatever engineName is passed, so the same function works for ruff too', () => {
     const result = mapDiagnostics(
-      [{ line: 1, column: 8, code: 'F401', message: "'os' imported but unused" }],
+      [
+        {
+          line: 1,
+          column: 8,
+          code: 'F401',
+          message: "'os' imported but unused",
+        },
+      ],
       cellOffsets,
       'ruff'
     );
@@ -432,7 +496,8 @@ export function mapDiagnostics(
   cellOffsets: CellOffset[],
   engineName: string
 ): Array<LintError & { cellIndex: number; cellLine: number }> {
-  const results: Array<LintError & { cellIndex: number; cellLine: number }> = [];
+  const results: Array<LintError & { cellIndex: number; cellLine: number }> =
+    [];
 
   for (const diagnostic of diagnostics) {
     const mapped = mapLineToCell(diagnostic.line, cellOffsets);
@@ -487,6 +552,7 @@ git commit -m "feat(core): shared severity classification + diagnostic mapping"
 ### Task 3: Rewrite the flake8 engine — shim + PyodideRuntime (whole-notebook single-pass)
 
 **Files:**
+
 - Modify: `packages/core/src/engines/flake8Shim.ts` (rewrite `PYTHON_SHIM` entirely)
 - Delete: `packages/core/src/engines/flake8Mapping.ts`
 - Delete: `packages/core/src/__tests__/flake8Mapping.test.ts`
@@ -495,12 +561,13 @@ git commit -m "feat(core): shared severity classification + diagnostic mapping"
 - Modify: `packages/extension/src/offscreen/pyodideRuntime.ts` (rewrite `lintNotebook` to the single-pass model)
 
 **Interfaces:**
+
 - Consumes: `buildNotebookSource`, `mapDiagnostics`, `RawDiagnostic`, `NotebookCellInput` (Tasks 1–2, from `@kaggle-lint/core`).
 - Produces (consumed by Task 6's protocol generalization, which changes `PyodideRuntime.lintNotebook`'s parameter/return types to the generalized `EngineResultError` — until then this task keeps the existing `Flake8CellInput`/`Flake8ResultError` names from `../flake8/protocol`, which still exist untouched at this point in the plan): `PyodideRuntime.lintNotebook(cells, ignoreCodes: string[])` — note the new second parameter; `load()` is unchanged.
 
 **Why shim and runtime move together:** the old `packages/core/src/engines/flake8Mapping.ts` (`mapFlake8Results`) is deleted in this task, but `pyodideRuntime.ts` currently imports it (`import { PYTHON_SHIM, mapFlake8Results, type RawFlake8Error } from '@kaggle-lint/core';`) — deleting it without updating the consumer in the same task would leave the root build broken with no fix until a later task, unlike every other task in this plan. Doing both together (matching the shim's new `lint_source(source, ignore_codes)` signature to what the rewritten runtime calls) keeps the root build green throughout, per this plan's Global Constraints.
 
-**Verified root cause the shim rewrite depends on (already established via direct repro against the real flake8 6.1.0 wheel — see this plan's header):** `flake8.api.legacy.get_style_guide()`'s convenience wrapper cannot capture structured per-violation data — reassigning `application.formatter` after calling it has no effect, because `get_style_guide()` already wired the checking machinery to the *original* formatter inside `make_file_checker_manager()`. The working pattern constructs `Application()` directly and assigns a custom formatter **before** calling `make_guide()`/`make_file_checker_manager()`.
+**Verified root cause the shim rewrite depends on (already established via direct repro against the real flake8 6.1.0 wheel — see this plan's header):** `flake8.api.legacy.get_style_guide()`'s convenience wrapper cannot capture structured per-violation data — reassigning `application.formatter` after calling it has no effect, because `get_style_guide()` already wired the checking machinery to the _original_ formatter inside `make_file_checker_manager()`. The working pattern constructs `Application()` directly and assigns a custom formatter **before** calling `make_guide()`/`make_file_checker_manager()`.
 
 - [ ] **Step 1: Replace `PYTHON_SHIM`**
 
@@ -605,7 +672,9 @@ describe('PYTHON_SHIM lint_source formatter wiring', () => {
     // see this plan's header. Regression test for that ordering
     // requirement: reassigning application.formatter AFTER make_guide()/
     // make_file_checker_manager() silently produces empty results.
-    const formatterAssignIdx = PYTHON_SHIM.indexOf('application.formatter = CollectingFormatter');
+    const formatterAssignIdx = PYTHON_SHIM.indexOf(
+      'application.formatter = CollectingFormatter'
+    );
     const makeGuideIdx = PYTHON_SHIM.indexOf('application.make_guide()');
 
     expect(formatterAssignIdx).toBeGreaterThan(-1);
@@ -614,10 +683,12 @@ describe('PYTHON_SHIM lint_source formatter wiring', () => {
   });
 
   it('suppresses printing by returning None from format()', () => {
-    expect(PYTHON_SHIM).toMatch(/def format\(self, error\):\s*\n\s*return None/);
+    expect(PYTHON_SHIM).toMatch(
+      /def format\(self, error\):\s*\n\s*return None/
+    );
   });
 
-  it('routes ignore_codes into flake8\'s own native config, not a client-side filter', () => {
+  it("routes ignore_codes into flake8's own native config, not a client-side filter", () => {
     expect(PYTHON_SHIM).toContain('application.options.ignore = ignore_codes');
   });
 });
@@ -646,8 +717,17 @@ Replace the entire contents of `packages/extension/src/offscreen/pyodideRuntime.
  * "file" gives correct cross-cell scoping natively.
  */
 
-import { PYTHON_SHIM, buildNotebookSource, mapDiagnostics, type RawDiagnostic } from '@kaggle-lint/core';
-import type { Flake8CellInput, Flake8ResultError, Flake8Status } from '../flake8/protocol';
+import {
+  PYTHON_SHIM,
+  buildNotebookSource,
+  mapDiagnostics,
+  type RawDiagnostic,
+} from '@kaggle-lint/core';
+import type {
+  Flake8CellInput,
+  Flake8ResultError,
+  Flake8Status,
+} from '../flake8/protocol';
 
 declare global {
   interface Window {
@@ -691,7 +771,9 @@ export class PyodideRuntime {
         if (!window.loadPyodide) {
           await this.loadPyodideScript();
         }
-        this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
+        this.pyodide = await window.loadPyodide!({
+          indexURL: PYODIDE_INDEX_URL,
+        });
         await this.pyodide!.loadPackage('micropip');
 
         const wheelUrls = WHEEL_FILENAMES.map((name) =>
@@ -727,7 +809,10 @@ export class PyodideRuntime {
     });
   }
 
-  async lintNotebook(cells: Flake8CellInput[], ignoreCodes: string[]): Promise<Flake8ResultError[]> {
+  async lintNotebook(
+    cells: Flake8CellInput[],
+    ignoreCodes: string[]
+  ): Promise<Flake8ResultError[]> {
     await this.load();
 
     const { source, cellOffsets } = buildNotebookSource(cells);
@@ -766,11 +851,13 @@ git commit -m "refactor: rewrite flake8 engine to use real flake8 API on one who
 ### Task 4: Add the ruff engine (bundled WASM, new offscreen runtime)
 
 **Files:**
+
 - Modify: `packages/extension/package.json` (add dependency)
 - Modify: `packages/extension/webpack.config.js` (add `CopyPlugin` pattern)
 - Create: `packages/extension/src/offscreen/ruffRuntime.ts`
 
 **Interfaces:**
+
 - Consumes: `NotebookCellInput`, `buildNotebookSource`, `mapDiagnostics` (from `@kaggle-lint/core`, Tasks 1–2).
 - Produces (consumed by Task 6's offscreen dispatch): `class RuffRuntime { status: Flake8Status; load(): Promise<void>; lintNotebook(cells, ignoreCodes: string[]): Promise<Flake8ResultError[]>; }` — deliberately the same shape as `PyodideRuntime` (using the same `Flake8Status`/`Flake8ResultError` type names from `../flake8/protocol` for now — Task 6 renames these to the generalized `EngineStatus`/`EngineResultError`, at which point both runtimes' signatures update together).
 
@@ -795,7 +882,9 @@ In `packages/extension/webpack.config.js`, add `path` usage for resolving the pa
 At the top of the file (near the existing `const path = require('path');`):
 
 ```js
-const ruffWasmDir = path.dirname(require.resolve('@astral-sh/ruff-wasm-web/package.json'));
+const ruffWasmDir = path.dirname(
+  require.resolve('@astral-sh/ruff-wasm-web/package.json')
+);
 ```
 
 Add a new `CopyPlugin` pattern (alongside the existing `pyodide/` one):
@@ -821,8 +910,17 @@ Create `packages/extension/src/offscreen/ruffRuntime.ts`:
  * no wheels, no Python stdlib.
  */
 
-import { initSync, Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
-import { buildNotebookSource, mapDiagnostics, type NotebookCellInput } from '@kaggle-lint/core';
+import {
+  initSync,
+  Workspace,
+  PositionEncoding,
+  type Diagnostic,
+} from '@astral-sh/ruff-wasm-web';
+import {
+  buildNotebookSource,
+  mapDiagnostics,
+  type NotebookCellInput,
+} from '@kaggle-lint/core';
 import type { Flake8ResultError, Flake8Status } from '../flake8/protocol';
 
 const RUFF_WASM_URL = chrome.runtime.getURL('ruff/ruff_wasm_bg.wasm');
@@ -856,7 +954,10 @@ export class RuffRuntime {
     return this.loadPromise;
   }
 
-  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<Flake8ResultError[]> {
+  async lintNotebook(
+    cells: NotebookCellInput[],
+    ignoreCodes: string[]
+  ): Promise<Flake8ResultError[]> {
     await this.load();
 
     // Workspace's settings (including lint.ignore) are fixed at
@@ -866,7 +967,10 @@ export class RuffRuntime {
     // ignoreCodes setting takes effect immediately, matching the flake8
     // shim's fresh-Application-per-call pattern.
     const workspace = new Workspace(
-      { 'line-length': 88, lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes } },
+      {
+        'line-length': 88,
+        lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes },
+      },
       PositionEncoding.Utf16
     );
 
@@ -907,6 +1011,7 @@ git commit -m "feat(extension): add ruff engine via @astral-sh/ruff-wasm-web"
 ### Task 5: Generalize the protocol + background/offscreen dispatch
 
 **Files:**
+
 - Create: `packages/extension/src/engine/protocol.ts` (moved/generalized from `packages/extension/src/flake8/protocol.ts`)
 - Delete: `packages/extension/src/flake8/protocol.ts`
 - Modify: `packages/extension/src/background/index.ts`
@@ -915,6 +1020,7 @@ git commit -m "feat(extension): add ruff engine via @astral-sh/ruff-wasm-web"
 - Modify: `packages/extension/src/offscreen/ruffRuntime.ts` (same import swap)
 
 **Interfaces:**
+
 - Consumes: `NotebookCellInput` (from `@kaggle-lint/core`, Task 1), `PyodideRuntime` (Task 3), `RuffRuntime` (Task 4).
 - Produces (consumed by Task 6): the generalized protocol types below, plus both runtimes now keyed by `EngineName` in `offscreen/index.ts`.
 
@@ -946,7 +1052,10 @@ export interface EngineLintRequest {
   ignoreCodes: string[];
 }
 
-export type EngineResultError = LintError & { cellIndex: number; cellLine: number };
+export type EngineResultError = LintError & {
+  cellIndex: number;
+  cellLine: number;
+};
 
 export type EngineLintResponse =
   | { ok: true; errors: EngineResultError[] }
@@ -988,7 +1097,11 @@ Replace the entire contents of `packages/extension/src/background/index.ts`:
  * Generalized from flake8-only (Milestone 3) to any engine.
  */
 
-import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
+import {
+  ENGINE_LINT_NOTEBOOK,
+  ENGINE_OFFSCREEN_REQUEST,
+  ENGINE_STATUS,
+} from '../engine/protocol';
 
 const ENGINE_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   ENGINE_LINT_NOTEBOOK,
@@ -1020,7 +1133,10 @@ async function ensureOffscreen(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (typeof message?.type !== 'string' || !ENGINE_MESSAGE_TYPES.has(message.type)) {
+  if (
+    typeof message?.type !== 'string' ||
+    !ENGINE_MESSAGE_TYPES.has(message.type)
+  ) {
     return false;
   }
 
@@ -1104,7 +1220,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse(response);
       })
       .catch((error) => {
-        const response: EngineLintResponse = { ok: false, error: String(error) };
+        const response: EngineLintResponse = {
+          ok: false,
+          error: String(error),
+        };
         sendResponse(response);
       });
     return true;
@@ -1119,7 +1238,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 In `packages/extension/src/offscreen/pyodideRuntime.ts`, change:
 
 ```ts
-import type { Flake8CellInput, Flake8ResultError, Flake8Status } from '../flake8/protocol';
+import type {
+  Flake8CellInput,
+  Flake8ResultError,
+  Flake8Status,
+} from '../flake8/protocol';
 ```
 
 to:
@@ -1165,12 +1288,14 @@ git commit -m "refactor(extension): generalize background/offscreen protocol to 
 ### Task 6: Generalize the client + rewrite ContentApp (remove handmade engine)
 
 **Files:**
+
 - Create: `packages/extension/src/engine/EngineClient.ts` (moved/generalized from `packages/extension/src/flake8/Flake8Client.ts`)
 - Delete: `packages/extension/src/flake8/Flake8Client.ts`
 - Delete: `packages/extension/src/flake8/` directory (now empty)
 - Modify: `packages/extension/src/content/ContentApp.tsx` (full rewrite — see below)
 
 **Interfaces:**
+
 - Consumes: `ENGINE_LINT_NOTEBOOK`, `ENGINE_STATUS`, `EngineName`, `EngineResultError`, `EngineLintResponse`, `EngineStatus`, `EngineStatusResponse` (Task 5's `../engine/protocol`); `NotebookCellInput` (`@kaggle-lint/core`, Task 1).
 - Produces: `class EngineClient { lintNotebook(engine: EngineName, cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]>; getStatus(engine: EngineName): Promise<EngineStatus>; }` — same shape as the old `Flake8Client`, now parameterized by which engine to talk to. `ContentApp`'s `Settings` interface changes shape (see below) — this is consumed by Task 7 (`PopupApp.tsx` writes/reads the same shape via `chrome.storage.sync`).
 
@@ -1270,7 +1395,9 @@ export const ContentApp: React.FC = () => {
   const [isLinting, setIsLinting] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [engineStatus, setEngineStatus] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
+  const [engineStatus, setEngineStatus] = useState<
+    'unloaded' | 'loading' | 'ready' | 'failed'
+  >('unloaded');
 
   const engineClientRef = React.useRef(new EngineClient()).current;
   const domParser = React.useRef(new KaggleDomParser()).current;
@@ -1327,16 +1454,19 @@ export const ContentApp: React.FC = () => {
         code: stored.code,
         cellIndex: stored.cellIndex,
         element:
-          elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
+          elementByCellId.get(
+            codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)
+          ) ?? null,
       }));
 
       // The protocol is JSON-only (no DOM elements cross chrome.runtime
       // messaging), so strip elements before sending and re-attach them
       // to the returned errors by cellIndex — error-click-to-scroll needs
       // them.
-      const ignoreCodes = (settings.linterEngine === 'flake8'
-        ? settings.flake8IgnoreCodes
-        : settings.ruffIgnoreCodes
+      const ignoreCodes = (
+        settings.linterEngine === 'flake8'
+          ? settings.flake8IgnoreCodes
+          : settings.ruffIgnoreCodes
       )
         .split(',')
         .map((code) => code.trim())
@@ -1360,7 +1490,9 @@ export const ContentApp: React.FC = () => {
           element: elementByCellIndex.get(error.cellIndex) ?? null,
         }));
         setEngineStatus('ready');
-        console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
+        console.log(
+          `[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`
+        );
       } catch (error) {
         setEngineStatus('failed');
         throw error;
@@ -1368,14 +1500,22 @@ export const ContentApp: React.FC = () => {
 
       // Update errors state
       setErrors(lintErrors);
-      console.log('[Linter] Updated errors state with', lintErrors.length, 'errors');
+      console.log(
+        '[Linter] Updated errors state with',
+        lintErrors.length,
+        'errors'
+      );
     } catch (error) {
       console.error('[Linter] Error during linting:', error);
-      console.warn(`[Linter] ${settings.linterEngine} failed, you may need to reload the page`);
+      console.warn(
+        `[Linter] ${settings.linterEngine} failed, you may need to reload the page`
+      );
     } finally {
       isLintingRef.current = false;
       setIsLinting(false);
-      console.log(`[Linter] Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
+      console.log(
+        `[Linter] Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`
+      );
     }
   }, [domParser, codeMirrorManager, settings, engineClientRef]);
 
@@ -1398,7 +1538,10 @@ export const ContentApp: React.FC = () => {
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.sync.get(['linterSettings'], (result: any) => {
         if (result.linterSettings) {
-          console.log('[Linter] Loaded settings from storage:', result.linterSettings);
+          console.log(
+            '[Linter] Loaded settings from storage:',
+            result.linterSettings
+          );
           setSettings({
             ...DEFAULT_SETTINGS,
             ...result.linterSettings,
@@ -1619,10 +1762,12 @@ git commit -m "refactor(extension): generalize EngineClient; remove handmade eng
 ### Task 7: Rename `flake8Status` → `engineStatus` in ui-components (restores green build)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/types/index.ts`
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx`
 
 **Interfaces:**
+
 - Produces: `OverlayProps.engineStatus?: 'unloaded' | 'loading' | 'ready' | 'failed'` (same type, renamed from `flake8Status`, now always passed unconditionally by `ContentApp` per Task 6 rather than only when flake8 was selected).
 
 - [ ] **Step 1: Rename the prop in `OverlayProps`**
@@ -1656,35 +1801,43 @@ to:
 Change the two status-message blocks (currently lines 277-288):
 
 ```tsx
-        {flake8Status === 'loading' && (
-          <div className="kaggle-lint-engine-status">
-            Loading Flake8 (Pyodide)… first load can take up to 30 s
-          </div>
-        )}
-        {flake8Status === 'failed' && (
-          <div className="kaggle-lint-engine-status">
-            Flake8 failed to load — check the offscreen document's console
-            (chrome://extensions → this extension → inspect the "service
-            worker" / "offscreen document" links) or try re-linting.
-          </div>
-        )}
+{
+  flake8Status === 'loading' && (
+    <div className="kaggle-lint-engine-status">
+      Loading Flake8 (Pyodide)… first load can take up to 30 s
+    </div>
+  );
+}
+{
+  flake8Status === 'failed' && (
+    <div className="kaggle-lint-engine-status">
+      Flake8 failed to load — check the offscreen document's console
+      (chrome://extensions → this extension → inspect the "service worker" /
+      "offscreen document" links) or try re-linting.
+    </div>
+  );
+}
 ```
 
 to:
 
 ```tsx
-        {engineStatus === 'loading' && (
-          <div className="kaggle-lint-engine-status">
-            Loading linter engine… first load can take up to 30 s
-          </div>
-        )}
-        {engineStatus === 'failed' && (
-          <div className="kaggle-lint-engine-status">
-            Linter engine failed to load — check the offscreen document's
-            console (chrome://extensions → this extension → inspect the
-            "service worker" / "offscreen document" links) or try re-linting.
-          </div>
-        )}
+{
+  engineStatus === 'loading' && (
+    <div className="kaggle-lint-engine-status">
+      Loading linter engine… first load can take up to 30 s
+    </div>
+  );
+}
+{
+  engineStatus === 'failed' && (
+    <div className="kaggle-lint-engine-status">
+      Linter engine failed to load — check the offscreen document's console
+      (chrome://extensions → this extension → inspect the "service worker" /
+      "offscreen document" links) or try re-linting.
+    </div>
+  );
+}
 ```
 
 (The copy drops the flake8-specific wording since this message now covers either engine — ruff's cold start is expected to be much faster than 30s given no Python/wheels are involved, but the same message covers both without overclaiming a specific number for ruff that hasn't been measured yet.)
@@ -1710,9 +1863,11 @@ git commit -m "refactor(ui-components): rename flake8Status to engineStatus"
 ### Task 8: Rewrite the popup UI (engine radio, ignore-codes inputs, remove Built-in Rules)
 
 **Files:**
+
 - Modify: `packages/extension/src/popup/PopupApp.tsx` (full rewrite — see below)
 
 **Interfaces:**
+
 - Consumes: nothing new — matches the `Settings` shape `ContentApp.tsx` (Task 6) already reads/writes via `chrome.storage.sync`'s `linterSettings` key: `{ linterEngine: 'flake8' | 'ruff'; flake8IgnoreCodes: string; ruffIgnoreCodes: string; }`.
 - Produces: nothing new for later tasks — this is the last consumer-facing piece.
 
@@ -1816,7 +1971,10 @@ export const PopupApp: React.FC = () => {
     saveSettings({ ...settings, linterEngine: engine });
   };
 
-  const handleIgnoreCodesChange = (engine: 'flake8' | 'ruff', value: string) => {
+  const handleIgnoreCodesChange = (
+    engine: 'flake8' | 'ruff',
+    value: string
+  ) => {
     if (engine === 'flake8') {
       saveSettings({ ...settings, flake8IgnoreCodes: value });
     } else {
@@ -1876,7 +2034,9 @@ export const PopupApp: React.FC = () => {
   }
 
   const currentIgnoreCodes =
-    settings.linterEngine === 'flake8' ? settings.flake8IgnoreCodes : settings.ruffIgnoreCodes;
+    settings.linterEngine === 'flake8'
+      ? settings.flake8IgnoreCodes
+      : settings.ruffIgnoreCodes;
 
   return (
     <div className="popup-container">
@@ -1913,7 +2073,8 @@ export const PopupApp: React.FC = () => {
                 <div className="option-info">
                   <span className="option-label">Flake8</span>
                   <span className="option-description">
-                    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
+                    Industry-standard Python linter (pyflakes + pycodestyle +
+                    mccabe)
                   </span>
                 </div>
               </label>
@@ -1947,12 +2108,15 @@ export const PopupApp: React.FC = () => {
           <div className="section-content">
             <label className="option-item" style={{ display: 'block' }}>
               <span className="option-description">
-                Comma-separated codes to ignore for {settings.linterEngine} (e.g. E501, F401)
+                Comma-separated codes to ignore for {settings.linterEngine}{' '}
+                (e.g. E501, F401)
               </span>
               <input
                 type="text"
                 value={currentIgnoreCodes}
-                onChange={(e) => handleIgnoreCodesChange(settings.linterEngine, e.target.value)}
+                onChange={(e) =>
+                  handleIgnoreCodesChange(settings.linterEngine, e.target.value)
+                }
                 placeholder="E501, F401"
               />
             </label>
@@ -2033,6 +2197,7 @@ git commit -m "feat(extension): popup UI for flake8/ruff engines with ignore-cod
 ### Task 9: Delete the handmade engine (rules/, LintEngine.ts, and their tests/types)
 
 **Files:**
+
 - Delete: `packages/core/src/rules/` (entire directory: `BaseRule.ts`, `CapitalizationTyposRule.ts`, `DuplicateFunctionsRule.ts`, `EmptyCellsRule.ts`, `ImportIssuesRule.ts`, `IndentationErrorsRule.ts`, `MissingReturnRule.ts`, `RedefinedVariablesRule.ts`, `UnclosedBracketsRule.ts`, `UndefinedVariablesRule.ts`, `registry.ts`, `index.ts`)
 - Delete: `packages/core/src/engines/LintEngine.ts`
 - Delete: `packages/core/src/__tests__/LintEngine.test.ts`, `packages/core/src/__tests__/UndefinedVariablesRule.test.ts`, `packages/core/src/__tests__/registry.test.ts`
@@ -2041,8 +2206,9 @@ git commit -m "feat(extension): popup UI for flake8/ruff engines with ignore-cod
 - Modify: `packages/core/src/types/index.ts` (remove rule-system-specific types)
 
 **Interfaces:**
+
 - Consumes: nothing — by this point (Tasks 6 and 8 already removed every consumer of `LintEngine`/`createEnabledRules`/`defaultRuleToggles`/`RULE_REGISTRY` in the extension package), nothing in the repo references any of these files. Confirmed via a direct check of the two tests being deleted here: both `LintEngine.test.ts` and `UndefinedVariablesRule.test.ts` import their subjects via relative paths (`../engines/LintEngine`, `../rules/UndefinedVariablesRule`), not through `@kaggle-lint/core`'s public API, so they were unaffected by any earlier task's export changes and have kept passing until now — this task deletes the tests and their subjects together.
-- Produces: nothing — this is a pure deletion task, root build stays green (unlike Task 5, this deletion happens *after* its last consumer was already migrated, not before).
+- Produces: nothing — this is a pure deletion task, root build stays green (unlike Task 5, this deletion happens _after_ its last consumer was already migrated, not before).
 
 - [ ] **Step 1: Delete the rule system**
 
@@ -2136,6 +2302,7 @@ git commit -m "refactor(core): delete handmade rule-based engine"
 ### Task 10: Update documentation (CLAUDE.md, README.md)
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 - Modify: `README.md`
 
@@ -2147,6 +2314,7 @@ Replace (currently lines 43–51):
 
 ```markdown
 ### `packages/core` — `@kaggle-lint/core`
+
 Pure TypeScript linting engine, no DOM dependencies, usable standalone in Node.
 
 - `types/index.ts` — shared types: `LintError`, `LintContext`, `LintRule`, `LintResult`.
@@ -2161,6 +2329,7 @@ with:
 
 ```markdown
 ### `packages/core` — `@kaggle-lint/core`
+
 Pure TypeScript linting logic, no DOM dependencies, usable standalone in Node.
 
 - `types/index.ts` — shared types: `LintError`, `Severity`.
@@ -2194,7 +2363,6 @@ Delete (currently lines 69–71):
 ## Adding a lint rule
 
 Extend `BaseRule` in `packages/core/src/rules/`, implement `run(code, cellOffset, context?)`, export it from `rules/index.ts`, and (if it should be user-toggleable in the extension) add it to `RULE_MAP` and `DEFAULT_SETTINGS.rules` in `packages/extension/src/content/ContentApp.tsx`. If the rule needs cross-cell awareness, add its name to `CONTEXT_AWARE_RULES` in `LintEngine.ts` and make sure `run()` returns `{ errors, definedNames }` rather than a bare array.
-
 ```
 
 (Delete the whole section including its heading and trailing blank line — the file continues directly from the preceding `old-linter/` section into `## CI`.)
@@ -2248,7 +2416,6 @@ Delete (currently lines 26–38, including the heading):
 | **Unclosed Brackets**    | Detects unclosed parentheses, brackets, and braces                             | Error        |
 | **Redefined Variables**  | Detects shadowing of built-in names and variable redefinition                  | Warning      |
 | **Missing Return**       | Detects functions that appear to compute values but lack return statements     | Warning      |
-
 ```
 
 - [ ] **Step 6: Update the "Extension Settings" bullets**
@@ -2282,27 +2449,27 @@ Click the extension icon in Chrome toolbar to configure:
 Replace (currently lines 111–118):
 
 ```markdown
-│   ├── core/                    # Core linting engine
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
-│   │   │   ├── engines/        # LintEngine + flake8Shim/flake8Mapping (pure logic; browser glue lives in the extension's offscreen document)
-│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime
-│   │   │   └── __tests__/      # Jest tests (21 passing)
-│   │   └── dist/               # Compiled output
+│ ├── core/ # Core linting engine
+│ │ ├── src/
+│ │ │ ├── types/ # TypeScript type definitions
+│ │ │ ├── rules/ # 9 lint rules (TypeScript classes)
+│ │ │ ├── engines/ # LintEngine + flake8Shim/flake8Mapping (pure logic; browser glue lives in the extension's offscreen document)
+│ │ │ ├── pyodide/ # Pyodide WebAssembly runtime
+│ │ │ └── **tests**/ # Jest tests (21 passing)
+│ │ └── dist/ # Compiled output
 ```
 
 with:
 
 ```markdown
-│   ├── core/                    # Core linting logic
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── notebook/       # Shared cell-concatenation + severity/diagnostic mapping (used by both engines)
-│   │   │   ├── engines/        # flake8Shim.ts (pure Python string; browser glue lives in the extension's offscreen document)
-│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime + bundled flake8/pyflakes/pycodestyle/mccabe wheels
-│   │   │   └── __tests__/      # Jest tests
-│   │   └── dist/               # Compiled output
+│ ├── core/ # Core linting logic
+│ │ ├── src/
+│ │ │ ├── types/ # TypeScript type definitions
+│ │ │ ├── notebook/ # Shared cell-concatenation + severity/diagnostic mapping (used by both engines)
+│ │ │ ├── engines/ # flake8Shim.ts (pure Python string; browser glue lives in the extension's offscreen document)
+│ │ │ ├── pyodide/ # Pyodide WebAssembly runtime + bundled flake8/pyflakes/pycodestyle/mccabe wheels
+│ │ │ └── **tests**/ # Jest tests
+│ │ └── dist/ # Compiled output
 ```
 
 (Dropped the specific test count, since it drifts with every test file added/removed and this task isn't the place to hand-maintain a number — the pre-existing "21 passing" claim was already stale before this plan and is tracked separately as finding F24.)
@@ -2311,7 +2478,7 @@ with:
 
 Delete (currently lines 265–296, including both headings):
 
-```markdown
+````markdown
 #### Using the LintEngine
 
 ```typescript
@@ -2332,6 +2499,7 @@ const cells = [
 ];
 const notebookErrors = engine.lintNotebook(cells);
 ```
+````
 
 #### Using Individual Rules
 
@@ -2345,7 +2513,7 @@ const undefinedRule = new UndefinedVariablesRule();
 const errors = undefinedRule.run('print(x)', 0);
 ```
 
-```
+````
 
 - [ ] **Step 9: Update the "Flake8 Linting" section to describe both engines**
 
@@ -2361,10 +2529,11 @@ import { Flake8Client } from '../flake8/Flake8Client';
 
 const client = new Flake8Client();
 const errors = await client.lintNotebook([{ code: 'x = y + 1', cellIndex: 0 }]);
-```
+````
 
 `packages/core` exports the reusable, browser-independent pieces the offscreen runtime is built from: `PYTHON_SHIM` (the pyflakes-wrapping Python source, from `engines/flake8Shim.ts`) and `mapFlake8Results` (line-offset + rule tagging, from `engines/flake8Mapping.ts`).
-```
+
+````
 
 with:
 
@@ -2378,10 +2547,11 @@ import { EngineClient } from '../engine/EngineClient';
 
 const client = new EngineClient();
 const errors = await client.lintNotebook('flake8', [{ code: 'x = y + 1', cellIndex: 0 }], []);
-```
+````
 
 `packages/core` exports the reusable, browser-independent pieces both offscreen runtimes are built from: `buildNotebookSource`/`mapLineToCell` (notebook/buildNotebookSource.ts — concatenates cells into one lint pass), `classifySeverity`/`mapDiagnostics` (notebook/severityMapping.ts — shared by both engines), and `PYTHON_SHIM` (engines/flake8Shim.ts — flake8-specific).
-```
+
+````
 
 - [ ] **Step 10: Remove the "Adding Custom Rules" section**
 
@@ -2412,9 +2582,9 @@ export class MyCustomRule extends BaseRule {
     return errors;
   }
 }
-```
+````
 
-```
+````
 
 (The file continues directly from the preceding section into `## 🔧 Build & CI/CD`.)
 
@@ -2423,7 +2593,7 @@ export class MyCustomRule extends BaseRule {
 ```bash
 grep -n "LintEngine\|BaseRule\|Flake8Engine\|Flake8Client\|RULE_REGISTRY\|Built-in Engine" CLAUDE.md README.md
 npm run type-check && npm run build && npm test
-```
+````
 
 Expected: the `grep` returns no matches in either file (code/build commands are unaffected by doc-only changes, but re-verify green anyway since this is the plan's last code-adjacent task before the manual gate).
 
@@ -2448,7 +2618,7 @@ This repo has no e2e scripts; this gate requires a real Chrome browser and a log
 npm run build
 ```
 
-Load/reload `packages/extension/dist/` at `chrome://extensions` (content-script changes need both an extension reload *and* a page refresh). Open a Kaggle notebook in edit mode.
+Load/reload `packages/extension/dist/` at `chrome://extensions` (content-script changes need both an extension reload _and_ a page refresh). Open a Kaggle notebook in edit mode.
 
 - [ ] **Step 2: Popup UI checks**
 
@@ -2484,4 +2654,3 @@ Inspect the offscreen document's console (`chrome://extensions` → this extensi
 - [ ] **Step 7: Commit fixes and wrap up**
 
 Commit any fixes found during this gate. Once green, this work is complete; proceed to `superpowers:finishing-a-development-branch` for the merge decision.
-

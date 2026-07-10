@@ -23,10 +23,12 @@
 ### Task 1: Kill the infinite re-lint loop (F2)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx:183-217` (mount effect), `:232-250` (keyboard effect), `:256-295` (message effect)
 
 **Interfaces:**
-- Produces: a `runLinterRef: React.MutableRefObject<() => Promise<void>>` pattern that Tasks 2 and later tasks reuse. All effects that need to *call* the linter depend on the ref (stable identity), never on `runLinter` itself.
+
+- Produces: a `runLinterRef: React.MutableRefObject<() => Promise<void>>` pattern that Tasks 2 and later tasks reuse. All effects that need to _call_ the linter depend on the ref (stable identity), never on `runLinter` itself.
 
 **Root cause recap:** the mount effect lists `runLinter` in its dependency array; `runLinter`'s `useCallback` identity changes whenever `isLinting` or `settings` change, so every lint re-arms the mount effect's 1-second timer → endless lint cycle.
 
@@ -75,9 +77,11 @@ Static check: `grep -n "\[domParser, runLinter\]\|, \[runLinter\]" packages/exte
 ### Task 2: First lint waits for settings (F6)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx`
 
 **Interfaces:**
+
 - Produces: `settingsLoaded: boolean` state; a dedicated settings-change effect that re-lints (consumed by Task 1 Step 3's message branch).
 
 - [ ] **Step 1: Load settings in the mount effect, then flip a flag**
@@ -92,7 +96,10 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
       setSettings({
         ...DEFAULT_SETTINGS,
         ...result.linterSettings,
-        rules: { ...DEFAULT_SETTINGS.rules, ...(result.linterSettings.rules || {}) },
+        rules: {
+          ...DEFAULT_SETTINGS.rules,
+          ...(result.linterSettings.rules || {}),
+        },
       });
     }
     setSettingsLoaded(true); // flips even when no saved settings exist
@@ -138,30 +145,38 @@ useEffect(() => {
 ### Task 3: Single source of truth for rule metadata (F14)
 
 **Files:**
+
 - Create: `packages/core/src/rules/registry.ts`
 - Test: `packages/core/src/__tests__/registry.test.ts`
 - Modify: `packages/core/src/rules/index.ts` (re-export), `packages/core/src/index.ts` (re-export), `packages/extension/src/content/ContentApp.tsx` (delete `RULE_MAP` + `DEFAULT_SETTINGS.rules` literal), `packages/extension/src/popup/PopupApp.tsx` (delete `RULES` literal)
 
 **Interfaces:**
+
 - Produces (exact exports from `@kaggle-lint/core`):
 
 ```ts
 export interface RuleInfo {
-  id: string;                 // e.g. 'undefinedVariables' — must match LintRule.name
-  displayName: string;        // e.g. 'Undefined Variables'
-  description: string;        // popup copy
-  defaultEnabled: boolean;    // true for all 9 today
-  create: () => LintRule;     // factory, e.g. () => new UndefinedVariablesRule()
+  id: string; // e.g. 'undefinedVariables' — must match LintRule.name
+  displayName: string; // e.g. 'Undefined Variables'
+  description: string; // popup copy
+  defaultEnabled: boolean; // true for all 9 today
+  create: () => LintRule; // factory, e.g. () => new UndefinedVariablesRule()
 }
-export const RULE_REGISTRY: RuleInfo[];                      // all 9, in current popup order
-export function createEnabledRules(toggles: Record<string, boolean>): LintRule[];
+export const RULE_REGISTRY: RuleInfo[]; // all 9, in current popup order
+export function createEnabledRules(
+  toggles: Record<string, boolean>
+): LintRule[];
 export function defaultRuleToggles(): Record<string, boolean>;
 ```
 
 - [ ] **Step 1: Write the failing test** (`packages/core/src/__tests__/registry.test.ts`)
 
 ```ts
-import { RULE_REGISTRY, createEnabledRules, defaultRuleToggles } from '../rules/registry';
+import {
+  RULE_REGISTRY,
+  createEnabledRules,
+  defaultRuleToggles,
+} from '../rules/registry';
 
 describe('rule registry', () => {
   it('has 9 rules whose ids match their instance names', () => {
@@ -173,12 +188,18 @@ describe('rule registry', () => {
 
   it('defaultRuleToggles enables every rule', () => {
     const toggles = defaultRuleToggles();
-    expect(Object.keys(toggles).sort()).toEqual(RULE_REGISTRY.map((r) => r.id).sort());
+    expect(Object.keys(toggles).sort()).toEqual(
+      RULE_REGISTRY.map((r) => r.id).sort()
+    );
     expect(Object.values(toggles).every(Boolean)).toBe(true);
   });
 
   it('createEnabledRules honors toggles and ignores unknown ids', () => {
-    const rules = createEnabledRules({ undefinedVariables: true, emptyCells: false, bogus: true });
+    const rules = createEnabledRules({
+      undefinedVariables: true,
+      emptyCells: false,
+      bogus: true,
+    });
     expect(rules.map((r) => r.name)).toEqual(['undefinedVariables']);
   });
 });
@@ -203,6 +224,7 @@ describe('rule registry', () => {
 ### Task 4: Overlay close button uses React state (F11, partial)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx:265-275`, `packages/ui-components/src/types/index.ts` (add `onClose?: () => void` to `OverlayProps`), `packages/extension/src/content/ContentApp.tsx` (pass `onClose={() => setVisible(false)}`)
 
 - [ ] **Step 1:** Add `onClose?: () => void` to `OverlayProps`; in `Overlay.tsx` replace the close button's direct `style.display = 'none'` with `onClick={onClose}`.
@@ -216,19 +238,23 @@ describe('rule registry', () => {
 ### Task 5: Render Flake8 loading status (F10)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (destructure `flake8Status`, render status line), `packages/ui-components/src/Overlay/Overlay.css` (one class)
 
 **Interfaces:**
+
 - Consumes: `flake8Status?: 'unloaded' | 'loading' | 'ready'` already declared in `OverlayProps` and already passed by `ContentApp.tsx:320`.
 
 - [ ] **Step 1:** In `Overlay.tsx`, destructure `flake8Status` and render inside `.kaggle-lint-content`, above the summary:
 
 ```tsx
-{flake8Status === 'loading' && (
-  <div className="kaggle-lint-engine-status">
-    Loading Flake8 (Pyodide)… first load can take up to 30 s
-  </div>
-)}
+{
+  flake8Status === 'loading' && (
+    <div className="kaggle-lint-engine-status">
+      Loading Flake8 (Pyodide)… first load can take up to 30 s
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 2:** Add a `.kaggle-lint-engine-status` style to `Overlay.css` consistent with existing overlay styles (small, muted, padded; both `-theme-light` and `-theme-dark` variants like neighboring classes).

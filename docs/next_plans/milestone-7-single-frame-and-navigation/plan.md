@@ -22,10 +22,11 @@
 ### Task 1: Mount only in the notebook frame (F32)
 
 **Files:**
+
 - Modify: `packages/extension/src/content/index.tsx`
 
-- [ ] **Step 1:** Replace the unconditional `init()` with a gate: mount only once `.jp-Notebook` exists in *this frame's* DOM. Initial check first; if absent, a `MutationObserver` on `document.documentElement` (childList+subtree) waits for it, and disconnects after mounting. No timeout-then-mount-anyway — a frame where the notebook never appears (the outer kaggle.com shell, and the CDN match until M4 Task 1 deletes it) must never mount: no overlay, no keydown listeners, no chrome.runtime message listener.
-- [ ] **Step 2:** Keep the existing `#kaggle-linter-root` re-entry guard (covers double injection *within* a frame). Keep manifest matches as-is — the notebook lives in the `kkb-production.jupyter-proxy.kaggle.net` iframe today, but the outer-page match stays harmless-by-construction if Kaggle ever inlines the notebook.
+- [ ] **Step 1:** Replace the unconditional `init()` with a gate: mount only once `.jp-Notebook` exists in _this frame's_ DOM. Initial check first; if absent, a `MutationObserver` on `document.documentElement` (childList+subtree) waits for it, and disconnects after mounting. No timeout-then-mount-anyway — a frame where the notebook never appears (the outer kaggle.com shell, and the CDN match until M4 Task 1 deletes it) must never mount: no overlay, no keydown listeners, no chrome.runtime message listener.
+- [ ] **Step 2:** Keep the existing `#kaggle-linter-root` re-entry guard (covers double injection _within_ a frame). Keep manifest matches as-is — the notebook lives in the `kkb-production.jupyter-proxy.kaggle.net` iframe today, but the outer-page match stays harmless-by-construction if Kaggle ever inlines the notebook.
 - [ ] **Step 3:** Record two intentional behavior notes in `notes.md`: (a) popup `chrome.tabs.sendMessage` broadcasts to all frames — after this change exactly one frame answers, which is what M6 Task 3's ping design assumes; (b) Ctrl+Shift+L/H now only fire with focus inside the notebook iframe — which is where typing happens anyway.
 - [ ] **Step 4: Verify** — build; on a live notebook, DevTools console per frame: `document.querySelectorAll('#kaggle-linter-root').length` → 1 in the notebook iframe, 0 in the top frame. (If no browser, hand this to the user with Task 5's gate.)
 - [ ] **Step 5: Commit** — `fix(extension): mount only in the frame that hosts the notebook (F32)`
@@ -35,6 +36,7 @@
 ### Task 2: Errors carry the cell uuid
 
 **Files:**
+
 - Modify: `packages/extension/src/content/ContentApp.tsx`, `packages/ui-components/src/types/index.ts`
 
 - [ ] **Step 1:** `cellsForLinting` already comes from the store, which keys by uuid — carry `uuid` on each entry, and when re-attaching `element` to returned errors by `cellIndex`, attach `uuid: string | null` too. Add `uuid?: string | null` to `OverlayProps['errors']`'s inline element type.
@@ -47,12 +49,13 @@
 ### Task 3: Scroll to the exact line via the MAIN-world bridge (F33)
 
 **Files:**
+
 - Modify: `packages/extension/src/page/bridgeProtocol.ts`, `packages/extension/src/page/pageExtractor.ts`, `packages/extension/src/utils/KaggleDomParser.ts` (or a small new bridge-client util), `packages/extension/src/content/ContentApp.tsx`, `packages/ui-components/src/Overlay/Overlay.tsx`
 
 - [ ] **Step 1:** Protocol: add `SCROLL_TO_CELL_LINE` request `{ requestId, uuid: string | null, cellIndex: number, line: number }` and a `{ requestId, ok: boolean }` response to `bridgeProtocol.ts`.
 - [ ] **Step 2:** MAIN-world handler in `pageExtractor.ts`: locate the cell widget by `model.id === uuid` (fallback: `widgets[cellIndex]`), then use Jupyter's own virtualization-aware machinery — expected shape (live-probe and adjust, JupyterLab 4): scroll the notebook to the cell (`content.scrollToItem(i)` / setting `content.activeCellIndex`), then reveal the line inside the cell via the editor abstraction (`widget.editor.setCursorPosition({ line: line - 1, column: 0 })` / `widget.editor.revealPosition(...)`). Do **not** import or dispatch CodeMirror state/effects — cross-instance CM6 is a known trap and `cmView` is unreachable on Kaggle's build anyway (see the doc comment in `pageExtractor.ts`). Answer `ok: false` if no `jupyterapp`/widget found.
 - [ ] **Step 3:** Content side: on error click, send the bridge request (reuse the request/response-with-timeout pattern from `KaggleDomParser.requestFromPage`, ~1500 ms). On `ok: false` or timeout, fall back to the current `element.scrollIntoView` but with `behavior: 'auto'` — instant scroll can't drift while virtualization reflows.
-- [ ] **Step 4:** Single scroll path: `Overlay.tsx` currently calls its own `scrollToError` *and* invokes `onErrorClick`, and ContentApp's `handleErrorClick` scrolls again — two scrolls per click. Delete Overlay's internal scroll; scrolling is the app's job via `onErrorClick`. Keep the highlight, and when the target `.cm-line` is rendered after the scroll settles, highlight the line rather than (or in addition to) the whole cell.
+- [ ] **Step 4:** Single scroll path: `Overlay.tsx` currently calls its own `scrollToError` _and_ invokes `onErrorClick`, and ContentApp's `handleErrorClick` scrolls again — two scrolls per click. Delete Overlay's internal scroll; scrolling is the app's job via `onErrorClick`. Keep the highlight, and when the target `.cm-line` is rendered after the scroll settles, highlight the line rather than (or in addition to) the whole cell.
 - [ ] **Step 5: Verify** — build; manual (or defer to Task 5's gate): in a 200+ line cell, click an error near the bottom from a scroll position far above → lands with the line visible; click an error in a cell scrolled far out of view → correct cell and line.
 - [ ] **Step 6: Commit** — `fix(extension): scroll to exact error line via Jupyter APIs in MAIN world (F33)`
 
@@ -61,6 +64,7 @@
 ### Task 4: Model-authoritative store reconciliation (F34)
 
 **Files:**
+
 - Modify: `packages/extension/src/page/bridgeProtocol.ts` (`ExtractResponseMessage` gains `source: 'model' | 'dom'`), `packages/extension/src/page/pageExtractor.ts`, `packages/extension/src/utils/KaggleDomParser.ts`, `packages/extension/src/utils/CodeMirrorManager.ts` (add `clear()` or `replaceCells()` if missing), `packages/extension/src/content/ContentApp.tsx`
 
 - [ ] **Step 1:** `pageExtractor.extractAllCells()` reports which path produced the cells: `'model'` (from `extractViaJupyterModel` — sees every cell, rendering-independent) or `'dom'` (fallback walk). Treat a missing `source` field as `'dom'` (additive-protocol rule).

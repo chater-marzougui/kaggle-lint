@@ -41,6 +41,7 @@ Standalone linter demo (no extension install needed): `cd old-linter && python3 
 Three workspace packages build in dependency order via Turborepo (`build` task has `dependsOn: ["^build"]`): **core → ui-components → extension**.
 
 ### `packages/core` — `@kaggle-lint/core`
+
 Pure TypeScript linting logic, no DOM dependencies, usable standalone in Node.
 
 - `types/index.ts` — shared types: `LintError`, `Severity`.
@@ -52,9 +53,11 @@ Pure TypeScript linting logic, no DOM dependencies, usable standalone in Node.
 - `pyodide/` assets are copied into `dist/pyodide` by the `copy-pyodide` build step and later consumed by the extension's webpack copy plugin — **core must be built before extension**, even though extension's webpack aliases `@kaggle-lint/core`/`@kaggle-lint/ui-components` to their `src/` (not `dist/`) for TS compilation.
 
 ### `packages/ui-components` — `@kaggle-lint/ui-components`
+
 React components only (`Overlay`, `ErrorList`, `ErrorItem`), CSS-modules-style scoped styling, no linting logic. Peer-deps on React 18; depends on `@kaggle-lint/core` only for types.
 
 ### `packages/extension` — `@kaggle-lint/extension`
+
 Wires core + ui-components into a Chrome MV3 extension via webpack.
 
 - Two entry points: `content/index.tsx` (injected into Kaggle notebook pages, mounts `ContentApp`) and `popup/index.tsx` (toolbar popup, mounts `PopupApp`).
@@ -65,6 +68,7 @@ Wires core + ui-components into a Chrome MV3 extension via webpack.
 - `manifest.json` content script matches are scoped to `kaggle.com/code/*/*/edit` and Kaggle's Jupyter proxy domain; `web_accessible_resources` is wide open (`<all_urls>`) to allow the Pyodide/CDN loading path.
 
 ### `old-linter/`
+
 Original vanilla-JS implementation. Treated as a migration reference in most of the codebase, but the extension's webpack build still pulls `popup.css` from here directly — don't delete without updating `packages/extension/webpack.config.js`.
 
 ## CI

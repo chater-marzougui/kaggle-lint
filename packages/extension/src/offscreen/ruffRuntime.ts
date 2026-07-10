@@ -18,8 +18,15 @@
  * indexing — it's a browser-only main-thread constraint.
  */
 
-import init, { Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
-import { lintNotebookWithSyntaxIsolation, type NotebookCellInput } from '@kaggle-lint/core';
+import init, {
+  Workspace,
+  PositionEncoding,
+  type Diagnostic,
+} from '@astral-sh/ruff-wasm-web';
+import {
+  lintNotebookWithSyntaxIsolation,
+  type NotebookCellInput,
+} from '@kaggle-lint/core';
 import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
 const RUFF_WASM_URL = chrome.runtime.getURL('ruff/ruff_wasm_bg.wasm');
@@ -58,7 +65,10 @@ export class RuffRuntime {
     return this.loadPromise;
   }
 
-  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
+  async lintNotebook(
+    cells: NotebookCellInput[],
+    ignoreCodes: string[]
+  ): Promise<EngineResultError[]> {
     await this.load();
 
     return lintNotebookWithSyntaxIsolation(
@@ -74,7 +84,10 @@ export class RuffRuntime {
         // fresh-Application-per-call pattern. This also means each
         // syntax-error-isolation retry pass gets its own Workspace.
         const workspace = new Workspace(
-          { 'line-length': 88, lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes } },
+          {
+            'line-length': 88,
+            lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes },
+          },
           PositionEncoding.Utf16
         );
 
@@ -100,7 +113,9 @@ export class RuffRuntime {
       // repro against the real @astral-sh/ruff-wasm-web package) — a
       // single-cell syntax error must not suppress every other cell's
       // real findings (see lintWithSyntaxIsolation.ts).
-      (diagnostics) => diagnostics.length > 0 && diagnostics.every((d) => d.code === 'invalid-syntax')
+      (diagnostics) =>
+        diagnostics.length > 0 &&
+        diagnostics.every((d) => d.code === 'invalid-syntax')
     );
   }
 }

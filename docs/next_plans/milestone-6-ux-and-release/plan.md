@@ -23,10 +23,11 @@
 > **MOVED 2026-07-10 → Milestone 8, Task 1.** The overlay rewrite now happens in `../milestone-8-user-experience/plan.md` (executed before this milestone) so M8's UI features build on the React-pure overlay instead of extending the imperative pattern. If M8 has landed, **skip this task** — just verify during Task 4's docs pass that F11/F29 are closed. Original scope kept below for reference only.
 
 **Files:**
+
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx`, `packages/ui-components/src/Overlay/Overlay.css`
 
 - [ ] **Step 1:** Replace the minimize/expand imperative block (`Overlay.tsx:135-176` — direct `style.width/right/bottom/opacity` writes and nested setTimeouts) with a `kaggle-lint-minimized` class toggled from the existing `isMinimized` state, and move all geometry/opacity/transition rules into `Overlay.css`.
-- [ ] **Step 2:** Convert dragging to state-lite React: keep the mousemove math but write position into a `useRef`-held style application on the root via `transform: translate(…)`; reset position on minimize so the panel docks bottom-right (current UX). Dragging must not re-render per mousemove (perf) — ref-based style writes inside the existing listeners are fine; the point is removing *stateful* UI (visibility, size, minimize) from imperative code, not banning refs.
+- [ ] **Step 2:** Convert dragging to state-lite React: keep the mousemove math but write position into a `useRef`-held style application on the root via `transform: translate(…)`; reset position on minimize so the panel docks bottom-right (current UX). Dragging must not re-render per mousemove (perf) — ref-based style writes inside the existing listeners are fine; the point is removing _stateful_ UI (visibility, size, minimize) from imperative code, not banning refs.
 - [ ] **Step 3:** Type the error props: replace `onErrorClick?: (error: any)` and ContentApp's `errors: any[]` / `error: any` (F29). **(2026-07-10 note: M4 Task 4 no longer exports a `NotebookError` type — that type never existed post-consolidation; M4 Task 4 was rescoped to just importing `LintError`/`Severity` from core instead of duplicating them.)** Use core's actual `LintError` type plus the `cellIndex`/`cellLine`/`element` fields already present on `OverlayProps.errors[]`'s inline type (read `packages/ui-components/src/types/index.ts` for the current exact shape before writing this).
 - [ ] **Step 4: Verify** — build; manual: minimize/expand animates, drag works, click-to-scroll works.
 - [ ] **Step 5: Commit** — `refactor(ui): overlay state and animation via React + CSS; typed error props`
@@ -36,6 +37,7 @@
 ### Task 2: Debug logging gate (F27)
 
 **Files:**
+
 - Create: `packages/extension/src/utils/log.ts` (`export const debug = process.env.DEBUG === 'true' ? console.log.bind(console, '[Kaggle Linter]') : () => {};`)
 - Modify: all `console.log` call sites in `packages/extension/src` and `packages/ui-components/src`; `KaggleDomParser.DEBUG` and `CodeMirrorManager.DEBUG` read the same flag; keep `console.error`/`console.warn` as-is.
 
@@ -48,9 +50,10 @@
 ### Task 3: Popup robustness (F12)
 
 **Files:**
+
 - Modify: `packages/extension/src/popup/PopupApp.tsx`
 
-- [ ] **Step 1:** Replace URL sniffing with a ping: on mount, `chrome.tabs.sendMessage(tabId, { type: 'ping' })` — content script answers `{ pong: true }` (add the branch to ContentApp's message listener). *(2026-07-10 note: after M7 Task 1's frame gate, exactly one frame mounts ContentApp, so the broadcast gets exactly one answer — the ping design assumes M7 has landed.)* No answer / `chrome.runtime.lastError` → show the existing "Not in Kaggle Notebook" panel (reword to "Open a Kaggle notebook in edit mode"). This is truthful on kaggle.com pages that aren't notebooks.
+- [ ] **Step 1:** Replace URL sniffing with a ping: on mount, `chrome.tabs.sendMessage(tabId, { type: 'ping' })` — content script answers `{ pong: true }` (add the branch to ContentApp's message listener). _(2026-07-10 note: after M7 Task 1's frame gate, exactly one frame mounts ContentApp, so the broadcast gets exactly one answer — the ping design assumes M7 has landed.)_ No answer / `chrome.runtime.lastError` → show the existing "Not in Kaggle Notebook" panel (reword to "Open a Kaggle notebook in edit mode"). This is truthful on kaggle.com pages that aren't notebooks.
 - [ ] **Step 2:** Wrap all three `sendMessage` call sites with a callback that checks `chrome.runtime.lastError` and, on failure, flips the popup into the not-connected panel instead of failing silently.
 - [ ] **Step 3: Verify** — build; manual: popup on kaggle.com home shows the guidance panel; on a notebook edit page all buttons work.
 - [ ] **Step 4: Commit** — `fix(popup): detect content script via ping; surface messaging failures`
@@ -62,6 +65,7 @@
 > **2026-07-10 note:** `README.md`, `CLAUDE.md`, `docs/architecture.md`, and `docs/review-findings.md` were all already updated once — first during the lint-engine-consolidation project (README/CLAUDE.md, describing the two-engine flake8+ruff architecture) and then again on 2026-07-10 specifically to refresh `docs/architecture.md` in full and add an addendum to `docs/review-findings.md` (both previously deferred per the M3 precedent, but the drift became too large to keep deferring once the consolidation project landed). Step 1 and Step 2 below are likely much smaller now than originally scoped — read the current state of all four files first and only fix what M1-M5's actual changes still leave stale, don't redo work already done.
 
 **Files:**
+
 - Modify: `README.md`; Verify: `docs/architecture.md` still accurate after M1–M5 (update the flaw callouts that are now fixed)
 
 - [ ] **Step 1:** README: remove links to the deleted `EXTENSION_USAGE.md`/`IMPLEMENTATION_SUMMARY.md`/`MIGRATION.md`; point "Additional Documentation" at `docs/`. Replace the false "21 unit tests / all rules tested" with the real numbers from M5 (count them). Update the standalone-demo section per Task 5's deletion. Fix Node version per M4. The "Architecture" section already describes the two-engine (flake8 + ruff) offscreen-document design as of the consolidation project — just verify it against whatever M1-M5 changed, don't rewrite it from scratch.
@@ -73,6 +77,7 @@
 ### Task 5: Delete old-linter (F30)
 
 **Files:**
+
 - Delete: `old-linter/` (entire folder)
 
 - [ ] **Step 1:** Preconditions — all must hold, else stop: `grep -rn "old-linter" packages/ turbo.json .github/ --include="*.{js,json,yml,ts,tsx}"` → only doc mentions; M4 Task 2 landed (popup.css moved); M2 landed (pageInjection.js logic ported).
@@ -85,6 +90,7 @@
 ### Task 6: Release pipeline honesty + ship (F28)
 
 **Files:**
+
 - Modify: `.github/workflows/release.yml:37-68`
 
 - [ ] **Step 1:** Replace the hardcoded release-notes heredoc with generated notes: `gh api` / `softprops/action-gh-release`'s `generate_release_notes: true` (drop `body_path`), keeping the installation instructions as a static prefix via `body`.

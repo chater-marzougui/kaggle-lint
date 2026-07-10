@@ -247,7 +247,11 @@ Both engines run inside the extension's Chrome offscreen document — flake8 via
 import { EngineClient } from '../engine/EngineClient';
 
 const client = new EngineClient();
-const errors = await client.lintNotebook('flake8', [{ code: 'x = y + 1', cellIndex: 0 }], []);
+const errors = await client.lintNotebook(
+  'flake8',
+  [{ code: 'x = y + 1', cellIndex: 0 }],
+  []
+);
 ```
 
 `packages/core` exports the reusable, browser-independent pieces both offscreen runtimes are built from: `buildNotebookSource`/`mapLineToCell` (notebook/buildNotebookSource.ts — concatenates cells into one lint pass), `classifySeverity`/`mapDiagnostics` (notebook/severityMapping.ts — shared by both engines), and `PYTHON_SHIM` (engines/flake8Shim.ts — flake8-specific).

@@ -21,10 +21,12 @@ for `jupyterapp` defensively rather than assuming it exists.
 ## Cell markup
 
 ```html
-<div class="lm-Widget jp-Cell jp-MarkdownCell jp-Notebook-cell ..."
-     data-windowed-list-index="0"
-     data-uuid="76518410-cdcf-4b70-8e0a-c7e862a04455"
-     id="76518410-cdcf-4b70-8e0a-c7e862a04455">
+<div
+  class="lm-Widget jp-Cell jp-MarkdownCell jp-Notebook-cell ..."
+  data-windowed-list-index="0"
+  data-uuid="76518410-cdcf-4b70-8e0a-c7e862a04455"
+  id="76518410-cdcf-4b70-8e0a-c7e862a04455"
+>
   ...
 </div>
 ```

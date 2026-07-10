@@ -23,6 +23,7 @@
 ### Task 1: Manifest cleanup (F17)
 
 **Files:**
+
 - Modify: `packages/extension/public/manifest.json`
 
 **Verified against real source (2026-07-10):** current file read in full (69 lines). `grep -rn "chrome.scripting" packages/extension/src` → zero matches, confirming `scripting` permission is genuinely unused. `grep -n "runtime.getURL" packages/ui-components/src/Overlay/Overlay.tsx` → line 204, `chrome?.runtime?.getURL?.('icons/icon48.png')`, used as an `<img src>` rendered into the Kaggle page's DOM by the isolated-world content script — this is the one real web-accessible-resource consumer the narrowed `web_accessible_resources` must keep covering. All `chrome.runtime.getURL` calls for `pyodide/*` and `ruff/*` (`packages/extension/src/offscreen/pyodideRuntime.ts`, `packages/extension/src/offscreen/ruffRuntime.ts`) run inside the **offscreen document**, an extension page — extension pages read their own `chrome-extension://` resources without needing `web_accessible_resources` at all, so narrowing WAR to `pyodide/*, icons/*` (the milestone plan's literal instruction) is safe; `pyodide/*` is over-inclusive relative to what's strictly required but matches the milestone plan's exact text, so it's kept rather than re-opening that decision.
@@ -138,6 +139,7 @@ git commit -m "fix(extension): remove CDN content-script match, unused permissio
 ### Task 2: Cut the old-linter build dependency (F18)
 
 **Files:**
+
 - Create (via move): `packages/extension/src/popup/popup.css`
 - Modify: `packages/extension/webpack.config.js`
 
@@ -199,13 +201,14 @@ git commit -m "build(extension): move popup.css into the package; drop old-linte
 ### Task 3: Single-source the version (F21)
 
 **Files:**
+
 - Create: `packages/extension/src/types/env.d.ts`
 - Modify: `packages/extension/webpack.config.js`, `packages/extension/public/manifest.json`, `packages/extension/src/popup/PopupApp.tsx`
 
 **Verified against real source, and the whole mechanism was built and run end-to-end in this session (2026-07-10) before writing this plan** — not just read, actually compiled and bundled:
 
 1. **Line-number drift from the milestone plan:** the plan's own text cites `PopupApp.tsx:351` for the version footer; the real current line is **272**: `<span className="footer-version">v2.0.0</span>`. Use line 272, not 351.
-2. **A real TypeScript gap the milestone plan didn't anticipate:** `packages/extension/tsconfig.json` sets `"types": ["chrome"]`, which excludes `@types/node`'s ambient `process` global. `packages/extension/src` currently has **zero** `process.env.*` references anywhere (confirmed via repo-wide grep) — the webpack `DefinePlugin` already defines `process.env.DEBUG`/`NODE_ENV`, but nothing reads them yet. Adding `process.env.EXTENSION_VERSION` to `PopupApp.tsx` as the milestone plan asks is therefore the *first* `process.env` usage in this package's source, and it does **not** compile without a `process` ambient declaration (`tsc --noEmit` fails with "Cannot find name 'process'" otherwise — confirmed by testing both ways in this session). Adding `"node"` to `tsconfig.json`'s `types` array would fix it but pulls in all of `@types/node`'s globals, including a different `setTimeout`/`clearTimeout` return-type overload (`NodeJS.Timeout` vs. the DOM lib's `number`) that several files in this codebase already type explicitly via `ReturnType<typeof setTimeout>` (`KaggleDomParser.ts`, `lineMarkers.ts`) — safe either way for those specific call sites, but a broader ambient-global change than this task needs. Step 1 below adds a narrow 4-line ambient declaration instead, scoped to exactly this one variable.
+2. **A real TypeScript gap the milestone plan didn't anticipate:** `packages/extension/tsconfig.json` sets `"types": ["chrome"]`, which excludes `@types/node`'s ambient `process` global. `packages/extension/src` currently has **zero** `process.env.*` references anywhere (confirmed via repo-wide grep) — the webpack `DefinePlugin` already defines `process.env.DEBUG`/`NODE_ENV`, but nothing reads them yet. Adding `process.env.EXTENSION_VERSION` to `PopupApp.tsx` as the milestone plan asks is therefore the _first_ `process.env` usage in this package's source, and it does **not** compile without a `process` ambient declaration (`tsc --noEmit` fails with "Cannot find name 'process'" otherwise — confirmed by testing both ways in this session). Adding `"node"` to `tsconfig.json`'s `types` array would fix it but pulls in all of `@types/node`'s globals, including a different `setTimeout`/`clearTimeout` return-type overload (`NodeJS.Timeout` vs. the DOM lib's `number`) that several files in this codebase already type explicitly via `ReturnType<typeof setTimeout>` (`KaggleDomParser.ts`, `lineMarkers.ts`) — safe either way for those specific call sites, but a broader ambient-global change than this task needs. Step 1 below adds a narrow 4-line ambient declaration instead, scoped to exactly this one variable.
 3. **The full mechanism (ambient decl + webpack `DefinePlugin` + `CopyPlugin` `transform` + popup JSX change) was built for real in this session**: `npx tsc --noEmit` passed clean, a full `npx webpack --config webpack.config.js` build succeeded, `dist/manifest.json`'s `"version"` field showed the root `package.json`'s `"2.0.0"`, and `dist/popup.js` contained the substituted string (`children:["v","2.0.0"]`) confirming the `DefinePlugin` substitution reaches the bundle. All test edits were reverted before writing this plan — the steps below reproduce that verified state.
 
 - [ ] **Step 1: Confirm the failing state**
@@ -234,7 +237,9 @@ declare global {
 const webpack = require('webpack');
 const { version } = require('../../package.json');
 
-const ruffWasmDir = path.dirname(require.resolve('@astral-sh/ruff-wasm-web/package.json'));
+const ruffWasmDir = path.dirname(
+  require.resolve('@astral-sh/ruff-wasm-web/package.json')
+);
 ```
 
 Change the `DefinePlugin` default from `'2.0.0'` to the imported `version`:
@@ -270,7 +275,7 @@ Add a `transform` to the manifest.json `CopyPlugin` pattern (currently `{ from: 
 - [ ] **Step 5: Edit `packages/extension/src/popup/PopupApp.tsx:272`**
 
 ```tsx
-        <span className="footer-version">v{process.env.EXTENSION_VERSION}</span>
+<span className="footer-version">v{process.env.EXTENSION_VERSION}</span>
 ```
 
 - [ ] **Step 6: Verify**
@@ -296,9 +301,10 @@ git commit -m "build: version flows from root package.json into manifest and pop
 ### Task 4: Deduplicate ui-components types (F15)
 
 **Files:**
+
 - Modify: `packages/ui-components/src/types/index.ts`
 
-**Verified against real source (2026-07-10) — this task is narrower than the milestone plan's text, not wider:** the milestone plan's own "Interfaces" note asks the implementer to *decide* whether `OverlayProps.errors[]`'s inline enriched type should be collapsed into `LintError & {cellIndex, cellLine, element}` — reading the actual current file shows **this was already done**, as part of Milestone 7/8 work that landed after the milestone plan's 2026-07-09 text was written. The file now has a real `LintUIError extends LintError` interface (with `cellLine`, `element`, and a `uuid` field added in M7 for the scroll bridge) consumed throughout `OverlayProps`/`ErrorListProps`/`ErrorItemProps` — there is no inline type left to collapse. Confirmed both `LintError` shapes (`packages/core/src/types/index.ts` and `packages/ui-components/src/types/index.ts`) are structurally identical (`line`, `column?`, `msg`, `severity`, `rule?`, `code?`, `cellIndex?`) — the `code?: string` gap the milestone plan's F15 note mentions was already patched by the consolidation project. Confirmed `packages/core/src/index.ts` exports `Severity`/`LintError` from its root (`export * from './types'`), so `@kaggle-lint/core` is the correct import specifier. Confirmed no other file in `packages/ui-components/src` imports `Severity`/`LintError` from `../types` except the composite prop-type files (`Overlay.tsx`, `ErrorList.tsx`, `ErrorItem.tsx`), all of which only use `OverlayProps`/`ErrorListProps`/`ErrorItemProps`/`LintUIError`/`ErrorStats` — none import bare `Severity`/`LintError` directly, so this change is contained entirely to `types/index.ts`. Confirmed `packages/extension/src` never imports `Severity`/`LintError` from `@kaggle-lint/ui-components` (only `Overlay`, `LintUIError`, `OverlayUiState`) — no ripple effect there either.
+**Verified against real source (2026-07-10) — this task is narrower than the milestone plan's text, not wider:** the milestone plan's own "Interfaces" note asks the implementer to _decide_ whether `OverlayProps.errors[]`'s inline enriched type should be collapsed into `LintError & {cellIndex, cellLine, element}` — reading the actual current file shows **this was already done**, as part of Milestone 7/8 work that landed after the milestone plan's 2026-07-09 text was written. The file now has a real `LintUIError extends LintError` interface (with `cellLine`, `element`, and a `uuid` field added in M7 for the scroll bridge) consumed throughout `OverlayProps`/`ErrorListProps`/`ErrorItemProps` — there is no inline type left to collapse. Confirmed both `LintError` shapes (`packages/core/src/types/index.ts` and `packages/ui-components/src/types/index.ts`) are structurally identical (`line`, `column?`, `msg`, `severity`, `rule?`, `code?`, `cellIndex?`) — the `code?: string` gap the milestone plan's F15 note mentions was already patched by the consolidation project. Confirmed `packages/core/src/index.ts` exports `Severity`/`LintError` from its root (`export * from './types'`), so `@kaggle-lint/core` is the correct import specifier. Confirmed no other file in `packages/ui-components/src` imports `Severity`/`LintError` from `../types` except the composite prop-type files (`Overlay.tsx`, `ErrorList.tsx`, `ErrorItem.tsx`), all of which only use `OverlayProps`/`ErrorListProps`/`ErrorItemProps`/`LintUIError`/`ErrorStats` — none import bare `Severity`/`LintError` directly, so this change is contained entirely to `types/index.ts`. Confirmed `packages/extension/src` never imports `Severity`/`LintError` from `@kaggle-lint/ui-components` (only `Overlay`, `LintUIError`, `OverlayUiState`) — no ripple effect there either.
 
 - [ ] **Step 1: Confirm the failing state**
 
@@ -375,6 +381,7 @@ interfaces."
 ### Task 6: Toolchain consistency (F22, F23)
 
 **Files:**
+
 - Modify: root `.eslintrc.js`, root `package.json`, `packages/core/package.json`, `packages/ui-components/package.json`, `packages/extension/package.json`, `packages/extension/src/content/lineMarkers.ts`, `packages/extension/src/utils/KaggleDomParser.ts`, `README.md`
 
 **Verified against real source (2026-07-10) — this task has more real work than the milestone plan's text describes, discovered by actually running the tools, not just reading config:**
@@ -383,7 +390,7 @@ interfaces."
 2. **Node floor (F22):** the milestone plan's text cites `README.md:42-45`; the real current lines are **29–30**: `- Node.js 18+` / `- npm 8+`. Root `package.json` `engines` says `node: ">=22.19.0"`, `npm: ">=10.9.3"`; `.github/workflows/ci.yml` uses `node-version: '22'` consistently across all four jobs. Use lines 29–30, not 42–45.
 3. **ui-components packaging (F23) — the milestone plan leaves this as an open decision ("pick one, implement it"); it was resolved empirically in this session, not by inspection alone.** The obvious-looking fix (point `package.json`'s `main`/`types` straight at `src/index.ts`, matching how webpack's `resolve.alias` already treats it) was actually **built and tested** and turned out to be a red herring: `packages/extension/tsconfig.json` directly `include`s `../ui-components/src/**/*` (not just resolving the bare specifier), and `packages/ui-components/tsconfig.json` marks that project `"composite": true`. TypeScript's composite-project checker (`TS6305`) requires a real, up-to-date `dist/**/*.d.ts` for any composite-marked source file pulled into another program's `include` list — **regardless of what `package.json`'s `main`/`types` fields say.** Confirmed by deleting `packages/ui-components/dist` and re-running `npx tsc --noEmit` in `packages/extension` both with the original `dist/index.js` main-field and with a `src/index.ts` main-field: both configurations fail identically with `TS6305` errors once `dist/` is absent, and both succeed once it's rebuilt. So the "nothing consumes ui-components' dist" premise behind switching to `src/` is false — the composite/`include` interaction is a real, structural dependency on `dist/` existing, independent of the packaging metadata. **Decision: keep `main`/`types` pointing at `dist/index.js`/`dist/index.d.ts` unchanged**, and instead fix the concrete bug F23 actually describes — `dist/Overlay/Overlay.js` contains `import './Overlay.css';` (confirmed via `grep -n css` on the built output) but no `Overlay.css` is ever copied into `dist/`. Tested and confirmed: adding a `copyfiles` step mirroring `packages/core`'s own existing `copy-pyodide` pattern (`copyfiles -u 1 "src/**/*.css" dist` run after `tsc`) produces `dist/Overlay/Overlay.css` correctly. This is the smaller, lower-risk fix, it reuses a pattern already established in this repo (`packages/core/package.json`'s `copy-pyodide` script), and it doesn't touch the TS6305 composite-project machinery at all.
 4. **A real, previously-invisible bug this task must fix, not just "expect":** the milestone plan's Step 4 says "expect `@typescript-eslint/no-explicit-any` warnings" when adding per-package `lint` scripts — true, but running `npx eslint packages/extension/src --ext .ts,.tsx` (and `packages/ui-components/src`) in this session surfaced two categories of real **errors**, not warnings, that the milestone plan's author never saw because `npm run lint` has been a silent no-op (F4) this whole time:
-   - **3× `prefer-const` errors** — `packages/extension/src/content/lineMarkers.ts:43` and `packages/extension/src/utils/KaggleDomParser.ts:129,177`. All three are the identical shape: `let timeoutId: ReturnType<typeof setTimeout>;` declared, then assigned exactly once a few lines later (`timeoutId = setTimeout(...)`) inside a bridge-request `Promise` executor, read only from closures (`cleanup`) defined *before* the assignment but not *invoked* until after it. Confirmed real by reading the surrounding code in both files — genuinely fixable by declaring `const timeoutId = setTimeout(...)` at the point of assignment instead of `let` + separate declaration; no behavior change (the closures only read the binding when they run, after the `const` would already be initialized).
+   - **3× `prefer-const` errors** — `packages/extension/src/content/lineMarkers.ts:43` and `packages/extension/src/utils/KaggleDomParser.ts:129,177`. All three are the identical shape: `let timeoutId: ReturnType<typeof setTimeout>;` declared, then assigned exactly once a few lines later (`timeoutId = setTimeout(...)`) inside a bridge-request `Promise` executor, read only from closures (`cleanup`) defined _before_ the assignment but not _invoked_ until after it. Confirmed real by reading the surrounding code in both files — genuinely fixable by declaring `const timeoutId = setTimeout(...)` at the point of assignment instead of `let` + separate declaration; no behavior change (the closures only read the binding when they run, after the `const` would already be initialized).
    - **2× `"Definition for rule 'react-hooks/exhaustive-deps' was not found"` errors** — `packages/ui-components/src/Overlay/Overlay.tsx:73` and `packages/extension/src/content/ContentApp.tsx:261` both have a `// eslint-disable-next-line react-hooks/exhaustive-deps` comment (deliberately suppressing the rule for legitimate mount-only `useEffect(() => {...}, [])` calls), but `eslint-plugin-react-hooks` was never installed or registered in the root `.eslintrc.js` — so ESLint doesn't recognize the rule name the disable comment references and errors instead of silently no-op'ing. **This was invisible until now for the same reason as the `prefer-const` errors: `npm run lint` never actually ran.** Verified in this session (temporarily installed the plugin, registered it, ran the full three-package lint): adding `eslint-plugin-react-hooks` makes both existing disable comments valid again (0 errors), and additionally surfaces **one genuine, previously-uncaught warning** — `Overlay.tsx:131`, a `useEffect` missing `onStateChange` in its dependency array. This is real and worth knowing about, but fixing it changes runtime callback-timing behavior that Milestone 7/8 hard-won and tested live — out of scope for a "no behavior change" hygiene milestone. **Do not fix it in this task**; leave it as a warning (this repo's `lint` scripts intentionally don't use `--max-warnings 0`, see point 5) and note it in `notes.md` for a future milestone.
 5. **`--max-warnings 0` decision:** the milestone plan's Step 4 leaves this as a fallback ("may need to start as a plain `eslint src --ext .ts,.tsx` if the backlog is large"). Confirmed the backlog is real: `packages/extension/src` has 22 `@typescript-eslint/no-explicit-any` warnings across 6 files (`ContentApp.tsx`, `pyodideRuntime.ts`, `pageExtractor.ts`, `PopupApp.tsx`, `CodeMirrorManager.ts`, `KaggleDomParser.ts`) plus the one new `react-hooks/exhaustive-deps` warning above — converting all of those to real types is out of scope for this milestone (it's not in F22/F23, and "no behavior change" doesn't preclude it but the milestone's own scope does). **Decision: `"lint": "eslint src --ext .ts,.tsx"` with no `--max-warnings 0`**, for all three packages, so `npm run lint` passes today without a large unrelated refactor, while still catching real errors (which is what actually matters for CI, see point 6).
 6. **A consequence worth flagging explicitly:** `.github/workflows/ci.yml`'s `lint` job already runs `npm run lint` (line 27) — it's been silently green this whole time only because no package defined a `lint` script (F4, still nominally "Milestone 5's fix," but this task's Step 4 is what actually flips the CI lint job from no-op to enforcing, as an unavoidable side effect of adding the scripts F22/F23 groundwork calls for). This makes fixing the `prefer-const`/`react-hooks` errors in this task **mandatory, not optional polish** — merging Task 6 without them would turn CI's lint job red on the very next push.
@@ -430,11 +437,7 @@ Expected: shows more than one resolved version (18.x at root, 19.x nested under 
   "dependencies": {
     "@kaggle-lint/core": "*"
   },
-  "keywords": [
-    "linter",
-    "react",
-    "components"
-  ],
+  "keywords": ["linter", "react", "components"],
   "author": "",
   "license": "MIT",
   "devDependencies": {
@@ -460,53 +463,56 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
-    'prettier'
+    'prettier',
   ],
   plugins: ['@typescript-eslint', 'react-hooks'],
   env: {
     browser: true,
     node: true,
-    es2020: true
+    es2020: true,
   },
   parserOptions: {
     ecmaVersion: 2020,
-    sourceType: 'module'
+    sourceType: 'module',
   },
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-unused-vars': ['error', {
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_'
-    }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      },
+    ],
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn'
-  }
+    'react-hooks/exhaustive-deps': 'warn',
+  },
 };
 ```
 
 - [ ] **Step 7: Fix the 3 real `prefer-const` errors.** Edit `packages/extension/src/content/lineMarkers.ts` — replace:
 
 ```ts
-    const requestId = crypto.randomUUID();
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout>;
+const requestId = crypto.randomUUID();
+let settled = false;
+let timeoutId: ReturnType<typeof setTimeout>;
 
-    const cleanup = () => {
-      window.removeEventListener('message', handleMessage);
-      clearTimeout(timeoutId);
-    };
+const cleanup = () => {
+  window.removeEventListener('message', handleMessage);
+  clearTimeout(timeoutId);
+};
 ```
 
 with:
 
 ```ts
-    const requestId = crypto.randomUUID();
-    let settled = false;
+const requestId = crypto.randomUUID();
+let settled = false;
 
-    const cleanup = () => {
-      window.removeEventListener('message', handleMessage);
-      clearTimeout(timeoutId);
-    };
+const cleanup = () => {
+  window.removeEventListener('message', handleMessage);
+  clearTimeout(timeoutId);
+};
 ```
 
 and replace:
@@ -568,6 +574,7 @@ exhaustive-deps errors this surfaced had to be fixed here, not deferred."
 ## Post-milestone note
 
 After Task 6 lands, create `docs/next_plans/milestone-4-config-and-build-hygiene/notes.md` recording:
+
 - Task 5 skipped as moot (files deleted by the lint-engine-consolidation project).
 - The one new `react-hooks/exhaustive-deps` warning surfaced in `Overlay.tsx:131` (missing `onStateChange` dep) — real, deliberately not fixed here (would change M7/M8-tested callback timing), flag for a future milestone.
 - `old-linter/.env` is already gitignored via `old-linter/.gitignore` and was never tracked (`git log --all -- old-linter/.env` is empty) — F30 (P3, still nominally open per the summary table) turns out to already be a non-issue in practice; worth a one-line correction next time `review-findings.md` gets a pass, not urgent.

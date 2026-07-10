@@ -25,6 +25,7 @@ export interface Flake8LintResponse { ok: true; errors: Array<LintError & { cell
 export interface Flake8StatusRequest { type: 'FLAKE8_STATUS'; }
 export type Flake8Status = 'unloaded' | 'loading' | 'ready' | 'failed';
 ```
+
 - Every task ends with `npm run type-check && npm run build` green.
 
 ---
@@ -32,10 +33,12 @@ export type Flake8Status = 'unloaded' | 'loading' | 'ready' | 'failed';
 ### Task 1: Background service worker + offscreen scaffolding
 
 **Files:**
+
 - Create: `packages/extension/src/background/index.ts` (webpack entry `background`), `packages/extension/src/offscreen/offscreen.html`, `packages/extension/src/offscreen/index.ts` (webpack entry `offscreen`)
 - Modify: `packages/extension/webpack.config.js` (two entries + HtmlWebpackPlugin for offscreen.html), `packages/extension/public/manifest.json` (permission, background, CSP per Global Constraints)
 
 **Interfaces:**
+
 - Produces: background relays any message with `type` starting `FLAKE8_` to the offscreen document, creating it first if absent:
 
 ```ts
@@ -61,10 +64,12 @@ async function ensureOffscreen(): Promise<void> {
 ### Task 2: Move Pyodide bootstrapping into the offscreen document
 
 **Files:**
+
 - Create: `packages/extension/src/offscreen/pyodideRuntime.ts`
 - Modify: `packages/extension/src/offscreen/index.ts`
 
 **Interfaces:**
+
 - Consumes: `PYTHON_SHIM` from core (Task 4 extracts it; until then import the string from `Flake8Engine.ts` — see Task 4 ordering note).
 - Produces: `class PyodideRuntime { load(): Promise<void>; status: Flake8Status; lintNotebook(cells): Promise<Array<LintError & {cellIndex; cellLine}>> }` — single instance in the offscreen document, load deduped via a stored promise (the pattern `Flake8Engine.load()` already uses; **await the promise, no polling** — F13).
 
@@ -79,6 +84,7 @@ async function ensureOffscreen(): Promise<void> {
 ### Task 3: Bundle flake8 wheels; no runtime network (F9)
 
 **Files:**
+
 - Create: `packages/core/src/pyodide/wheels/` (four `.whl` files), `scripts/fetch-wheels.md` (one-paragraph doc: exact URLs + sha256 of the pinned wheels, so they can be re-fetched reproducibly)
 - Modify: `packages/extension/src/offscreen/pyodideRuntime.ts` (install step)
 
@@ -101,11 +107,13 @@ await pyodide.runPythonAsync(
 ### Task 4: Shrink core's Flake8Engine to pure logic
 
 **Files:**
+
 - Create: `packages/core/src/engines/flake8Shim.ts` (exports `PYTHON_SHIM: string` — the Python source currently inlined at `Flake8Engine.ts:102-292`, verbatim), `packages/core/src/engines/flake8Mapping.ts` (exports `mapFlake8Results(raw: RawFlake8Error[], cellOffset: number): LintError[]` — the mapping at `Flake8Engine.ts:384-390`)
 - Test: `packages/core/src/__tests__/flake8Mapping.test.ts`
 - Modify: `packages/core/src/engines/Flake8Engine.ts` → **delete** (its browser glue now lives in the offscreen runtime); update `engines/index.ts`, `packages/core/src/index.ts`, and `packages/extension/src/offscreen/pyodideRuntime.ts` to import the shim + mapper from core.
 
 **Interfaces:**
+
 - Produces: `PYTHON_SHIM` and `mapFlake8Results` as above. **Breaking export change:** `Flake8Engine` disappears from `@kaggle-lint/core` — Task 5 removes its last consumer (`ContentApp`) in the same milestone; order Tasks 4→5 back-to-back or in one PR.
 
 - [ ] **Step 1: Failing test** for `mapFlake8Results`: given `[{ line: 2, column: 0, code: 'F821', msg: "undefined name 'y'", severity: 'error' }]` and offset 10 → `[{ line: 12, …, rule: 'flake8' }]`. Run `cd packages/core && npx jest flake8Mapping -v` → fail.
@@ -118,14 +126,16 @@ await pyodide.runPythonAsync(
 ### Task 5: Content-script client (replaces in-page engine, F13)
 
 **Files:**
+
 - Create: `packages/extension/src/flake8/protocol.ts` (Global Constraints shapes), `packages/extension/src/flake8/Flake8Client.ts`
 - Modify: `packages/extension/src/content/ContentApp.tsx`
 
 **Interfaces:**
+
 - Produces: `class Flake8Client { lintNotebook(cells): Promise<NotebookError[]>; getStatus(): Promise<Flake8Status> }` — thin wrappers over `chrome.runtime.sendMessage`; `lintNotebook` throws on `{ ok: false }`.
 - Consumes: background relay (Task 1), offscreen runtime (Task 2).
 
-- [ ] **Step 1:** Implement client. In `ContentApp`, replace `flake8EngineRef` + `initializeFlake8` (including the `while(!isReady) sleep(100)` busy-wait) with the client; drive `flake8Status` state from a `FLAKE8_STATUS` poll only *while* a lint is in flight (or have offscreen push status messages — pick simpler: request status once before lint, set `'loading'`, set `'ready'`/error from the lint response).
+- [ ] **Step 1:** Implement client. In `ContentApp`, replace `flake8EngineRef` + `initializeFlake8` (including the `while(!isReady) sleep(100)` busy-wait) with the client; drive `flake8Status` state from a `FLAKE8_STATUS` poll only _while_ a lint is in flight (or have offscreen push status messages — pick simpler: request status once before lint, set `'loading'`, set `'ready'`/error from the lint response).
 - [ ] **Step 2:** Strip DOM `element` references before sending cells (protocol is JSON-only); re-attach elements to returned errors by `cellIndex` on receipt.
 - [ ] **Step 3: Verify** — `npm run type-check && npm run build && npm test` all green; `grep -rn "Flake8Engine" packages/extension/src packages/core/src` → no matches.
 - [ ] **Step 4: Commit** — `feat(extension): flake8 lints via offscreen document; remove busy-wait`

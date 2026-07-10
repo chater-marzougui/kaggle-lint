@@ -34,7 +34,8 @@ export function mapDiagnostics(
   cellOffsets: CellOffset[],
   engineName: string
 ): Array<LintError & { cellIndex: number; cellLine: number }> {
-  const results: Array<LintError & { cellIndex: number; cellLine: number }> = [];
+  const results: Array<LintError & { cellIndex: number; cellLine: number }> =
+    [];
 
   for (const diagnostic of diagnostics) {
     const mapped = mapLineToCell(diagnostic.line, cellOffsets);

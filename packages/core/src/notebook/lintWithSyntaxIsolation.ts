@@ -17,7 +17,10 @@
  * — each retry must exclude at least one more cell or the loop stops.
  */
 
-import { buildNotebookSource, type NotebookCellInput } from './buildNotebookSource';
+import {
+  buildNotebookSource,
+  type NotebookCellInput,
+} from './buildNotebookSource';
 import { mapDiagnostics, type RawDiagnostic } from './severityMapping';
 import type { LintError } from '../types';
 
@@ -31,7 +34,8 @@ export async function lintNotebookWithSyntaxIsolation(
   isSyntaxErrorOnly: IsSyntaxErrorOnly
 ): Promise<Array<LintError & { cellIndex: number; cellLine: number }>> {
   let workingCells = cells;
-  const collected: Array<LintError & { cellIndex: number; cellLine: number }> = [];
+  const collected: Array<LintError & { cellIndex: number; cellLine: number }> =
+    [];
 
   for (let attempt = 0; attempt <= cells.length; attempt++) {
     const { source, cellOffsets } = buildNotebookSource(workingCells);
@@ -42,8 +46,12 @@ export async function lintNotebookWithSyntaxIsolation(
       return [...collected, ...mapped];
     }
 
-    const badCellIndexes = new Set(mapped.map((diagnostic) => diagnostic.cellIndex));
-    const nextWorkingCells = workingCells.filter((cell) => !badCellIndexes.has(cell.cellIndex));
+    const badCellIndexes = new Set(
+      mapped.map((diagnostic) => diagnostic.cellIndex)
+    );
+    const nextWorkingCells = workingCells.filter(
+      (cell) => !badCellIndexes.has(cell.cellIndex)
+    );
 
     collected.push(...mapped);
 

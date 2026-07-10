@@ -138,7 +138,9 @@ function extractAllCellsViaDom(): PageExtractedCell[] {
   const indexMap = new Map<Element, number>();
   allCells.forEach((cell, index) => indexMap.set(cell, index));
 
-  const editors = Array.from(document.querySelectorAll('.jp-CodeCell .cm-editor'));
+  const editors = Array.from(
+    document.querySelectorAll('.jp-CodeCell .cm-editor')
+  );
   const results: PageExtractedCell[] = [];
 
   for (const editor of editors) {
@@ -148,7 +150,10 @@ function extractAllCellsViaDom(): PageExtractedCell[] {
     }
 
     const cellElement = editor.closest('.jp-Cell');
-    const cellIndex = cellElement && indexMap.has(cellElement) ? indexMap.get(cellElement)! : -1;
+    const cellIndex =
+      cellElement && indexMap.has(cellElement)
+        ? indexMap.get(cellElement)!
+        : -1;
     const uuid = cellElement?.getAttribute('data-uuid') ?? null;
 
     results.push({ code, cellIndex, uuid });
@@ -157,7 +162,10 @@ function extractAllCellsViaDom(): PageExtractedCell[] {
   return results;
 }
 
-function extractAllCells(): { cells: PageExtractedCell[]; source: 'model' | 'dom' } {
+function extractAllCells(): {
+  cells: PageExtractedCell[];
+  source: 'model' | 'dom';
+} {
   const modelCells = extractViaJupyterModel();
   if (modelCells) {
     return { cells: modelCells, source: 'model' };
@@ -208,7 +216,8 @@ function findScrollableAncestor(el: Element): Element | null {
   let node: Element | null = el.parentElement;
   while (node) {
     const style = getComputedStyle(node);
-    const canScrollY = style.overflowY === 'auto' || style.overflowY === 'scroll';
+    const canScrollY =
+      style.overflowY === 'auto' || style.overflowY === 'scroll';
     if (canScrollY && node.scrollHeight > node.clientHeight + 1) {
       return node;
     }
@@ -274,7 +283,8 @@ function findLineElement(view: any, line: number): HTMLElement | null {
     const linePos = doc.line(lineNumber).from;
     const domPos = view.domAtPos(linePos);
     const node: Node | null = domPos?.node ?? null;
-    const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
+    const el =
+      node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
     const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
     return lineEl && lineEl.isConnected ? lineEl : null;
   } catch {
@@ -290,11 +300,16 @@ function centerAndHighlightLine(view: any, line: number): void {
         const scrollerRect = scroller.getBoundingClientRect();
         const lineRect = lineEl.getBoundingClientRect();
         const delta =
-          lineRect.top + lineRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
+          lineRect.top +
+          lineRect.height / 2 -
+          (scrollerRect.top + scrollerRect.height / 2);
         scroller.scrollTop += delta;
       }
       lineEl.classList.add('kaggle-lint-line-highlight');
-      setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
+      setTimeout(
+        () => lineEl.classList.remove('kaggle-lint-line-highlight'),
+        2000
+      );
     } catch {
       // Enhancement only.
     }
@@ -329,7 +344,11 @@ const LINE_MARKER_CLASSES = [
   'kaggle-lint-line-info',
 ] as const;
 
-const LINE_MARKER_SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
+const LINE_MARKER_SEVERITY_RANK: Record<string, number> = {
+  error: 0,
+  warning: 1,
+  info: 2,
+};
 
 function clearLineMarkersInDom(): void {
   const marked = document.querySelectorAll(
@@ -352,7 +371,10 @@ function clearLineMarkersInDom(): void {
 function applyLineMarkersInMain(targets: LineMarkerTarget[]): number {
   clearLineMarkersInDom();
 
-  const bestSeverityByLine = new Map<HTMLElement, LineMarkerTarget['severity']>();
+  const bestSeverityByLine = new Map<
+    HTMLElement,
+    LineMarkerTarget['severity']
+  >();
   const titlesByLine = new Map<HTMLElement, string[]>();
 
   for (const target of targets) {
@@ -363,7 +385,11 @@ function applyLineMarkersInMain(targets: LineMarkerTarget[]): number {
     if (!lineEl) continue;
 
     const current = bestSeverityByLine.get(lineEl);
-    if (!current || LINE_MARKER_SEVERITY_RANK[target.severity] < LINE_MARKER_SEVERITY_RANK[current]) {
+    if (
+      !current ||
+      LINE_MARKER_SEVERITY_RANK[target.severity] <
+        LINE_MARKER_SEVERITY_RANK[current]
+    ) {
       bestSeverityByLine.set(lineEl, target.severity);
     }
     const titles = titlesByLine.get(lineEl) ?? [];
@@ -390,7 +416,11 @@ function applyLineMarkersInMain(targets: LineMarkerTarget[]): number {
  * file's DOM-fallback extraction path looks for doesn't exist on Kaggle's
  * current build anyway (see extractViaJupyterModel's doc comment above).
  */
-function scrollToCellLine(uuid: string | null, cellIndex: number, line: number): boolean {
+function scrollToCellLine(
+  uuid: string | null,
+  cellIndex: number,
+  line: number
+): boolean {
   try {
     const found = findCellWidget(uuid, cellIndex);
     if (!found) {
@@ -458,7 +488,9 @@ function handleMessage(event: MessageEvent): void {
   }
 
   if (data.type === APPLY_LINE_MARKERS_REQUEST) {
-    const targets: LineMarkerTarget[] = Array.isArray(data.targets) ? data.targets : [];
+    const targets: LineMarkerTarget[] = Array.isArray(data.targets)
+      ? data.targets
+      : [];
     const markedCount = applyLineMarkersInMain(targets);
     const response: ApplyLineMarkersResponseMessage = {
       type: APPLY_LINE_MARKERS_RESPONSE,

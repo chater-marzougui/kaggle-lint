@@ -13,6 +13,7 @@
 **Source-of-truth check (done 2026-07-09):** every file this plan touches or reads from was opened in full from the current working tree: `packages/core/src/engines/Flake8Engine.ts` (459 lines — the Python shim is lines 102–292 verbatim, `loadPyodideScript` is lines 313–332, the per-cell mapping is lines 384–390, `lintNotebook` is lines 410–437; all four line ranges the milestone plan cites matched byte-for-byte, so **F1/F9/F13's cited locations are unaffected by M1/M2** — Milestone 2 touched extraction (`KaggleDomParser.ts`, `pageExtractor.ts`, `ContentApp.tsx`'s `runLinter`), not the Flake8 engine itself), `packages/extension/src/content/ContentApp.tsx` (399 lines, current shape confirmed — see below), `packages/extension/webpack.config.js`, `packages/extension/public/manifest.json`, `packages/extension/src/utils/CodeMirrorManager.ts`, `packages/extension/src/page/bridgeProtocol.ts`, `packages/core/src/index.ts`, `packages/core/src/engines/index.ts`, `packages/core/src/types/index.ts`, `packages/core/package.json`, `packages/ui-components/src/types/index.ts`, `packages/ui-components/src/Overlay/Overlay.tsx` (status block at lines 276–281), `packages/extension/package.json`, `packages/extension/tsconfig.json`, `tsconfig.base.json`, root `package.json`, `turbo.json`. `@types/chrome` (extension's own nested copy, resolved version 0.0.246) was grepped directly and confirms `chrome.offscreen.Reason.WORKERS`, `chrome.offscreen.createDocument`, and `chrome.offscreen.hasDocument` all exist with the signatures the milestone plan's Task 1 snippet uses — no substitution needed there.
 
 **Deviations from the milestone plan text** (documented per `docs/next_plans/README.md` rule 5 — none of these change the plan's decisions, all are implementation-ordering/syntax fixes needed because the milestone plan's own snippets left them open or contained a typo):
+
 1. **`packages/extension/src/flake8/protocol.ts` is created in Task 1, not Task 5.** The milestone's Global Constraints already fix the exact protocol shapes and say "both sides import from one module" — but the background worker (Task 1) and the offscreen runtime (Task 2) both need the exact message-type string constants before Task 5's file list would otherwise create the module. Task 5 now only adds `Flake8Client.ts` to that existing directory.
 2. **`Flake8LintResponse` is a `type` union, not an `interface`.** The milestone plan's Global Constraints snippet writes `export interface Flake8LintResponse { ok: true; ... } | { ok: false; ... };` — that's not valid TypeScript (you cannot union two interface bodies with `|`). This plan uses `export type Flake8LintResponse = { ok: true; errors: ... } | { ok: false; error: string };`, which is what the snippet's intent requires.
 3. **`offscreen.html` has no manual `<script>` tag.** The milestone's Task 1 text says "Offscreen HTML is minimal: `<script src="offscreen.js"></script>`," but this repo's existing `HtmlWebpackPlugin` pattern (see `popup.html`, which has no script tag — webpack injects it via the `chunks` option) auto-injects the entry's script tag. Writing one manually would double-inject it. `offscreen.html` follows the same convention as `popup.html`: a bare `<div>`-free skeleton with no explicit `<script>`, `chunks: ['offscreen']` handles the rest.
@@ -44,7 +45,10 @@ export interface Flake8LintRequest {
   cells: Flake8CellInput[];
 }
 
-export type Flake8ResultError = LintError & { cellIndex: number; cellLine: number };
+export type Flake8ResultError = LintError & {
+  cellIndex: number;
+  cellLine: number;
+};
 
 export type Flake8LintResponse =
   | { ok: true; errors: Flake8ResultError[] }
@@ -65,25 +69,26 @@ export interface Flake8StatusResponse {
 
 ## File Structure
 
-| File | Responsibility after this milestone |
-|---|---|
-| `packages/extension/src/flake8/protocol.ts` (new, Task 1) | Single source of truth for the `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS` message shapes and the `Flake8Status` type — imported by background, offscreen, and the content-script client. |
-| `packages/extension/src/background/index.ts` (new, Task 1) | MV3 service worker. Forwards `FLAKE8_*` messages that originate from a content script (`sender.tab` set) to the offscreen document, creating it on demand via `chrome.offscreen`. |
-| `packages/extension/src/offscreen/offscreen.html` + `index.ts` (new, Tasks 1–2) | Extension page (real DOM, `'self'`+`'wasm-unsafe-eval'` CSP) hosting a single `PyodideRuntime` instance; answers `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS`. |
-| `packages/extension/src/offscreen/pyodideRuntime.ts` (new, Task 2) | `PyodideRuntime` class: loads Pyodide + the Python shim once (deduped promise, matches the existing `Flake8Engine.load()` pattern), exposes `lintNotebook(cells)`. |
-| `packages/core/src/pyodide/wheels/*.whl` (new, Task 3) | Bundled flake8/pyflakes/pycodestyle/mccabe wheels, swept into `dist/pyodide/wheels` by the existing `copy-pyodide` script (`copyfiles -u 2 "src/pyodide/**/*" dist/pyodide` — already recursive, confirmed in `packages/core/package.json`) and from there into the extension bundle by the existing webpack `CopyPlugin` pattern that copies `../core/dist/pyodide` → `pyodide`. |
-| `packages/core/src/engines/flake8Shim.ts` (new, Task 4) | Exports `PYTHON_SHIM: string` — the Python source, moved verbatim out of `Flake8Engine.ts`. |
-| `packages/core/src/engines/flake8Mapping.ts` (new, Task 4) | Exports `mapFlake8Results(raw, cellOffset): LintError[]` — the per-error line-offset + `rule: 'flake8'` tagging logic, moved out of `Flake8Engine.lintCell`. |
-| `packages/core/src/engines/Flake8Engine.ts` | **Deleted** in Task 4 — its browser glue now lives in `offscreen/pyodideRuntime.ts`, its pure logic in `flake8Shim.ts`/`flake8Mapping.ts`. |
-| `packages/extension/src/flake8/Flake8Client.ts` (new, Task 5) | Thin `chrome.runtime.sendMessage` wrapper: `lintNotebook(cells)`, `getStatus()`. Replaces `ContentApp`'s direct `Flake8Engine` instance and its busy-wait poll. |
-| `packages/extension/src/content/ContentApp.tsx` | Task 5: drops the `Flake8Engine` import/ref/`initializeFlake8`, uses `Flake8Client`; `flake8Status` state gains `'failed'`; DOM elements are stripped before sending cells and re-attached to returned errors by `cellIndex`. |
-| `packages/ui-components/src/types/index.ts` + `Overlay.tsx` | Task 5: `OverlayProps.flake8Status` widens to include `'failed'`; `Overlay.tsx` renders a failed-state message alongside the existing loading message. |
+| File                                                                            | Responsibility after this milestone                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/extension/src/flake8/protocol.ts` (new, Task 1)                       | Single source of truth for the `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS` message shapes and the `Flake8Status` type — imported by background, offscreen, and the content-script client.                                                                                                                                                                                              |
+| `packages/extension/src/background/index.ts` (new, Task 1)                      | MV3 service worker. Forwards `FLAKE8_*` messages that originate from a content script (`sender.tab` set) to the offscreen document, creating it on demand via `chrome.offscreen`.                                                                                                                                                                                                 |
+| `packages/extension/src/offscreen/offscreen.html` + `index.ts` (new, Tasks 1–2) | Extension page (real DOM, `'self'`+`'wasm-unsafe-eval'` CSP) hosting a single `PyodideRuntime` instance; answers `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS`.                                                                                                                                                                                                                          |
+| `packages/extension/src/offscreen/pyodideRuntime.ts` (new, Task 2)              | `PyodideRuntime` class: loads Pyodide + the Python shim once (deduped promise, matches the existing `Flake8Engine.load()` pattern), exposes `lintNotebook(cells)`.                                                                                                                                                                                                                |
+| `packages/core/src/pyodide/wheels/*.whl` (new, Task 3)                          | Bundled flake8/pyflakes/pycodestyle/mccabe wheels, swept into `dist/pyodide/wheels` by the existing `copy-pyodide` script (`copyfiles -u 2 "src/pyodide/**/*" dist/pyodide` — already recursive, confirmed in `packages/core/package.json`) and from there into the extension bundle by the existing webpack `CopyPlugin` pattern that copies `../core/dist/pyodide` → `pyodide`. |
+| `packages/core/src/engines/flake8Shim.ts` (new, Task 4)                         | Exports `PYTHON_SHIM: string` — the Python source, moved verbatim out of `Flake8Engine.ts`.                                                                                                                                                                                                                                                                                       |
+| `packages/core/src/engines/flake8Mapping.ts` (new, Task 4)                      | Exports `mapFlake8Results(raw, cellOffset): LintError[]` — the per-error line-offset + `rule: 'flake8'` tagging logic, moved out of `Flake8Engine.lintCell`.                                                                                                                                                                                                                      |
+| `packages/core/src/engines/Flake8Engine.ts`                                     | **Deleted** in Task 4 — its browser glue now lives in `offscreen/pyodideRuntime.ts`, its pure logic in `flake8Shim.ts`/`flake8Mapping.ts`.                                                                                                                                                                                                                                        |
+| `packages/extension/src/flake8/Flake8Client.ts` (new, Task 5)                   | Thin `chrome.runtime.sendMessage` wrapper: `lintNotebook(cells)`, `getStatus()`. Replaces `ContentApp`'s direct `Flake8Engine` instance and its busy-wait poll.                                                                                                                                                                                                                   |
+| `packages/extension/src/content/ContentApp.tsx`                                 | Task 5: drops the `Flake8Engine` import/ref/`initializeFlake8`, uses `Flake8Client`; `flake8Status` state gains `'failed'`; DOM elements are stripped before sending cells and re-attached to returned errors by `cellIndex`.                                                                                                                                                     |
+| `packages/ui-components/src/types/index.ts` + `Overlay.tsx`                     | Task 5: `OverlayProps.flake8Status` widens to include `'failed'`; `Overlay.tsx` renders a failed-state message alongside the existing loading message.                                                                                                                                                                                                                            |
 
 ---
 
 ### Task 1: Shared protocol module + background service worker + offscreen scaffolding
 
 **Files:**
+
 - Create: `packages/extension/src/flake8/protocol.ts`
 - Create: `packages/extension/src/background/index.ts`
 - Create: `packages/extension/src/offscreen/offscreen.html`
@@ -92,6 +97,7 @@ export interface Flake8StatusResponse {
 - Modify: `packages/extension/public/manifest.json` (currently 63 lines; `permissions` at line 6, no `background`/`content_security_policy` keys)
 
 **Interfaces:**
+
 - Produces (consumed by every later task in this plan): the `protocol.ts` shapes from Global Constraints, plus `ensureOffscreen(): Promise<void>` (background-internal, not exported — nothing outside `background/index.ts` needs it).
 - The offscreen stub in this task replies `{ ok: false, error: 'not implemented' }` to any `FLAKE8_LINT_NOTEBOOK`/`FLAKE8_STATUS` message; Task 2 replaces its body.
 
@@ -121,7 +127,10 @@ export interface Flake8LintRequest {
   cells: Flake8CellInput[];
 }
 
-export type Flake8ResultError = LintError & { cellIndex: number; cellLine: number };
+export type Flake8ResultError = LintError & {
+  cellIndex: number;
+  cellLine: number;
+};
 
 export type Flake8LintResponse =
   | { ok: true; errors: Flake8ResultError[] }
@@ -173,7 +182,10 @@ async function ensureOffscreen(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (typeof message?.type !== 'string' || !FLAKE8_MESSAGE_TYPES.has(message.type)) {
+  if (
+    typeof message?.type !== 'string' ||
+    !FLAKE8_MESSAGE_TYPES.has(message.type)
+  ) {
     return false;
   }
 
@@ -206,12 +218,11 @@ Create `packages/extension/src/offscreen/offscreen.html`:
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>kaggle-lint offscreen</title>
-</head>
-<body>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>kaggle-lint offscreen</title>
+  </head>
+  <body></body>
 </html>
 ```
 
@@ -227,7 +238,10 @@ Create `packages/extension/src/offscreen/index.ts`:
 import { FLAKE8_LINT_NOTEBOOK, FLAKE8_STATUS } from '../flake8/protocol';
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== FLAKE8_LINT_NOTEBOOK && message?.type !== FLAKE8_STATUS) {
+  if (
+    message?.type !== FLAKE8_LINT_NOTEBOOK &&
+    message?.type !== FLAKE8_STATUS
+  ) {
     return false;
   }
   sendResponse({ ok: false, error: 'not implemented' });
@@ -308,10 +322,12 @@ git commit -m "feat(extension): background worker + offscreen document scaffoldi
 ### Task 2: Move Pyodide bootstrapping into the offscreen document
 
 **Files:**
+
 - Create: `packages/extension/src/offscreen/pyodideRuntime.ts`
 - Modify: `packages/extension/src/offscreen/index.ts`
 
 **Interfaces:**
+
 - Consumes: `Flake8CellInput`, `Flake8ResultError`, `Flake8Status` from `../flake8/protocol` (Task 1); `FLAKE8_LINT_NOTEBOOK`, `FLAKE8_STATUS` message constants.
 - Produces: `class PyodideRuntime { status: Flake8Status; load(): Promise<void>; lintNotebook(cells: Flake8CellInput[]): Promise<Flake8ResultError[]>; }` — single instance created in `offscreen/index.ts`. `load()` dedupes concurrent calls via a stored promise (the same pattern `Flake8Engine.load()` at `Flake8Engine.ts:51-58` already uses — confirmed: `if (this.isLoading && this.loadPromise) return this.loadPromise;`); `lintNotebook()` always awaits `load()` itself, so callers never poll (fixes F13's busy-wait, which lived at `Flake8Engine.ts` call sites — the pre-M1/M2 review-findings.md cites `ContentApp.tsx:96-102` for the busy-wait itself, which after M1/M2 is now at `ContentApp.tsx:67-71`'s `initializeFlake8`; Task 5 deletes that function entirely).
 
@@ -334,7 +350,11 @@ Create `packages/extension/src/offscreen/pyodideRuntime.ts`:
  * packages/core/src/engines/flake8Shim.ts so core owns the one copy.
  */
 
-import type { Flake8CellInput, Flake8ResultError, Flake8Status } from '../flake8/protocol';
+import type {
+  Flake8CellInput,
+  Flake8ResultError,
+  Flake8Status,
+} from '../flake8/protocol';
 
 declare global {
   interface Window {
@@ -568,7 +588,9 @@ export class PyodideRuntime {
         if (!window.loadPyodide) {
           await this.loadPyodideScript();
         }
-        this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
+        this.pyodide = await window.loadPyodide!({
+          indexURL: PYODIDE_INDEX_URL,
+        });
         await this.pyodide.loadPackage('micropip');
         await this.pyodide.runPythonAsync(PYTHON_SHIM);
         this.status = 'ready';
@@ -606,7 +628,10 @@ export class PyodideRuntime {
     for (const cell of cells) {
       const code = cell.code;
       const trimmed = code.trim();
-      const shouldLint = trimmed.length > 0 && !trimmed.startsWith('%%') && !trimmed.startsWith('!');
+      const shouldLint =
+        trimmed.length > 0 &&
+        !trimmed.startsWith('%%') &&
+        !trimmed.startsWith('!');
 
       if (shouldLint) {
         const raw = await this.pyodide!.runPythonAsync(`
@@ -685,7 +710,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse(response);
       })
       .catch((error) => {
-        const response: Flake8LintResponse = { ok: false, error: String(error) };
+        const response: Flake8LintResponse = {
+          ok: false,
+          error: String(error),
+        };
         sendResponse(response);
       });
     return true;
@@ -715,11 +743,13 @@ git commit -m "feat(extension): pyodide runtime in offscreen document"
 ### Task 3: Bundle flake8 wheels; no runtime network (F9)
 
 **Files:**
+
 - Create: `packages/core/src/pyodide/wheels/` (four `.whl` files, fetched by Step 1, not authored)
 - Create: `scripts/fetch-wheels.md`
 - Modify: `packages/extension/src/offscreen/pyodideRuntime.ts` (`load()` method)
 
 **Interfaces:**
+
 - No new exported symbols. `PyodideRuntime.load()` gains a wheel-install step between `loadPackage('micropip')` and running `PYTHON_SHIM` (the shim's `from pyflakes import api as pyflakes_api` needs pyflakes already installed).
 
 - [ ] **Step 1: Download the wheels**
@@ -769,8 +799,8 @@ Re-fetch with:
 
 \`\`\`bash
 pip download flake8==6.1.0 pyflakes==3.1.0 pycodestyle==2.11.1 mccabe==0.7.0 \
-  --no-deps --only-binary=:all: --python-version 311 --implementation py3 \
-  --abi none --platform any -d packages/core/src/pyodide/wheels/
+ --no-deps --only-binary=:all: --python-version 311 --implementation py3 \
+ --abi none --platform any -d packages/core/src/pyodide/wheels/
 \`\`\`
 
 Downloaded wheel filenames and sha256 (fill in from `sha256sum packages/core/src/pyodide/wheels/*.whl`
@@ -798,17 +828,17 @@ const WHEEL_FILENAMES = [
 In `load()`, insert a wheel-install step between `await this.pyodide.loadPackage('micropip')` and `await this.pyodide.runPythonAsync(PYTHON_SHIM)`:
 
 ```ts
-        this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
-        await this.pyodide.loadPackage('micropip');
+this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
+await this.pyodide.loadPackage('micropip');
 
-        const wheelUrls = WHEEL_FILENAMES.map((name) =>
-          chrome.runtime.getURL(`pyodide/wheels/${name}`)
-        );
-        await this.pyodide.runPythonAsync(
-          `import micropip\nawait micropip.install(${JSON.stringify(wheelUrls)}, deps=False)`
-        );
+const wheelUrls = WHEEL_FILENAMES.map((name) =>
+  chrome.runtime.getURL(`pyodide/wheels/${name}`)
+);
+await this.pyodide.runPythonAsync(
+  `import micropip\nawait micropip.install(${JSON.stringify(wheelUrls)}, deps=False)`
+);
 
-        await this.pyodide.runPythonAsync(PYTHON_SHIM);
+await this.pyodide.runPythonAsync(PYTHON_SHIM);
 ```
 
 - [ ] **Step 3: Verify**
@@ -833,6 +863,7 @@ git commit -m "feat: bundle flake8 wheels; offline flake8 install"
 ### Task 4: Shrink core's Flake8Engine to pure logic
 
 **Files:**
+
 - Create: `packages/core/src/engines/flake8Shim.ts`
 - Create: `packages/core/src/engines/flake8Mapping.ts`
 - Test: `packages/core/src/__tests__/flake8Mapping.test.ts`
@@ -841,6 +872,7 @@ git commit -m "feat: bundle flake8 wheels; offline flake8 install"
 - Delete: `packages/core/src/engines/Flake8Engine.ts`
 
 **Interfaces:**
+
 - Produces: `PYTHON_SHIM: string` (from `flake8Shim.ts`) and `mapFlake8Results(raw: RawFlake8Error[], cellOffset: number): LintError[]` + `RawFlake8Error` (from `flake8Mapping.ts`), both re-exported from `@kaggle-lint/core` via `engines/index.ts` → `core/src/index.ts`'s existing `export * from './engines'`.
 - **Breaking export change:** `Flake8Engine` disappears from `@kaggle-lint/core`. Its only consumer is `packages/extension/src/content/ContentApp.tsx:12` (`import { LintEngine, Flake8Engine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';`) — this task does **not** touch that import (Task 5 does). Root `npm run type-check`/`npm run build` will fail after this task until Task 5 lands; per Deviation 4 (top of this document), that's expected and this task's own Verify step is scoped to `packages/core` only. Do Tasks 4 and 5 back-to-back with no `/clear` between them.
 
@@ -854,20 +886,45 @@ import { mapFlake8Results } from '../engines/flake8Mapping';
 describe('mapFlake8Results', () => {
   it('adjusts line numbers by the cell offset and tags the flake8 rule', () => {
     const raw = [
-      { line: 2, column: 0, code: 'F821', msg: "undefined name 'y'", severity: 'error' as const },
+      {
+        line: 2,
+        column: 0,
+        code: 'F821',
+        msg: "undefined name 'y'",
+        severity: 'error' as const,
+      },
     ];
 
     const result = mapFlake8Results(raw, 10);
 
     expect(result).toEqual([
-      { line: 12, column: 0, code: 'F821', msg: "undefined name 'y'", severity: 'error', rule: 'flake8' },
+      {
+        line: 12,
+        column: 0,
+        code: 'F821',
+        msg: "undefined name 'y'",
+        severity: 'error',
+        rule: 'flake8',
+      },
     ]);
   });
 
   it('applies the same offset to every error in a multi-error cell', () => {
     const raw = [
-      { line: 1, column: 0, code: 'E999', msg: 'SyntaxError: invalid syntax', severity: 'error' as const },
-      { line: 3, column: 4, code: 'F401', msg: "'os' imported but unused", severity: 'warning' as const },
+      {
+        line: 1,
+        column: 0,
+        code: 'E999',
+        msg: 'SyntaxError: invalid syntax',
+        severity: 'error' as const,
+      },
+      {
+        line: 3,
+        column: 4,
+        code: 'F401',
+        msg: "'os' imported but unused",
+        severity: 'warning' as const,
+      },
     ];
 
     const result = mapFlake8Results(raw, 5);
@@ -1118,7 +1175,10 @@ export interface RawFlake8Error {
   severity: Severity;
 }
 
-export function mapFlake8Results(raw: RawFlake8Error[], cellOffset: number): LintError[] {
+export function mapFlake8Results(
+  raw: RawFlake8Error[],
+  cellOffset: number
+): LintError[] {
   return raw.map((error) => ({
     ...error,
     line: error.line + cellOffset,
@@ -1163,22 +1223,26 @@ In `packages/extension/src/offscreen/pyodideRuntime.ts`:
 Remove the local `PYTHON_SHIM` constant and `RawFlake8Error` interface (both now live in core); add an import:
 
 ```ts
-import { PYTHON_SHIM, mapFlake8Results, type RawFlake8Error } from '@kaggle-lint/core';
+import {
+  PYTHON_SHIM,
+  mapFlake8Results,
+  type RawFlake8Error,
+} from '@kaggle-lint/core';
 ```
 
 Inside `lintNotebook()`'s `if (shouldLint) { ... }` block, replace the last two statements Task 2 wrote — `const rawResults = JSON.parse(raw) as RawFlake8Error[];` and the `rawResults.forEach(...)` block after it — with (this re-declares `rawResults`, so make sure you're replacing both statements, not appending after the old `const rawResults` — otherwise you'll get a duplicate-declaration error):
 
 ```ts
-        const rawResults = JSON.parse(raw) as RawFlake8Error[];
-        const mapped = mapFlake8Results(rawResults, lineOffset);
+const rawResults = JSON.parse(raw) as RawFlake8Error[];
+const mapped = mapFlake8Results(rawResults, lineOffset);
 
-        mapped.forEach((error, i) => {
-          allErrors.push({
-            ...error,
-            cellIndex: cell.cellIndex,
-            cellLine: rawResults[i].line,
-          } as Flake8ResultError);
-        });
+mapped.forEach((error, i) => {
+  allErrors.push({
+    ...error,
+    cellIndex: cell.cellIndex,
+    cellLine: rawResults[i].line,
+  } as Flake8ResultError);
+});
 ```
 
 - [ ] **Step 8: Verify (core only — see Deviation 4)**
@@ -1201,12 +1265,14 @@ git commit -m "refactor(core): extract python shim + result mapping; drop browse
 ### Task 5: Content-script client (replaces in-page engine, F13)
 
 **Files:**
+
 - Create: `packages/extension/src/flake8/Flake8Client.ts`
 - Modify: `packages/extension/src/content/ContentApp.tsx` (399 lines, current shape confirmed by direct read)
 - Modify: `packages/ui-components/src/types/index.ts` (`OverlayProps.flake8Status`, currently line 36)
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx` (status block, currently lines 276–281)
 
 **Interfaces:**
+
 - Produces: `class Flake8Client { lintNotebook(cells: Flake8CellInput[]): Promise<Flake8ResultError[]>; getStatus(): Promise<Flake8Status>; }` — `lintNotebook` throws on `{ ok: false }`.
 - Consumes: background relay (Task 1), offscreen runtime (Task 2–4).
 
@@ -1262,7 +1328,12 @@ Replace the import block (currently lines 10–14):
 ```tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine, Flake8Engine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
+import {
+  LintEngine,
+  Flake8Engine,
+  createEnabledRules,
+  defaultRuleToggles,
+} from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 ```
@@ -1272,7 +1343,11 @@ with:
 ```tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
+import {
+  LintEngine,
+  createEnabledRules,
+  defaultRuleToggles,
+} from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { Flake8Client } from '../flake8/Flake8Client';
@@ -1281,25 +1356,29 @@ import { Flake8Client } from '../flake8/Flake8Client';
 Replace the `flake8Status` state declaration (currently line 34):
 
 ```tsx
-  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready'>('unloaded');
+const [flake8Status, setFlake8Status] = useState<
+  'unloaded' | 'loading' | 'ready'
+>('unloaded');
 ```
 
 with:
 
 ```tsx
-  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
+const [flake8Status, setFlake8Status] = useState<
+  'unloaded' | 'loading' | 'ready' | 'failed'
+>('unloaded');
 ```
 
 Replace the engine ref declaration (currently line 37):
 
 ```tsx
-  const flake8EngineRef = React.useRef<Flake8Engine>(new Flake8Engine());
+const flake8EngineRef = React.useRef<Flake8Engine>(new Flake8Engine());
 ```
 
 with:
 
 ```tsx
-  const flake8ClientRef = React.useRef(new Flake8Client()).current;
+const flake8ClientRef = React.useRef(new Flake8Client()).current;
 ```
 
 - [ ] **Step 3: Delete `initializeFlake8`**
@@ -1311,39 +1390,39 @@ Delete the entire `initializeFlake8` function (currently lines 59–88, the bloc
 The full `runLinter` callback currently spans lines 94–168. Replace lines 139–153 — the existing `let lintErrors;` declaration, the blank line after it, and the `if (settings.linterEngine === 'handmade') { ... } else { ... }` block — with (this reproduces the `let lintErrors;` declaration too; don't leave the old one in place above this block, or you'll get a duplicate-declaration error):
 
 ```tsx
-      let lintErrors;
+let lintErrors;
 
-      if (settings.linterEngine === 'handmade') {
-        // Run handmade linter
-        console.log('[Linter] Running handmade engine...');
-        const engine = getHandmadeLintEngine();
-        lintErrors = engine.lintNotebook(cellsForLinting);
-        console.log(`[Linter] Handmade engine found ${lintErrors.length} errors`);
-      } else {
-        // Run flake8 via the offscreen document. The protocol is
-        // JSON-only (no DOM elements cross chrome.runtime messaging), so
-        // strip elements before sending and re-attach them to the
-        // returned errors by cellIndex — error-click-to-scroll needs them.
-        console.log('[Linter] Running flake8 engine...');
-        setFlake8Status('loading');
-        try {
-          const elementByCellIndex = new Map(
-            cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
-          );
-          const rawErrors = await flake8ClientRef.lintNotebook(
-            cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex }))
-          );
-          lintErrors = rawErrors.map((error) => ({
-            ...error,
-            element: elementByCellIndex.get(error.cellIndex) ?? null,
-          }));
-          setFlake8Status('ready');
-          console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
-        } catch (error) {
-          setFlake8Status('failed');
-          throw error;
-        }
-      }
+if (settings.linterEngine === 'handmade') {
+  // Run handmade linter
+  console.log('[Linter] Running handmade engine...');
+  const engine = getHandmadeLintEngine();
+  lintErrors = engine.lintNotebook(cellsForLinting);
+  console.log(`[Linter] Handmade engine found ${lintErrors.length} errors`);
+} else {
+  // Run flake8 via the offscreen document. The protocol is
+  // JSON-only (no DOM elements cross chrome.runtime messaging), so
+  // strip elements before sending and re-attach them to the
+  // returned errors by cellIndex — error-click-to-scroll needs them.
+  console.log('[Linter] Running flake8 engine...');
+  setFlake8Status('loading');
+  try {
+    const elementByCellIndex = new Map(
+      cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
+    );
+    const rawErrors = await flake8ClientRef.lintNotebook(
+      cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex }))
+    );
+    lintErrors = rawErrors.map((error) => ({
+      ...error,
+      element: elementByCellIndex.get(error.cellIndex) ?? null,
+    }));
+    setFlake8Status('ready');
+    console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
+  } catch (error) {
+    setFlake8Status('failed');
+    throw error;
+  }
+}
 ```
 
 (The surrounding `try`/`catch`/`finally` and the cell-extraction code above this block are unchanged — only the `if/else` body changes. The outer `catch` block's existing `console.warn('[Linter] Flake8 failed, you may need to reload the page')` stays as-is; it now runs after `setFlake8Status('failed')` has already fired.)
@@ -1377,18 +1456,22 @@ with:
 In `packages/ui-components/src/Overlay/Overlay.tsx`, add a failed-state message after the existing loading block (currently lines 276–281):
 
 ```tsx
-        {flake8Status === 'loading' && (
-          <div className="kaggle-lint-engine-status">
-            Loading Flake8 (Pyodide)… first load can take up to 30 s
-          </div>
-        )}
-        {flake8Status === 'failed' && (
-          <div className="kaggle-lint-engine-status">
-            Flake8 failed to load — check the offscreen document's console
-            (chrome://extensions → this extension → inspect the "service
-            worker" / "offscreen document" links) or try re-linting.
-          </div>
-        )}
+{
+  flake8Status === 'loading' && (
+    <div className="kaggle-lint-engine-status">
+      Loading Flake8 (Pyodide)… first load can take up to 30 s
+    </div>
+  );
+}
+{
+  flake8Status === 'failed' && (
+    <div className="kaggle-lint-engine-status">
+      Flake8 failed to load — check the offscreen document's console
+      (chrome://extensions → this extension → inspect the "service worker" /
+      "offscreen document" links) or try re-linting.
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 6: Verify**
@@ -1419,7 +1502,7 @@ This repo has no e2e scripts (per `docs/next_plans/README.md` rule 4 and `docs/n
 npm run build
 ```
 
-Load `packages/extension/dist/` as an unpacked extension at `chrome://extensions` (or reload it if already loaded — content-script changes need both an extension reload *and* a page refresh, per `docs/next_plans/DEVELOPER_PROMPTS.md` §6). Open a Kaggle notebook in edit mode (`kaggle.com/code/*/*/edit`). Open the popup and switch the engine radio to **Flake8**.
+Load `packages/extension/dist/` as an unpacked extension at `chrome://extensions` (or reload it if already loaded — content-script changes need both an extension reload _and_ a page refresh, per `docs/next_plans/DEVELOPER_PROMPTS.md` §6). Open a Kaggle notebook in edit mode (`kaggle.com/code/*/*/edit`). Open the popup and switch the engine radio to **Flake8**.
 
 - [ ] **Step 2: Acceptance checks**
 
@@ -1432,11 +1515,11 @@ Load `packages/extension/dist/` as an unpacked extension at `chrome://extensions
 - [ ] **Step 3: If anything fails**
 
 Inspect the offscreen document's console (via the same "Inspect views" link from Step 2) for Python tracebacks or `micropip` install errors. Debug with `superpowers:systematic-debugging` — do not guess-fix. Common failure classes to check first, given this plan's design:
-  - If the overlay never leaves "loading": check the offscreen console for a `micropip.install` failure (wrong wheel filenames in `WHEEL_FILENAMES` vs. what `ls packages/core/src/pyodide/wheels/` actually produced in Task 3 — a filename mismatch fails silently into the wheel not being found).
-  - If `F821` never clears despite an earlier-cell definition: check that `reset_notebook_context()` runs once per `lintNotebook()` call (not per cell) and that `cells` arrives at the offscreen document in notebook order — `Flake8Client.lintNotebook` doesn't sort; it trusts `ContentApp`'s `cellsForLinting` (already sorted by `codeMirrorManager.getAllCells()`, confirmed at `CodeMirrorManager.ts:80` — `cells.sort((a, b) => a.cellIndex - b.cellIndex)`).
-  - If network requests to PyPI/CDN appear: grep for any remaining `micropip.install(` call missing the `deps=False` + local-URL pattern (Task 3, Step 2).
+
+- If the overlay never leaves "loading": check the offscreen console for a `micropip.install` failure (wrong wheel filenames in `WHEEL_FILENAMES` vs. what `ls packages/core/src/pyodide/wheels/` actually produced in Task 3 — a filename mismatch fails silently into the wheel not being found).
+- If `F821` never clears despite an earlier-cell definition: check that `reset_notebook_context()` runs once per `lintNotebook()` call (not per cell) and that `cells` arrives at the offscreen document in notebook order — `Flake8Client.lintNotebook` doesn't sort; it trusts `ContentApp`'s `cellsForLinting` (already sorted by `codeMirrorManager.getAllCells()`, confirmed at `CodeMirrorManager.ts:80` — `cells.sort((a, b) => a.cellIndex - b.cellIndex)`).
+- If network requests to PyPI/CDN appear: grep for any remaining `micropip.install(` call missing the `deps=False` + local-URL pattern (Task 3, Step 2).
 
 - [ ] **Step 4: Commit fixes and record deviations**
 
 Commit any fixes found during this gate. If Kaggle's actual DOM/API shape disagreed with anything this plan assumed (e.g. Chrome's offscreen API behaved differently than documented, or wheel install order mattered despite `deps=False`), record it in `docs/next_plans/milestone-3-working-flake8/notes.md` per `docs/next_plans/README.md` rule 5 — do not silently patch around a wrong assumption without writing it down. Once green, milestone complete; proceed to `superpowers:finishing-a-development-branch` for the merge decision.
-

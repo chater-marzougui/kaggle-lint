@@ -8,7 +8,11 @@
  * Generalized from flake8-only (Milestone 3) to any engine.
  */
 
-import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
+import {
+  ENGINE_LINT_NOTEBOOK,
+  ENGINE_OFFSCREEN_REQUEST,
+  ENGINE_STATUS,
+} from '../engine/protocol';
 import { LINT_STATS, type LintStatsMessage } from './statsProtocol';
 
 const ENGINE_MESSAGE_TYPES: ReadonlySet<string> = new Set([
@@ -53,7 +57,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  if (typeof message?.type !== 'string' || !ENGINE_MESSAGE_TYPES.has(message.type)) {
+  if (
+    typeof message?.type !== 'string' ||
+    !ENGINE_MESSAGE_TYPES.has(message.type)
+  ) {
     return false;
   }
 

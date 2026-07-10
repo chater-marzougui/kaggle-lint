@@ -55,7 +55,10 @@ export const Overlay: React.FC<OverlayProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const dragOffsetRef = useRef({ x: initialPosition?.x ?? 0, y: initialPosition?.y ?? 0 });
+  const dragOffsetRef = useRef({
+    x: initialPosition?.x ?? 0,
+    y: initialPosition?.y ?? 0,
+  });
 
   // Read the latest isMinimized inside the long-lived drag listeners below
   // without adding it to their effect's deps (same pattern this repo
@@ -68,8 +71,14 @@ export const Overlay: React.FC<OverlayProps> = ({
   // change must not fight the user's live drag position.
   useEffect(() => {
     if (!overlayRef.current) return;
-    overlayRef.current.style.setProperty('--kaggle-lint-drag-x', `${dragOffsetRef.current.x}px`);
-    overlayRef.current.style.setProperty('--kaggle-lint-drag-y', `${dragOffsetRef.current.y}px`);
+    overlayRef.current.style.setProperty(
+      '--kaggle-lint-drag-x',
+      `${dragOffsetRef.current.x}px`
+    );
+    overlayRef.current.style.setProperty(
+      '--kaggle-lint-drag-y',
+      `${dragOffsetRef.current.y}px`
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -115,7 +124,10 @@ export const Overlay: React.FC<OverlayProps> = ({
     const handleMouseUp = () => {
       if (!isDragging) return;
       isDragging = false;
-      onStateChange?.({ position: dragOffsetRef.current, isMinimized: isMinimizedRef.current });
+      onStateChange?.({
+        position: dragOffsetRef.current,
+        isMinimized: isMinimizedRef.current,
+      });
     };
 
     header.style.cursor = 'move';
@@ -252,8 +264,8 @@ export const Overlay: React.FC<OverlayProps> = ({
         {engineStatus === 'failed' && (
           <div className="kaggle-lint-engine-status">
             Linter engine failed to load — check the offscreen document's
-            console (chrome://extensions → this extension → inspect the
-            "service worker" / "offscreen document" links) or try re-linting.
+            console (chrome://extensions → this extension → inspect the "service
+            worker" / "offscreen document" links) or try re-linting.
           </div>
         )}
 
@@ -269,7 +281,11 @@ export const Overlay: React.FC<OverlayProps> = ({
           </span>
         </div>
 
-        <ErrorList errors={errors} onErrorClick={handleErrorClick} onIgnoreCode={onIgnoreCode} />
+        <ErrorList
+          errors={errors}
+          onErrorClick={handleErrorClick}
+          onIgnoreCode={onIgnoreCode}
+        />
       </div>
     </div>
   );
