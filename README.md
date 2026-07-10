@@ -82,8 +82,6 @@ Click the extension icon in Chrome toolbar to configure:
 - **Ignore Codes**: Comma-separated error codes to ignore, per engine (e.g. `E501, F401`)
 - **Actions**: Re-lint now or toggle overlay
 
-For detailed usage instructions, see [EXTENSION_USAGE.md](EXTENSION_USAGE.md).
-
 ## 🏗️ Architecture
 
 ### Monorepo Structure
@@ -170,9 +168,9 @@ npm run type-check
 
 Current test coverage:
 
-- 21 unit tests passing
-- All core rules tested
-- Flake8/ruff engine logic verified
+- `packages/core`: 31 tests across 4 suites (notebook-source building, severity mapping, syntax-isolation retry, the flake8 Python shim), enforced coverage thresholds
+- `packages/extension`: 16 tests across 4 suites (cell store, DOM-scrape extraction fallback, debug-log gating, popup↔content-script messaging), enforced coverage thresholds
+- `npm run lint`: 0 errors, 1 warning repo-wide (a deliberately-deferred `react-hooks/exhaustive-deps` gap in `Overlay.tsx` — see `docs/next_plans/milestone-4-config-and-build-hygiene/notes.md`)
 
 ### Testing the Extension
 
@@ -184,23 +182,7 @@ Current test coverage:
 
 #### Standalone Demo
 
-Test the linter without installing the extension:
-
-```bash
-# Start demo server
-cd old-linter
-python3 -m http.server 8000
-```
-
-Open http://localhost:8000/test/linter-demo.html and upload a `.ipynb` file.
-
-The demo provides:
-
-- Linter engine selector (Custom vs Flake8)
-- Drag-and-drop file upload
-- Visual display with line numbers
-- Real-time linting results
-- Click-to-scroll navigation
+Removed along with `old-linter/` (see [next_plans/README.md](docs/next_plans/README.md) for a note on bringing a replacement back as a future milestone). For now, load the extension unpacked (see Installation above) and test against a real Kaggle notebook.
 
 ### Code Quality
 
@@ -304,9 +286,9 @@ Contributions are welcome! When contributing:
 
 ## 📚 Additional Documentation
 
-- [Extension Usage Guide](EXTENSION_USAGE.md) - Detailed usage instructions
-- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Recent migration details
-- [Migration History](MIGRATION.md) - Complete migration plan and history
+- [Architecture](docs/architecture.md) - Monorepo structure and runtime design
+- [Review Findings](docs/review-findings.md) - Itemized issues found in the original TS/React migration, and their resolution status
+- [Roadmap](docs/next_plans/README.md) - Milestone plans and execution history
 
 ## 🙏 Acknowledgments
 
