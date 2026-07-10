@@ -579,3 +579,25 @@
 .kaggle-lint-theme-dark .kaggle-lint-content::-webkit-scrollbar-thumb:hover {
   background: #5a5a5a;
 }
+
+/* In-editor severity markers (Milestone 8, Task 3). Added directly to a
+   Kaggle .cm-line element (a page element, not part of the overlay's own
+   subtree) for as long as that line holds an active lint error. A
+   background tint, not a text-decoration underline: an empty or
+   whitespace-only line has no text to draw an underline under, so a
+   decoration-based marker would silently fail to render on exactly the
+   lines a blank-line rule (e.g. flake8's W391) flags. Alpha-blended so it
+   reads on both Kaggle's light and dark themes without a separate
+   .kaggle-lint-theme-dark variant (same approach already used for
+   .kaggle-lint-severity-* below). */
+.cm-line.kaggle-lint-line-error {
+  background-color: rgba(244, 71, 113, 0.18);
+}
+
+.cm-line.kaggle-lint-line-warning {
+  background-color: rgba(222, 184, 135, 0.18);
+}
+
+.cm-line.kaggle-lint-line-info {
+  background-color: rgba(106, 159, 181, 0.18);
+}

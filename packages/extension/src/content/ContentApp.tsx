@@ -11,6 +11,7 @@ import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { EngineClient } from '../engine/EngineClient';
 import { createLogger } from '../utils/logger';
+import { applyLineMarkers, clearAllLineMarkers } from './lineMarkers';
 
 const logger = createLogger('ContentApp');
 
@@ -33,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export const ContentApp: React.FC = () => {
   const [errors, setErrors] = useState<LintUIError[]>([]);
+  const errorsRef = React.useRef<LintUIError[]>([]);
   const [visible, setVisible] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isLinting, setIsLinting] = useState(false);
@@ -274,6 +276,69 @@ export const ContentApp: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  /**
+   * In-editor line markers (Task 3). Converts the current error list into
+   * lineMarkers.ts's MarkerTarget shape — only errors whose cell element
+   * is still live get a target; a virtualized-out cell simply gets no
+   * marker until it's scrolled back into view and this reruns.
+   */
+  const buildMarkerTargets = (list: LintUIError[]) =>
+    list
+      .filter((error): error is LintUIError & { element: Element } => Boolean(error.element))
+      .map((error) => ({
+        cellElement: error.element,
+        cellLine: error.cellLine ?? error.line,
+        severity: error.severity,
+        code: error.code,
+        msg: error.msg,
+      }));
+
+  /** Refresh markers whenever the error list itself changes (a completed lint). */
+  useEffect(() => {
+    errorsRef.current = errors;
+    applyLineMarkers(buildMarkerTargets(errors));
+  }, [errors]);
+
+  /**
+   * Refresh markers on notebook DOM mutations too: Kaggle's virtualization
+   * mounts/unmounts `.cm-line` nodes on scroll independently of any lint
+   * running, so a cell whose errors are already known can still need its
+   * markers reapplied without a new lint. This observer only ever calls
+   * classList.add/removeAttribute('title') (attribute mutations), which the
+   * separate auto-relint observer above does NOT watch (its config is
+   * childList/characterData/subtree only, no `attributes: true`) — so
+   * marker writes never trigger a relint loop. `.jp-Notebook` is guaranteed
+   * present here: content/index.tsx only mounts ContentApp once it exists.
+   */
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleMarkerRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        applyLineMarkers(buildMarkerTargets(errorsRef.current));
+      }, 300);
+    };
+
+    const notebook = document.querySelector('.jp-Notebook');
+    if (!notebook) return undefined;
+
+    const observer = new MutationObserver(scheduleMarkerRefresh);
+    observer.observe(notebook, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, []);
+
+  /** Full clear when the overlay is hidden (F-free feature, but same discipline as the rest of this file: no stale markers left behind). */
+  useEffect(() => {
+    if (!visible) {
+      clearAllLineMarkers();
+    }
+  }, [visible]);
 
   /**
    * Setup message listener for chrome extension
