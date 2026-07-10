@@ -62,7 +62,7 @@ module.exports = {
           from: '../ui-components/src/Overlay/Overlay.css', 
           to: 'content.css' 
         },
-        // Copy popup CSS (owned by this package, not old-linter)
+        // Copy popup CSS (owned by this package)
         {
           from: 'src/popup/popup.css',
           to: 'popup.css'
