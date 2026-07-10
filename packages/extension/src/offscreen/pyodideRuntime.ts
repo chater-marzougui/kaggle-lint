@@ -117,7 +117,7 @@ json.dumps(results)
             ...error,
             cellIndex: cell.cellIndex,
             cellLine: rawResults[i].line,
-          } as Flake8ResultError);
+          });
         });
       }
 

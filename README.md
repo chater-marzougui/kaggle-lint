@@ -112,7 +112,7 @@ kaggle-lint/
 │   │   ├── src/
 │   │   │   ├── types/          # TypeScript type definitions
 │   │   │   ├── rules/          # 9 lint rules (TypeScript classes)
-│   │   │   ├── engines/        # LintEngine + Flake8Engine
+│   │   │   ├── engines/        # LintEngine + flake8Shim/flake8Mapping (pure logic; browser glue lives in the extension's offscreen document)
 │   │   │   ├── pyodide/        # Pyodide WebAssembly runtime
 │   │   │   └── __tests__/      # Jest tests (21 passing)
 │   │   └── dist/               # Compiled output
@@ -295,23 +295,18 @@ const undefinedRule = new UndefinedVariablesRule();
 const errors = undefinedRule.run('print(x)', 0);
 ```
 
-#### Using the Flake8 Engine
+#### Flake8 Linting (extension-only)
+
+Flake8/pyflakes linting runs inside the extension's Chrome offscreen document (Pyodide + bundled wheels), not as a standalone `@kaggle-lint/core` class — it requires a Chrome extension context (`chrome.offscreen`, `chrome.runtime` messaging) that a plain Node/browser script doesn't have. The content script talks to it via `Flake8Client` (`packages/extension/src/flake8/Flake8Client.ts`):
 
 ```typescript
-import { Flake8Engine } from '@kaggle-lint/core';
+import { Flake8Client } from '../flake8/Flake8Client';
 
-// Create Flake8 engine
-const flake8 = new Flake8Engine();
-
-// Initialize (loads Pyodide - may take 10-30 seconds first time)
-await flake8.initialize();
-
-// Lint code
-const errors = await flake8.lint('x = y + 1', 0);
-
-// Lint entire notebook with context tracking
-const notebookErrors = await flake8.lintNotebook(cells);
+const client = new Flake8Client();
+const errors = await client.lintNotebook([{ code: 'x = y + 1', cellIndex: 0 }]);
 ```
+
+`packages/core` exports the reusable, browser-independent pieces the offscreen runtime is built from: `PYTHON_SHIM` (the pyflakes-wrapping Python source, from `engines/flake8Shim.ts`) and `mapFlake8Results` (line-offset + rule tagging, from `engines/flake8Mapping.ts`).
 
 ### Adding Custom Rules
 
