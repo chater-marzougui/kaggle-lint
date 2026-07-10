@@ -12,7 +12,7 @@ interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  linterEngine: 'flake8',
+  linterEngine: 'ruff',
   flake8IgnoreCodes: '',
   ruffIgnoreCodes: '',
 };
@@ -188,7 +188,7 @@ export const PopupApp: React.FC = () => {
                   onChange={() => handleEngineChange('flake8')}
                 />
                 <div className="option-info">
-                  <span className="option-label">Flake8</span>
+                  <span className="option-label">Flake8 (slower first load)</span>
                   <span className="option-description">
                     Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
                   </span>
@@ -203,7 +203,7 @@ export const PopupApp: React.FC = () => {
                   onChange={() => handleEngineChange('ruff')}
                 />
                 <div className="option-info">
-                  <span className="option-label">Ruff</span>
+                  <span className="option-label">Ruff (recommended — instant)</span>
                   <span className="option-description">
                     Fast Rust-based Python linter — no Python runtime needed
                   </span>

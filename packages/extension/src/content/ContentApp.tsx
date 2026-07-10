@@ -20,9 +20,13 @@ interface Settings {
   ruffIgnoreCodes: string;
 }
 
-// Default settings
+// Ruff (ruff-wasm, no Python/Pyodide) initializes in milliseconds; flake8's
+// first Pyodide load is ~30 s. A first-run user should see results before
+// they wonder if the extension works. This only affects installs with no
+// saved settings yet — chrome.storage.sync's `linterSettings` always wins
+// once it exists, so upgrading users keep whatever they already chose.
 const DEFAULT_SETTINGS: Settings = {
-  linterEngine: 'flake8',
+  linterEngine: 'ruff',
   flake8IgnoreCodes: '',
   ruffIgnoreCodes: '',
 };
