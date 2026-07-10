@@ -5,13 +5,14 @@
  * job is bridging chrome.runtime messages from the content script to the
  * offscreen document, which is an extension page and gets this
  * extension's own CSP instead (see manifest.json's content_security_policy).
+ * Generalized from flake8-only (Milestone 3) to any engine.
  */
 
-import { FLAKE8_LINT_NOTEBOOK, FLAKE8_OFFSCREEN_REQUEST, FLAKE8_STATUS } from '../flake8/protocol';
+import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
 
-const FLAKE8_MESSAGE_TYPES: ReadonlySet<string> = new Set([
-  FLAKE8_LINT_NOTEBOOK,
-  FLAKE8_STATUS,
+const ENGINE_MESSAGE_TYPES: ReadonlySet<string> = new Set([
+  ENGINE_LINT_NOTEBOOK,
+  ENGINE_STATUS,
 ]);
 
 const OFFSCREEN_URL = 'offscreen.html';
@@ -29,7 +30,7 @@ async function ensureOffscreen(): Promise<void> {
   creatingOffscreen = chrome.offscreen.createDocument({
     url: OFFSCREEN_URL,
     reasons: [chrome.offscreen.Reason.WORKERS],
-    justification: 'Run Pyodide/Flake8 linter in WASM',
+    justification: 'Run Pyodide/Flake8/Ruff linters in WASM',
   });
   try {
     await creatingOffscreen;
@@ -39,14 +40,14 @@ async function ensureOffscreen(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (typeof message?.type !== 'string' || !FLAKE8_MESSAGE_TYPES.has(message.type)) {
+  if (typeof message?.type !== 'string' || !ENGINE_MESSAGE_TYPES.has(message.type)) {
     return false;
   }
 
   // Only forward messages that came from a content script running in a
   // tab. This is defense in depth, not the sole guard against re-forward
-  // loops: the wrapped message sent below has type FLAKE8_OFFSCREEN_REQUEST,
-  // which is disjoint from FLAKE8_MESSAGE_TYPES, so this listener's own
+  // loops: the wrapped message sent below has type ENGINE_OFFSCREEN_REQUEST,
+  // which is disjoint from ENGINE_MESSAGE_TYPES, so this listener's own
   // type check (above) already ignores it when chrome.runtime.sendMessage's
   // broadcast reaches this same listener again. It also has no sender.tab
   // (it originates from this service worker, an extension page, not a tab),
@@ -58,7 +59,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   ensureOffscreen()
     .then(() =>
       chrome.runtime.sendMessage({
-        type: FLAKE8_OFFSCREEN_REQUEST,
+        type: ENGINE_OFFSCREEN_REQUEST,
         payload: message,
       })
     )

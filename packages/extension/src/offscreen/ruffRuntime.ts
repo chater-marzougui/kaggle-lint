@@ -9,12 +9,12 @@
 
 import { initSync, Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
 import { buildNotebookSource, mapDiagnostics, type NotebookCellInput } from '@kaggle-lint/core';
-import type { Flake8ResultError, Flake8Status } from '../flake8/protocol';
+import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
 const RUFF_WASM_URL = chrome.runtime.getURL('ruff/ruff_wasm_bg.wasm');
 
 export class RuffRuntime {
-  status: Flake8Status = 'unloaded';
+  status: EngineStatus = 'unloaded';
   private loadPromise: Promise<void> | null = null;
 
   load(): Promise<void> {
@@ -42,7 +42,7 @@ export class RuffRuntime {
     return this.loadPromise;
   }
 
-  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<Flake8ResultError[]> {
+  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
     await this.load();
 
     // Workspace's settings (including lint.ignore) are fixed at

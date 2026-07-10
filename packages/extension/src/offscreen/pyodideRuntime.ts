@@ -11,8 +11,14 @@
  * "file" gives correct cross-cell scoping natively.
  */
 
-import { PYTHON_SHIM, buildNotebookSource, mapDiagnostics, type RawDiagnostic } from '@kaggle-lint/core';
-import type { Flake8CellInput, Flake8ResultError, Flake8Status } from '../flake8/protocol';
+import {
+  PYTHON_SHIM,
+  buildNotebookSource,
+  mapDiagnostics,
+  type RawDiagnostic,
+  type NotebookCellInput,
+} from '@kaggle-lint/core';
+import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
 declare global {
   interface Window {
@@ -38,7 +44,7 @@ const WHEEL_FILENAMES = [
 ];
 
 export class PyodideRuntime {
-  status: Flake8Status = 'unloaded';
+  status: EngineStatus = 'unloaded';
   private pyodide: PyodideInterface | null = null;
   private loadPromise: Promise<void> | null = null;
 
@@ -92,7 +98,7 @@ export class PyodideRuntime {
     });
   }
 
-  async lintNotebook(cells: Flake8CellInput[], ignoreCodes: string[]): Promise<Flake8ResultError[]> {
+  async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
     await this.load();
 
     const { source, cellOffsets } = buildNotebookSource(cells);
