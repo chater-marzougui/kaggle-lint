@@ -12,6 +12,7 @@ import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { EngineClient } from '../engine/EngineClient';
 import { createLogger } from '../utils/logger';
 import { applyLineMarkers, clearAllLineMarkers } from './lineMarkers';
+import { LINT_STATS, type LintStatsMessage } from '../background/statsProtocol';
 
 const logger = createLogger('ContentApp');
 
@@ -153,6 +154,15 @@ export const ContentApp: React.FC = () => {
       // Update errors state
       setErrors(lintErrors);
       logger.log('Updated errors state with', lintErrors.length, 'errors');
+
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        const statsMessage: LintStatsMessage = {
+          type: LINT_STATS,
+          errors: lintErrors.filter((e) => e.severity === 'error').length,
+          warnings: lintErrors.filter((e) => e.severity === 'warning').length,
+        };
+        chrome.runtime.sendMessage(statsMessage);
+      }
     } catch (error) {
       logger.error('Error during linting:', error);
       logger.warn(`${settings.linterEngine} failed, you may need to reload the page`);

@@ -630,3 +630,15 @@
 .cm-line.kaggle-lint-line-info {
   background-color: rgba(106, 159, 181, 0.18);
 }
+
+/* Glanceable status (Milestone 8, Task 5): only visually distinct while
+   minimized — the expanded panel already shows per-severity counts and
+   colors in .kaggle-lint-summary, so an accent border there would be
+   redundant. */
+.kaggle-lint-overlay.kaggle-lint-minimized.kaggle-lint-worst-error {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px #f48771;
+}
+
+.kaggle-lint-overlay.kaggle-lint-minimized.kaggle-lint-worst-warning {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px #deb887;
+}

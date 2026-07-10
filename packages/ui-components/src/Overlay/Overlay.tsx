@@ -167,6 +167,12 @@ export const Overlay: React.FC<OverlayProps> = ({
       id="kaggle-lint-overlay"
       className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${
         isMinimized ? 'kaggle-lint-minimized' : ''
+      } ${
+        stats.bySeverity.error > 0
+          ? 'kaggle-lint-worst-error'
+          : stats.bySeverity.warning > 0
+            ? 'kaggle-lint-worst-warning'
+            : ''
       }`}
     >
       <div ref={headerRef} className="kaggle-lint-header">

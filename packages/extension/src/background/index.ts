@@ -9,6 +9,7 @@
  */
 
 import { ENGINE_LINT_NOTEBOOK, ENGINE_OFFSCREEN_REQUEST, ENGINE_STATUS } from '../engine/protocol';
+import { LINT_STATS, type LintStatsMessage } from './statsProtocol';
 
 const ENGINE_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   ENGINE_LINT_NOTEBOOK,
@@ -40,6 +41,18 @@ async function ensureOffscreen(): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === LINT_STATS && typeof sender.tab?.id === 'number') {
+    const { errors, warnings } = message as LintStatsMessage;
+    const tabId = sender.tab.id;
+    const total = errors + warnings;
+    chrome.action.setBadgeText({ tabId, text: total > 0 ? String(total) : '' });
+    chrome.action.setBadgeBackgroundColor({
+      tabId,
+      color: errors > 0 ? '#c42b1c' : '#deb887',
+    });
+    return false;
+  }
+
   if (typeof message?.type !== 'string' || !ENGINE_MESSAGE_TYPES.has(message.type)) {
     return false;
   }
