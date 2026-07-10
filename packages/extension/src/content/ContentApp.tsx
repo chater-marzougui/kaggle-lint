@@ -2,27 +2,25 @@
  * ContentApp Component
  * Main React component for the content script
  * Integrates linting and UI overlay
- *
- * MIGRATION NOTE: Logic from old-linter/src/content.js
- * Converted to React component structure
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Overlay } from '@kaggle-lint/ui-components';
-import { LintEngine, createEnabledRules, defaultRuleToggles } from '@kaggle-lint/core';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
-import { Flake8Client } from '../flake8/Flake8Client';
+import { EngineClient } from '../engine/EngineClient';
 
 interface Settings {
-  linterEngine: 'handmade' | 'flake8';
-  rules: Record<string, boolean>;
+  linterEngine: 'flake8' | 'ruff';
+  flake8IgnoreCodes: string;
+  ruffIgnoreCodes: string;
 }
 
 // Default settings
 const DEFAULT_SETTINGS: Settings = {
-  linterEngine: 'handmade',
-  rules: defaultRuleToggles(),
+  linterEngine: 'flake8',
+  flake8IgnoreCodes: '',
+  ruffIgnoreCodes: '',
 };
 
 export const ContentApp: React.FC = () => {
@@ -32,10 +30,9 @@ export const ContentApp: React.FC = () => {
   const [isLinting, setIsLinting] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [flake8Status, setFlake8Status] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
+  const [engineStatus, setEngineStatus] = useState<'unloaded' | 'loading' | 'ready' | 'failed'>('unloaded');
 
-  const handmadeLintEngineRef = React.useRef<LintEngine | null>(null);
-  const flake8ClientRef = React.useRef(new Flake8Client()).current;
+  const engineClientRef = React.useRef(new EngineClient()).current;
   const domParser = React.useRef(new KaggleDomParser()).current;
   const codeMirrorManager = React.useRef(new CodeMirrorManager()).current;
 
@@ -43,23 +40,7 @@ export const ContentApp: React.FC = () => {
   const isLintingRef = React.useRef(false);
 
   /**
-   * Create handmade lint engine based on settings
-   */
-  const getHandmadeLintEngine = useCallback(() => {
-    if (handmadeLintEngineRef.current) {
-      return handmadeLintEngineRef.current;
-    }
-
-    const enabledRules = createEnabledRules(settings.rules);
-    console.log(`[Linter] Creating handmade engine with ${enabledRules.length} rules`);
-    handmadeLintEngineRef.current = new LintEngine(enabledRules);
-
-    return handmadeLintEngineRef.current;
-  }, [settings.rules]);
-
-  /**
    * Run the linter
-   * EXACT LOGIC from old-linter/src/content.js runLinter function
    */
   const runLinter = useCallback(async () => {
     if (isLintingRef.current) {
@@ -109,38 +90,40 @@ export const ContentApp: React.FC = () => {
           elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
       }));
 
-      let lintErrors;
+      // The protocol is JSON-only (no DOM elements cross chrome.runtime
+      // messaging), so strip elements before sending and re-attach them
+      // to the returned errors by cellIndex — error-click-to-scroll needs
+      // them.
+      const ignoreCodes = (settings.linterEngine === 'flake8'
+        ? settings.flake8IgnoreCodes
+        : settings.ruffIgnoreCodes
+      )
+        .split(',')
+        .map((code) => code.trim())
+        .filter((code) => code.length > 0);
 
-      if (settings.linterEngine === 'handmade') {
-        // Run handmade linter
-        console.log('[Linter] Running handmade engine...');
-        const engine = getHandmadeLintEngine();
-        lintErrors = engine.lintNotebook(cellsForLinting);
-        console.log(`[Linter] Handmade engine found ${lintErrors.length} errors`);
-      } else {
-        // Run flake8 via the offscreen document. The protocol is
-        // JSON-only (no DOM elements cross chrome.runtime messaging), so
-        // strip elements before sending and re-attach them to the
-        // returned errors by cellIndex — error-click-to-scroll needs them.
-        console.log('[Linter] Running flake8 engine...');
-        setFlake8Status('loading');
-        try {
-          const elementByCellIndex = new Map(
-            cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
-          );
-          const rawErrors = await flake8ClientRef.lintNotebook(
-            cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex }))
-          );
-          lintErrors = rawErrors.map((error) => ({
-            ...error,
-            element: elementByCellIndex.get(error.cellIndex) ?? null,
-          }));
-          setFlake8Status('ready');
-          console.log(`[Linter] Flake8 engine found ${lintErrors.length} errors`);
-        } catch (error) {
-          setFlake8Status('failed');
-          throw error;
-        }
+      console.log(`[Linter] Running ${settings.linterEngine} engine...`);
+      setEngineStatus('loading');
+
+      let lintErrors;
+      try {
+        const elementByCellIndex = new Map(
+          cellsForLinting.map((cell) => [cell.cellIndex, cell.element])
+        );
+        const rawErrors = await engineClientRef.lintNotebook(
+          settings.linterEngine,
+          cellsForLinting.map(({ code, cellIndex }) => ({ code, cellIndex })),
+          ignoreCodes
+        );
+        lintErrors = rawErrors.map((error) => ({
+          ...error,
+          element: elementByCellIndex.get(error.cellIndex) ?? null,
+        }));
+        setEngineStatus('ready');
+        console.log(`[Linter] ${settings.linterEngine} engine found ${lintErrors.length} errors`);
+      } catch (error) {
+        setEngineStatus('failed');
+        throw error;
       }
 
       // Update errors state
@@ -148,16 +131,13 @@ export const ContentApp: React.FC = () => {
       console.log('[Linter] Updated errors state with', lintErrors.length, 'errors');
     } catch (error) {
       console.error('[Linter] Error during linting:', error);
-      // If flake8 fails, show user-friendly message
-      if (settings.linterEngine === 'flake8') {
-        console.warn('[Linter] Flake8 failed, you may need to reload the page');
-      }
+      console.warn(`[Linter] ${settings.linterEngine} failed, you may need to reload the page`);
     } finally {
       isLintingRef.current = false;
       setIsLinting(false);
       console.log(`[Linter] Lint completed in ${(performance.now() - lintStartTime).toFixed(0)}ms`);
     }
-  }, [domParser, codeMirrorManager, settings, getHandmadeLintEngine, flake8ClientRef]);
+  }, [domParser, codeMirrorManager, settings, engineClientRef]);
 
   useEffect(() => {
     runLinterRef.current = runLinter;
@@ -165,7 +145,6 @@ export const ContentApp: React.FC = () => {
 
   /**
    * Initialize linter on mount
-   * EXACT LOGIC from old-linter/src/content.js init function
    */
   useEffect(() => {
     console.log('[Linter] Initializing ContentApp...');
@@ -183,10 +162,6 @@ export const ContentApp: React.FC = () => {
           setSettings({
             ...DEFAULT_SETTINGS,
             ...result.linterSettings,
-            rules: {
-              ...DEFAULT_SETTINGS.rules,
-              ...(result.linterSettings.rules || {}),
-            },
           });
         } else {
           console.log('[Linter] No saved settings, using defaults');
@@ -224,8 +199,6 @@ export const ContentApp: React.FC = () => {
   const prevSettingsRef = React.useRef<Settings | null>(null);
   useEffect(() => {
     console.log('[Linter] Settings changed:', settings);
-    // Invalidate the handmade engine so it gets recreated with new settings
-    handmadeLintEngineRef.current = null;
     if (!settingsLoaded) return;
     if (prevSettingsRef.current !== null) {
       runLinterRef.current();
@@ -235,7 +208,6 @@ export const ContentApp: React.FC = () => {
 
   /**
    * Setup keyboard shortcuts
-   * EXACT LOGIC from old-linter/src/content.js keyboard event handler
    */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -259,7 +231,6 @@ export const ContentApp: React.FC = () => {
 
   /**
    * Setup message listener for chrome extension
-   * EXACT LOGIC from old-linter/src/content.js setupMessageListener function
    */
   useEffect(() => {
     if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -283,10 +254,6 @@ export const ContentApp: React.FC = () => {
           setSettings({
             ...DEFAULT_SETTINGS,
             ...message.settings,
-            rules: {
-              ...DEFAULT_SETTINGS.rules,
-              ...(message.settings.rules || {}),
-            },
           });
         }
 
@@ -363,7 +330,6 @@ export const ContentApp: React.FC = () => {
 
   /**
    * Handle error click
-   * EXACT LOGIC from old-linter/src/ui/overlay.js scrollToError function
    */
   const handleErrorClick = (error: any) => {
     if (error.element) {
@@ -385,7 +351,7 @@ export const ContentApp: React.FC = () => {
       onRefresh={runLinter}
       onClose={() => setVisible(false)}
       isLoading={isLinting}
-      flake8Status={settings.linterEngine === 'flake8' ? flake8Status : undefined}
+      engineStatus={engineStatus}
     />
   );
 };
