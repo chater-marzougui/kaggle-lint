@@ -101,8 +101,8 @@ def lint_code_with_context(code, known_names=None):
             """Custom checker that knows about notebook context."""
             
             def __init__(self, tree, filename='<input>', known_context=None):
-                super().__init__(tree, filename)
                 self.known_context = known_context or set()
+                super().__init__(tree, filename)
             
             def report(self, messageClass, *args, **kwargs):
                 # Filter out undefined name errors for known context
