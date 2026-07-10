@@ -45,22 +45,45 @@ Concretely, whoever runs that gate should:
    `_RESPONSE` in Milestone 7. That is a bigger design decision than this
    task's scope and was intentionally not attempted here.
 
-## Task 7 live-gate result: gutter-mapping probe confirmed correct
+## Task 7 live-gate result: gutter-mapping probe FAILED — correction below
 
-Run against a real Kaggle notebook during Task 7's manual gate (2026-07-10).
-The gutter/`.cm-line` count-parity assumption above holds on the live page:
-markers land on the correct line at any scroll position, with no shift.
+**Correction to the entry originally written here:** an earlier pass of
+this gate reported the gutter probe as confirmed correct, based on markers
+visibly working once after the very first page load. Continued testing
+the same session found markers stopped reappearing on any subsequent
+relint or engine switch, which prompted re-opening the investigation.
+Direct DevTools inspection then confirmed the gutter probe from item 1
+above actually **fails**: `document.querySelector('.jp-CodeCell .cm-gutters')`
+and `.cm-lineNumbers` are both `null` on this Kaggle build — there is no
+line-number gutter at all, confirmed by also grepping the full computed
+stylesheet dump for `.cm-gutters` (zero matches). The one working instance
+was a coincidence of DOM ordering happening to line up for the specific
+cell/line visible at that moment, not the gutter mechanism actually
+functioning.
 
-One behavior surfaced that is NOT a bug, just the documented tradeoff of a
-content-script-only DOM marker (see `lineMarkers.ts`'s own doc comment):
-markers for a line outside the currently-rendered viewport don't appear
-until that line's `.cm-line` node actually mounts, because there is no DOM
-node to tag before then. In a 200+ line cell, this means a freshly-linted
-error near the top (already mounted) marks immediately, while one further
-down only marks once the user scrolls there (or clicks it, which scrolls
-to it) — at which point `ContentApp.tsx`'s `MutationObserver`-driven
-refresh (300ms debounce) picks up the newly-mounted line and paints it.
-No fix needed or possible at the DOM-marker level: even the `LINE_GEOMETRY`
-bridge fallback in item 4 above couldn't paint a marker onto a line
-CodeMirror hasn't mounted yet. `buildLineElementMap`/`applyLineMarkers`
-need no changes.
+Per item 4's own pre-specified fallback, marker application has been moved
+into MAIN world (`page/pageExtractor.ts`) via a new `APPLY_LINE_MARKERS`
+bridge request/response pair in `page/bridgeProtocol.ts`, resolving a
+document line number to its live `.cm-line` node with the real CM6
+EditorView's `domAtPos()` — the same technique `scrollToCellLine`'s
+highlight already used successfully. `lineMarkers.ts` is now a thin
+request wrapper; `buildLineElementMap`'s gutter-reading code has been
+deleted entirely (not adapted — there is nothing to adapt to, since the
+DOM signal it depended on doesn't exist). `MarkerTarget` is keyed by
+`uuid`/`cellIndex` rather than a DOM element reference.
+
+A second, independent bug was found in the same investigation:
+`KaggleDomParser.resolveElements()`'s positional fallback assumed
+`document.querySelectorAll('.jp-Cell')` returns elements in notebook-index
+order; live-confirmed it does not under Kaggle's windowed-notebook
+rendering (only 1 of 13 code cells got an element attached in one capture).
+Fixed by preferring the live `data-windowed-list-index` attribute
+(confirmed present on real Kaggle cell elements) before the raw positional
+fallback. This bug affected click-to-scroll's DOM fallback and the M7
+cell-highlight, independent of the marker rearchitecture above.
+
+The virtualization-laziness behavior described in the superseded text
+above (a marker only appears once its line is mounted, backfilled via
+`MutationObserver` + rescroll) remains real and expected — that part of
+the original analysis was correct, just built on top of a gutter mechanism
+that turned out not to exist.
