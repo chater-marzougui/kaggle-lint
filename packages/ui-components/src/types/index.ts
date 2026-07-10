@@ -33,7 +33,7 @@ export interface OverlayProps {
   isLoading?: boolean;
   theme?: 'light' | 'dark';
   codeCells?: Array<{ element: Element | null; cellIndex: number }>;
-  flake8Status?: 'unloaded' | 'loading' | 'ready' | 'failed';
+  engineStatus?: 'unloaded' | 'loading' | 'ready' | 'failed';
 }
 
 export interface ErrorStats {

@@ -70,7 +70,7 @@ export const Overlay: React.FC<OverlayProps> = ({
   isLoading = false,
   theme = 'light',
   codeCells: _codeCells = [], // Prefixed with underscore to indicate intentionally unused
-  flake8Status,
+  engineStatus,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -274,16 +274,16 @@ export const Overlay: React.FC<OverlayProps> = ({
       </div>
 
       <div className="kaggle-lint-content" id="kaggle-lint-content">
-        {flake8Status === 'loading' && (
+        {engineStatus === 'loading' && (
           <div className="kaggle-lint-engine-status">
-            Loading Flake8 (Pyodide)… first load can take up to 30 s
+            Loading linter engine… first load can take up to 30 s
           </div>
         )}
-        {flake8Status === 'failed' && (
+        {engineStatus === 'failed' && (
           <div className="kaggle-lint-engine-status">
-            Flake8 failed to load — check the offscreen document's console
-            (chrome://extensions → this extension → inspect the "service
-            worker" / "offscreen document" links) or try re-linting.
+            Linter engine failed to load — check the offscreen document's
+            console (chrome://extensions → this extension → inspect the
+            "service worker" / "offscreen document" links) or try re-linting.
           </div>
         )}
 
