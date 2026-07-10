@@ -33,6 +33,16 @@ interface RawFlake8Error {
 
 const PYODIDE_INDEX_URL = chrome.runtime.getURL('pyodide/');
 
+// Bundled flake8/pyflakes/pycodestyle/mccabe wheels (see scripts/fetch-wheels.md
+// for provenance/hashes). Installed from these local chrome.runtime.getURL()
+// paths only — never from PyPI at runtime (F9).
+const WHEEL_FILENAMES = [
+  'mccabe-0.7.0-py2.py3-none-any.whl',
+  'pycodestyle-2.11.1-py2.py3-none-any.whl',
+  'pyflakes-3.1.0-py2.py3-none-any.whl',
+  'flake8-6.1.0-py2.py3-none-any.whl',
+];
+
 const PYTHON_SHIM = `
 import sys
 import ast
@@ -246,6 +256,14 @@ export class PyodideRuntime {
         }
         this.pyodide = await window.loadPyodide!({ indexURL: PYODIDE_INDEX_URL });
         await this.pyodide!.loadPackage('micropip');
+
+        const wheelUrls = WHEEL_FILENAMES.map((name) =>
+          chrome.runtime.getURL(`pyodide/wheels/${name}`)
+        );
+        await this.pyodide!.runPythonAsync(
+          `import micropip\nawait micropip.install(${JSON.stringify(wheelUrls)}, deps=False)`
+        );
+
         await this.pyodide!.runPythonAsync(PYTHON_SHIM);
         this.status = 'ready';
       } catch (error) {
