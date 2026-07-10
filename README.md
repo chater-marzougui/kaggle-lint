@@ -1,6 +1,6 @@
 # Kaggle Python Linter
 
-A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both custom rules and industry-standard Flake8 linting.
+A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both Flake8 and Ruff linting engines.
 
 ## ✨ Features
 
@@ -121,10 +121,10 @@ kaggle-lint/
 
 ### Package Overview
 
-1. **@kaggle-lint/core**: Pure TypeScript linting engine
+1. **@kaggle-lint/core**: Pure TypeScript linting logic
    - No DOM dependencies
    - Can be used standalone or in Node.js
-   - Includes both custom rules and Flake8 integration
+   - Includes shared notebook-source building, severity mapping, and the flake8 Python shim
    - Fully tested with Jest
 
 2. **@kaggle-lint/ui-components**: React UI components
@@ -225,7 +225,7 @@ npm run format:check
 #### Types
 
 ```typescript
-import { LintError, LintContext, LintRule } from '@kaggle-lint/core';
+import { LintError } from '@kaggle-lint/core';
 
 // Error structure
 interface LintError {
@@ -234,16 +234,8 @@ interface LintError {
   msg: string;
   severity: 'error' | 'warning' | 'info';
   rule?: string;
-  code?: string; // For Flake8 error codes
+  code?: string; // For flake8/ruff error codes
   cellIndex?: number;
-}
-
-// Context for cross-cell linting
-interface LintContext {
-  definedNames?: Set<string>;
-  importedModules?: Set<string>;
-  functionNames?: Set<string>;
-  classNames?: Set<string>;
 }
 ```
 
