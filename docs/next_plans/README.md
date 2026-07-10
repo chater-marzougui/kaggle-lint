@@ -43,3 +43,7 @@ Every plan references finding IDs (F1–F34) from [../review-findings.md](../rev
 5. Where a plan and reality disagree (Kaggle DOM changed, Jupyter API shape differs from the plan's expected sketch), the finding's _intent_ wins; document the deviation in the milestone folder as `notes.md`. Live-probing `window.jupyterapp` shapes on a real notebook is the established method (M2 precedent).
 6. The plans are milestone-level: expand each task with the superpowers:writing-plans conventions (failing test first where infra exists, minimal implementation, run, commit) before executing it.
 7. Bridge protocol changes are additive-only; settings storage shape is frozen.
+
+## Follow-ups
+
+- **Standalone demo page**: removed along with `old-linter/` in Milestone 6 Task 5 (2026-07-10). A replacement (upload a `.ipynb`, lint without installing the extension) is a candidate future milestone, not yet planned.
