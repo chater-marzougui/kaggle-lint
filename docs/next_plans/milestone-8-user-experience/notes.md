@@ -44,3 +44,23 @@ Concretely, whoever runs that gate should:
    pattern already established for `SCROLL_TO_CELL_LINE_REQUEST` /
    `_RESPONSE` in Milestone 7. That is a bigger design decision than this
    task's scope and was intentionally not attempted here.
+
+## Task 7 live-gate result: gutter-mapping probe confirmed correct
+
+Run against a real Kaggle notebook during Task 7's manual gate (2026-07-10).
+The gutter/`.cm-line` count-parity assumption above holds on the live page:
+markers land on the correct line at any scroll position, with no shift.
+
+One behavior surfaced that is NOT a bug, just the documented tradeoff of a
+content-script-only DOM marker (see `lineMarkers.ts`'s own doc comment):
+markers for a line outside the currently-rendered viewport don't appear
+until that line's `.cm-line` node actually mounts, because there is no DOM
+node to tag before then. In a 200+ line cell, this means a freshly-linted
+error near the top (already mounted) marks immediately, while one further
+down only marks once the user scrolls there (or clicks it, which scrolls
+to it) — at which point `ContentApp.tsx`'s `MutationObserver`-driven
+refresh (300ms debounce) picks up the newly-mounted line and paints it.
+No fix needed or possible at the DOM-marker level: even the `LINE_GEOMETRY`
+bridge fallback in item 4 above couldn't paint a marker onto a line
+CodeMirror hasn't mounted yet. `buildLineElementMap`/`applyLineMarkers`
+need no changes.
