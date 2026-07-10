@@ -9,6 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@astral-sh/ruff-wasm-web": "0.15.21",
     "@kaggle-lint/core": "*",
     "@kaggle-lint/ui-components": "*",
     "react": "^18.3.1",

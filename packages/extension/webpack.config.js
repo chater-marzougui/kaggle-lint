@@ -3,6 +3,8 @@ const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 
+const ruffWasmDir = path.dirname(require.resolve('@astral-sh/ruff-wasm-web/package.json'));
+
 module.exports = {
   mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
   entry: {
@@ -69,6 +71,12 @@ module.exports = {
         {
           from: '../core/dist/pyodide',
           to: 'pyodide'
+        },
+        // Copy the ruff wasm asset (resolved via require.resolve since
+        // npm workspace hoisting doesn't guarantee a fixed nesting depth)
+        {
+          from: path.join(ruffWasmDir, 'ruff_wasm_bg.wasm'),
+          to: 'ruff/ruff_wasm_bg.wasm',
         },
       ],
     }),
