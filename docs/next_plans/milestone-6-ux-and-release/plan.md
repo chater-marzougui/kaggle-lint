@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18, CSS transitions, Chrome extension APIs, GitHub Actions release workflow.
 
-**Fixes findings:** F11 (full), F12, F24, F25 (already gone in M2 — verify), F27, F28, F29, F30. (F31 was resolved as a side effect of the 2026-07-10 lint-engine-consolidation project — it shipped a per-engine ignore-codes UI — no longer a Milestone 6 deferred item.) Depends on: Milestones 1–5.
+**Fixes findings:** F12, F24, F25 (already gone in M2 — verify), F27, F28, F30. (F11-full and F29 moved to Milestone 8 Task 1 with the overlay rewrite, 2026-07-10; F31 was resolved as a side effect of the lint-engine-consolidation project — it shipped a per-engine ignore-codes UI.) Depends on: Milestones 4, 5, 7, 8.
 
 ## Global Constraints
 
@@ -19,6 +19,8 @@
 ---
 
 ### Task 1: React-pure Overlay (F11 full)
+
+> **MOVED 2026-07-10 → Milestone 8, Task 1.** The overlay rewrite now happens in `../milestone-8-user-experience/plan.md` (executed before this milestone) so M8's UI features build on the React-pure overlay instead of extending the imperative pattern. If M8 has landed, **skip this task** — just verify during Task 4's docs pass that F11/F29 are closed. Original scope kept below for reference only.
 
 **Files:**
 - Modify: `packages/ui-components/src/Overlay/Overlay.tsx`, `packages/ui-components/src/Overlay/Overlay.css`
@@ -48,7 +50,7 @@
 **Files:**
 - Modify: `packages/extension/src/popup/PopupApp.tsx`
 
-- [ ] **Step 1:** Replace URL sniffing with a ping: on mount, `chrome.tabs.sendMessage(tabId, { type: 'ping' })` — content script answers `{ pong: true }` (add the branch to ContentApp's message listener). No answer / `chrome.runtime.lastError` → show the existing "Not in Kaggle Notebook" panel (reword to "Open a Kaggle notebook in edit mode"). This is truthful on kaggle.com pages that aren't notebooks.
+- [ ] **Step 1:** Replace URL sniffing with a ping: on mount, `chrome.tabs.sendMessage(tabId, { type: 'ping' })` — content script answers `{ pong: true }` (add the branch to ContentApp's message listener). *(2026-07-10 note: after M7 Task 1's frame gate, exactly one frame mounts ContentApp, so the broadcast gets exactly one answer — the ping design assumes M7 has landed.)* No answer / `chrome.runtime.lastError` → show the existing "Not in Kaggle Notebook" panel (reword to "Open a Kaggle notebook in edit mode"). This is truthful on kaggle.com pages that aren't notebooks.
 - [ ] **Step 2:** Wrap all three `sendMessage` call sites with a callback that checks `chrome.runtime.lastError` and, on failure, flips the popup into the not-connected panel instead of failing silently.
 - [ ] **Step 3: Verify** — build; manual: popup on kaggle.com home shows the guidance panel; on a notebook edit page all buttons work.
 - [ ] **Step 4: Commit** — `fix(popup): detect content script via ping; surface messaging failures`

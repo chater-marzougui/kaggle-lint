@@ -27,6 +27,7 @@
   - Remove `"scripting"` from `permissions` (`chrome.scripting` is used nowhere — re-verify with `grep -rn "chrome.scripting" packages/extension/src`).
   - Narrow `web_accessible_resources` to what pages actually load: `{ "resources": ["pyodide/*", "icons/*"], "matches": ["https://www.kaggle.com/*", "https://kkb-production.jupyter-proxy.kaggle.net/*"] }`.
   - Collapse `host_permissions` to `["https://www.kaggle.com/*", "https://*.kaggleusercontent.com/*", "https://kkb-production.jupyter-proxy.kaggle.net/*"]` (drop the duplicate/overlapping patterns).
+  - *(2026-07-10 note: do NOT try to fix F32 (duplicate overlay) here by narrowing `content_scripts.matches` — the outer kaggle.com page legitimately matches its pattern and the notebook iframe needs its own; the fix is M7 Task 1's runtime mount gate. Keep both matches and `all_frames: true`.)*
 - [ ] **Step 2: Verify** — build, load unpacked: no manifest warnings; overlay still appears on a notebook edit page; overlay title icon still loads (it uses `chrome.runtime.getURL('icons/…')` → covered by `icons/*`).
 - [ ] **Step 3: Commit** — `fix(extension): remove CDN content-script match, unused permission, over-broad WAR`
 

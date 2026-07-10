@@ -1,6 +1,6 @@
 # DEVELOPER_PROMPTS — Session Playbook (model, effort, /clear, paste-ready prompts)
 
-**For the user driving the M1–M6 execution.** Companion to [README.md](README.md) (roadmap + execution order) and [../review-findings.md](../review-findings.md) (the F1–F31 evidence base every session should read first). Each section tells you: which model, how much thinking effort, when to `/clear`, and the exact prompt to paste. Written 2026-07-09.
+**For the user driving the milestone execution (remaining: M7 → M8 → M4 → M5 → M6).** Companion to [README.md](README.md) (roadmap + execution order) and [../review-findings.md](../review-findings.md) (the F1–F34 evidence base every session should read first). Each section tells you: which model, how much thinking effort, when to `/clear`, and the exact prompt to paste. Written 2026-07-09; roadmap rebased 2026-07-10 after M1–M3 + consolidation landed.
 
 ---
 
@@ -19,20 +19,20 @@
 |---|---|---|---|
 | Milestone plan → full TDD plan expansion (P1) | Sonnet | **high** | The milestone plans pre-make the decisions; effort goes to verifying every file path/signature against real source |
 | Task execution (subagent-driven) | Sonnet | **medium** | TDD + per-task review gates carry the quality |
-| Gnarly single task (M2 T1 MAIN-world extractor, M3 T2 Pyodide runtime, M6 T1 overlay rewrite) | Sonnet **high** — escalate to Opus only if stuck twice | **high** | Escalate on the second failed attempt, not preemptively |
+| Gnarly single task (M7 T3 bridge scroll, M8 T1 overlay rewrite, M8 T3 line markers) | Sonnet **high** — escalate to Opus only if stuck twice | **high** | Escalate on the second failed attempt, not preemptively |
 | Whole-branch final review (milestone gate, P3) | Opus high, or Sonnet **max** as budget reviewer for M4/M5 | **high/max** | The one place model strength demonstrably pays; M3 (WASM/CSP/messaging) and M2 (world-boundary code) deserve the stronger model |
 | Docs refresh / README sweep | Sonnet or Haiku | **low** | Mechanical |
 | Bug triage from a failed manual gate | Sonnet | **high** | Invoke `superpowers:systematic-debugging` |
 
 **Standing instructions to include in every execution prompt:** the executor must NOT re-litigate decisions already made in the milestone plan or review findings; if reality contradicts a plan (Kaggle DOM changed, wheel version moved), it follows the plan's *intent*, records the deviation in that milestone's `notes.md`, and asks you only if the intent itself is impossible.
 
-**The manual gates are yours.** This repo has no e2e scripts — M1 T6, M2 T5, M3 T6, and M6's release gate require a real Chrome + a logged-in Kaggle notebook. The model must **stop and hand you the checklist**, never claim the gate passed. (Playwright MCP is available for parts of it, but Kaggle login + extension loading makes the human path the default.) Budget ~10 minutes per gate.
+**The manual gates are yours.** This repo has no e2e scripts — M7 T5, M8 T7, and M6's release gate require a real Chrome + a logged-in Kaggle notebook. The model must **stop and hand you the checklist**, never claim the gate passed. (Playwright MCP is available for parts of it, but Kaggle login + extension loading makes the human path the default.) Budget ~10 minutes per gate.
 
 ## 2. The three paste-ready prompts
 
-Current milestone plan: docs/next_plans/milestone-4-config-and-build-hygiene/plan.md
-Current branch: (not created yet — milestone-4-config-and-build-hygiene)
-Current N: 4
+Current milestone plan: docs/next_plans/milestone-7-single-frame-and-navigation/plan.md
+Current branch: (not created yet — milestone-7-single-frame)
+Current N: 7
 Current X–Y: —
 
 **M1 status: merged to main (2026-07-09).** Commit `02405e0`. All 6 tasks complete (F2, F6, F10, F11-partial, F14, F26 resolved); manual gate (T6) passed — verified no re-lint loop after 5min idle, Ctrl+Shift+L and rule-toggle each fire exactly one lint, engine cache (F26) confirmed reused on Ctrl+Shift+L. Plan: `docs/superpowers/plans/2026-07-09-m1-stabilize-content-script.md`. Two out-of-scope issues surfaced during the manual gate, already tracked: content script double-injects into two frames (F17, manifest `all_frames`+multi-pattern match — Milestone 4) and DOM-scrape cell extraction is flaky/lossy (F3 — Milestone 2, i.e. next).
@@ -43,10 +43,12 @@ Current X–Y: —
 
 **Lint-engine-consolidation status: merged to main (2026-07-10), NOT part of the M1-M6 roadmap.** An unplanned project, requested by the user "before M4," deleted the entire handmade rule engine (`packages/core/src/rules/`, `LintEngine.ts`, and their types) and rewrote the flake8 engine to concatenate the whole notebook into one source string and call flake8's real `Application`/`StyleGuide` API in a single pass (replacing the old per-cell `ContextAwareChecker` hand-rolled cross-cell tracking), then added ruff as a second engine via `@astral-sh/ruff-wasm-web` sharing the same offscreen-document/background-relay architecture Milestone 3 built. Settings shape changed (`{linterEngine:'handmade'|'flake8', rules:{...}}` → `{linterEngine:'flake8'|'ruff', flake8IgnoreCodes, ruffIgnoreCodes}`, no migration). Popup UI rewritten (engine radio Flake8/Ruff, ignore-codes input, no rule toggles). Full spec/plan: `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`, `docs/superpowers/plans/2026-07-09-lint-engine-consolidation.md`. Three live bugs were found and fixed during its own manual gate (all via `superpowers:systematic-debugging` with real local repros, not guessed): a synchronous-WASM-compile-on-main-thread crash for ruff (Chrome refuses `new WebAssembly.Module()` for >8MB on a document's main thread), a magic/shell-line-blanking false positive that turned real code continuations into syntax errors, and — per explicit user direction ("it shouldn't block, people can make a cell and not run it") — a new `lintNotebookWithSyntaxIsolation` feature so one cell's syntax error no longer suppresses the whole notebook's lint results. **`docs/architecture.md` and `docs/review-findings.md` were both updated 2026-07-10 to reflect this** (architecture.md rewritten in place; review-findings.md got an addendum section, original findings left untouched per the M3 precedent for smaller drift). **Milestone 4 Tasks 4 and 5, and Milestone 5 Task 1, target files/subsystems this project deleted — read the inline notes added to those plan.md files 2026-07-10 before expanding them; do not execute them as originally written.**
 
+**Roadmap rebase (2026-07-10, post-consolidation re-review):** a fresh review of current `main` confirmed the two bugs the user reported from live use plus one from inspection — **F32** (content script mounts an overlay in *every* matching frame: the outer kaggle.com shell gets a dead duplicate next to the working iframe one), **F33** (click-to-scroll uses cell-level smooth `scrollIntoView`, which both misses the line in long cells and drifts under Kaggle's virtualization; also scrolls *twice* per click — Overlay and ContentApp each scroll), **F34** (the merge-only cell store keeps deleted cells' errors forever, even though the Jupyter-model extraction path is actually authoritative and could clear them). Second addendum in `docs/review-findings.md`. Two new milestones: **M7 single-frame-and-navigation** (fixes all three; bridge gains `SCROLL_TO_CELL_LINE` and a `source: 'model'|'dom'` field — additive protocol only) and **M8 user-experience** (ruff as default engine, in-editor line markers, one-click ignore-code, minimized-pill + toolbar badges, overlay position persistence; absorbs M6's old Task 1 overlay rewrite as its Task 1 so features build on the React-pure overlay — M6 T1 now has a skip-note). Execution order is now **M7 → M8 → M4 → M5 → M6**; M6's depends-on line and M4 Task 1 got matching notes.
+
 **P1 — Plan expansion (once per milestone):**
 > Read docs/review-findings.md, docs/architecture.md, docs/next_plans/README.md, and docs/next_plans/milestone-〈N〉-〈slug〉/plan.md. The milestone plan's decisions are pre-made — do not re-open them, do not brainstorm. Use superpowers:writing-plans to expand it into a full TDD implementation plan at docs/superpowers/plans/〈date〉-m〈N〉-〈slug〉.md, verifying every file path, line reference, and signature the milestone plan names against real current source (the plans were written 2026-07-09; earlier milestones may have moved things — the F-finding intent wins, note deviations). Keep the milestone plan's manual verification gate as the final task, marked USER-GATE. Then stop for my review — do not start implementing. If the file will be large, write it by appending sections.
 
-Current: Read docs/review-findings.md, docs/architecture.md, docs/next_plans/README.md, and docs/next_plans/milestone-4-config-and-build-hygiene/plan.md. The milestone plan's decisions are pre-made — do not re-open them, do not brainstorm. Use superpowers:writing-plans to expand it into a full TDD implementation plan at docs/superpowers/plans/〈date〉-m4-config-and-build-hygiene.md, verifying every file path, line reference, and signature the milestone plan names against real current source (the plans were written 2026-07-09; M1, M2, M3, and the unplanned lint-engine-consolidation project already landed — the consolidation project deleted `packages/core/src/rules/`, `packages/core/src/engines/LintEngine.ts`, and their types entirely, and rewrote flake8/added ruff, per this file's "Lint-engine-consolidation status" paragraph above. **Task 4 and Task 5 of the M4 plan itself now have inline notes (added 2026-07-10) marking large parts of them moot/rescoped — read those notes first, they supersede the plan's original task text.** M3 also added new keys to packages/extension/public/manifest.json (`offscreen` permission, `background.service_worker`, `content_security_policy.extension_pages`) and two new webpack entries/files (`background/index.ts`, `offscreen/index.ts`) — M4's manifest/webpack/config-cleanup tasks should read the current manifest.json and webpack.config.js rather than assuming a stale shape; docs/architecture.md was refreshed 2026-07-10 and should now be trustworthy again (previously it was deliberately left stale post-M3, see docs/next_plans/milestone-3-working-flake8/notes.md, but the drift became too large to defer further once the consolidation project landed). Read this file's M3 and lint-engine-consolidation status paragraphs for what actually changed. Keep the milestone plan's manual verification gate as the final task, marked USER-GATE. Then stop for my review — do not start implementing. If the file will be large, write it by appending sections.
+Current: Read docs/review-findings.md (both addenda), docs/architecture.md, docs/next_plans/README.md, and docs/next_plans/milestone-7-single-frame-and-navigation/plan.md. The milestone plan's decisions are pre-made — do not re-open them, do not brainstorm. Use superpowers:writing-plans to expand it into a full TDD implementation plan at docs/superpowers/plans/〈date〉-m7-single-frame-and-navigation.md, verifying every file path and signature the milestone plan names against real current source. Two things the expansion must respect: (1) the Jupyter API calls in Task 3 (`scrollToItem`, `revealPosition`, etc.) are an *expected shape* to live-probe on a real notebook, not verified fact — the plan says so; keep them as probe-first steps with the DOM-scroll fallback, don't present them as certain; (2) bridge protocol changes are additive-only and the settings storage shape is frozen. Keep the plan's Task 5 manual verification gate as the final task, marked USER-GATE. Then stop for my review — do not start implementing.
 
 **P2 — Execution (per batch; same session as P1 for the first batch is fine):**
 > Execute Tasks 〈X–Y〉 of docs/superpowers/plans/〈plan file〉.md using superpowers:subagent-driven-development, on branch milestone-〈N〉-〈slug〉. Repo disciplines: never change the chrome.storage settings shape; rule metadata lives only in core's registry; no effect may list runLinter (or any changing callback) in its deps — use the runLinterRef pattern; content-script vs MAIN-world boundary is sacred (no DOM elements or page expandos across postMessage/runtime messaging); after every task run `npm run type-check && npm run build` plus `npm test` where suites exist, from repo root in Git Bash. Commit per task. Stop after Task 〈Y〉 with a status summary. When doing a review, tell the review agent to fix focused one-liner issues itself and report back; if the next task is a USER-GATE manual checklist, print the checklist and stop — do not claim it passed.
@@ -84,6 +86,18 @@ Task numbers are the milestone plans' own (they may shift after P1 expansion —
 - B3 = T4–5 (core shim extraction + content-script client — **must land together**, T4 breaks the build until T5's import swap; never clear between them)
 - GATE = T6 (yours: watch the offscreen document's Network tab — zero PyPI/CDN requests is the acceptance)
 
+**M7 — single-frame-and-navigation (5 tasks):**
+- B1 = T1–2 (mount gate + uuid plumbing: small, warm; T1 is behavior-critical but mechanically simple)
+- B2 = T3–4 (bridge scroll + store reconciliation: both extend `bridgeProtocol.ts`/`pageExtractor.ts`, definitely warm; **high effort** — world-boundary code, and T3's Jupyter API shape needs live probing like M2 did)
+- GATE = T5 (yours: needs the 200+ line cell notebook; test scroll from far away and the delete-a-cell case specifically)
+
+**M8 — user-experience (7 tasks):**
+- B1 = T1 (overlay React rewrite, ex-M6-T1 — solo, **high effort**, drag/animation subtlety)
+- B2 = T2 (ruff default: tiny, could piggyback on B1's session end)
+- B3 = T3 (in-editor line markers — solo, **high effort**; the line→element mapping under virtualization is this milestone's hard problem, expect live probing and possibly a bridge extension)
+- B4 = T4–6 (ignore-button + badges + persistence: independent small features, one warm session)
+- GATE = T7 (yours: fresh-profile install, full checklist)
+
 **M4 — config-and-build-hygiene (6 tasks, all independently revertible):**
 - B1 = T1–3 (manifest + popup.css move + version single-sourcing: all config, one warm session)
 - B2 = T4–5 **RESCOPED 2026-07-10** — T4 is now just "delete ui-components' duplicated LintError/Severity, import from core" (F16's target files, LintEngine.ts/Flake8Engine.ts, are deleted — that half of T4 is moot); T5 is fully moot (LintEngine.ts deleted) — skip it or replace with a note in the milestone's notes.md. Re-plan this batch against the plan.md's inline notes before expanding, don't execute the original task text.
@@ -96,8 +110,7 @@ Task numbers are the milestone plans' own (they may shift after P1 expansion —
 - B3 = T4 (CI repair — needs branch pushes to verify; keep the deliberate-red-then-green check)
 - No manual gate.
 
-**M6 — ux-and-release (6 tasks):**
-- B1 = T1 (overlay React rewrite — solo, **high effort**, it's the one with drag/animation subtlety)
+**M6 — ux-and-release (6 tasks; T1 moved to M8 B1 2026-07-10 — skip it here):**
 - B2 = T2–3 (debug gate + popup ping: small, warm)
 - B3 = T4–5 (docs truth pass + old-linter deletion — deletion preconditions are greps, cheap to verify)
 - B4 = T6 (release: version bump, tag, workflow) — **stops for you twice**: the condensed full-E2E manual gate, and explicit permission before pushing the tag (outward-facing).
@@ -118,7 +131,7 @@ $env:MAX_THINKING_TOKENS = "32000"
 claude
 ```
 
-**Repo-specific routing:** DeepSeek-eligible batches are the mechanical ones — M1 B3, M4 B1/B2, M5 B1/B2, M6 B2/B3. **Claude-only:** M2 B1 (world-boundary), M3 B1/B3 (offscreen/CSP + the coupled-refactor pair), M6 B1 (overlay), and every USER-GATE-adjacent batch's review. Two extra cautions here versus a repo with e2e scripts:
+**Repo-specific routing:** DeepSeek-eligible batches are the mechanical ones — M7 B1, M8 B2/B4, M4 B1/B2, M5 B1/B2, M6 B2/B3. **Claude-only:** M7 B2 (world-boundary bridge + live Jupyter-API probing), M8 B1 (overlay rewrite) and B3 (line markers — the virtualization mapping problem), and every USER-GATE-adjacent batch's review. (Historical: M2 B1 / M3 B1/B3 were Claude-only and are done.) Two extra cautions here versus a repo with e2e scripts:
 
 1. **This repo's automated verification is thin** (build + type-check + growing-but-partial tests, no e2e). DeepSeek's weak spot is confident false claims (~10× Claude's rate), and there is no script to catch "I verified the overlay works." Anything a DeepSeek session *claims* about runtime behavior is unverified until your manual gate — treat its gates-less claims as untested, always.
 2. Append to P2: "After EVERY task run `npm run type-check && npm run build && npm test` and additionally list the files changed in `packages/extension/dist/` (`git status` won't show dist — use the build log or `ls -lt`). If the same task fails twice, STOP and report the exact failure; do not improvise around the plan."

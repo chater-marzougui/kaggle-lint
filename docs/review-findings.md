@@ -151,6 +151,22 @@ The following findings are now **moot** — not fixed via their originally-plann
 
 **F1's and F13's fix locations have moved again**: F1's `Flake8Engine.ts` (fixed in M3 by deletion) and M3's own replacement, `flake8Shim.ts`, was itself rewritten by the consolidation project to call flake8's real `Application`/`StyleGuide` API on one whole-notebook source instead of per-cell raw pyflakes — both are resolved-and-superseded, not open.
 
+## Addendum (2026-07-10, second): live bugs confirmed after M1–M3 + consolidation
+
+Found in a post-consolidation re-review of current `main` (two reported by the user from live use, one from code inspection). Numbered continuing the original series; fixed by the new Milestone 7.
+
+### F32. Content script mounts one overlay per frame — two overlays, one dead **(P1)**
+`manifest.json` injects `content.js` with `all_frames: true` into both `https://www.kaggle.com/code/*/*/edit` (the outer shell page) and `https://kkb-production.jupyter-proxy.kaggle.net/*` (the iframe that actually hosts the Jupyter notebook). `content/index.tsx`'s `#kaggle-linter-root` guard is per-document, so each frame mounts its own full ContentApp: two overlays, two keyboard-shortcut listeners, two chrome.runtime message listeners. The iframe instance sees `.jp-Cell`s and works; the outer-shell instance extracts zero cells and "just exists" (user-confirmed live). Manifest narrowing alone can't fix it — the outer page legitimately matches its own pattern and the iframe needs its match — the fix is a runtime gate: only mount in a frame where the notebook DOM (`.jp-Notebook`) actually appears.
+**Fix:** Milestone 7, Task 1.
+
+### F33. Click-to-scroll lands on the wrong position **(P1)**
+`Overlay.tsx`'s `scrollToError` (and ContentApp's duplicate `handleErrorClick` — the scroll runs twice per click, another small bug) does `element.scrollIntoView({ behavior: 'smooth', block: 'center' })` on the whole `.jp-Cell`. Three compounding problems: (a) it targets the cell, not the error line — in a 200+ line cell the line stays off-screen; (b) Kaggle's notebook is virtualized, so during the smooth scroll cells above mount/unmount and change height, the animation's target position goes stale, and the scroll lands wrong (user-confirmed live); (c) for cells virtualized out of the DOM, `element` is null and clicking does nothing. The reliable path is the same one M2 found for extraction: drive Jupyter's own scrolling from the MAIN world (`window.jupyterapp` → notebook widget scroll + cell editor line reveal) via a new bridge message.
+**Fix:** Milestone 7, Tasks 2–3.
+
+### F34. Deleted cells leave phantom errors forever **(P2)**
+`ContentApp.tsx` never clears the cell store ("we only ever merge"), on the stated ground that no extraction path sees every cell. That was true pre-M2 but is wrong for the current primary path: `pageExtractor.ts`'s `extractViaJupyterModel()` walks `jupyterapp...widgets` via `model.sharedModel` — rendering-independent, it sees *all* cells including virtualized-out ones. When extraction came via the model, the result is authoritative and the store should be replaced, not merged; today a deleted cell's errors persist until page reload. Needs the bridge response to report which path produced it (`source: 'model' | 'dom'`).
+**Fix:** Milestone 7, Task 4.
+
 ## Summary table
 
 | ID | Severity | Area | One-liner | Milestone |
@@ -181,3 +197,6 @@ The following findings are now **moot** — not fixed via their originally-plann
 | F24 | P2 | Docs | README claims false test coverage, dead links | M6 |
 | F25–F30 | P3 | Various | Placeholders, console noise, hardcoded release notes, `any`s | M4/M6 |
 | F31 | P3 | UX | No flake8 ignore-codes config UI | ~~M6~~ **resolved (2026-07-10) — ignore-codes UI shipped for both engines** |
+| F32 | P1 | Content script | Overlay mounts in every matching frame — duplicate dead overlay | M7 |
+| F33 | P1 | UX | Click-to-scroll: cell-level smooth scroll vs virtualized notebook lands wrong | M7 |
+| F34 | P2 | Extraction | Merge-only cell store keeps deleted cells' errors forever | M7 |
