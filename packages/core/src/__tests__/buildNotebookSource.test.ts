@@ -136,6 +136,21 @@ describe('buildNotebookSource', () => {
     expect(source).toBe('greeting = "hi :)"\nmessage = ("Error: %s"\n           % ("bad",))');
   });
 
+  // Regression: an escaped quote inside a string literal (e.g. `\"` inside
+  // a `"..."` string) must not be treated as the string's closing quote —
+  // that would corrupt the bracket/quote scan for the rest of the cell,
+  // the same class of bug the closing-bracket-in-a-string test above
+  // guards against, but for escaped characters instead of unescaped ones.
+  it('does not let an escaped quote inside a string literal end the string early', () => {
+    const { source } = buildNotebookSource([
+      {
+        code: 'greeting = "she said \\"hi\\" to me"\n%matplotlib inline\ndf.head()',
+        cellIndex: 0,
+      },
+    ]);
+    expect(source).toBe('greeting = "she said \\"hi\\" to me"\n\ndf.head()');
+  });
+
   // Regression: a docstring/triple-quoted string spanning multiple lines,
   // where an inner line happens to start with % or !, must not be blanked
   // — it's string content, not code.
