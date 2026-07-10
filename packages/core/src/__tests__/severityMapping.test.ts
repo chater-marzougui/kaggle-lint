@@ -50,7 +50,14 @@ describe('mapDiagnostics', () => {
 
   it('tags rule with whatever engineName is passed, so the same function works for ruff too', () => {
     const result = mapDiagnostics(
-      [{ line: 1, column: 8, code: 'F401', message: "'os' imported but unused" }],
+      [
+        {
+          line: 1,
+          column: 8,
+          code: 'F401',
+          message: "'os' imported but unused",
+        },
+      ],
       cellOffsets,
       'ruff'
     );
