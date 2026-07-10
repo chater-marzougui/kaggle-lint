@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (payload?.type === FLAKE8_LINT_NOTEBOOK) {
     const request = payload as Flake8LintRequest;
     runtime
-      .lintNotebook(request.cells)
+      .lintNotebook(request.cells, [])
       .then((errors) => {
         const response: Flake8LintResponse = { ok: true, errors };
         sendResponse(response);

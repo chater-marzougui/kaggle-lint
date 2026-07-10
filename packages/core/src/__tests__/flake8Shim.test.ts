@@ -1,27 +1,25 @@
 import { PYTHON_SHIM } from '../engines/flake8Shim';
 
-describe('PYTHON_SHIM ContextAwareChecker init ordering', () => {
-  it('sets self.known_context before calling super().__init__, so the overridden report() can read it', () => {
-    // pyflakes.checker.Checker.__init__ synchronously calls the overridden
-    // report() (which reads self.known_context) during super().__init__()
-    // itself. If known_context is assigned AFTER the super call, any
-    // UndefinedName violation crashes with AttributeError, silently
-    // discarding that cell's entire result set. Regression test for a bug
-    // found during Milestone 3's manual verification gate.
-    // Bounded by the next sibling method at the same indentation (not just
-    // the next blank line), so this captures exactly __init__'s body and
-    // nothing from report()/CollectingReporter that happens to follow it.
-    const classMatch = PYTHON_SHIM.match(
-      /class ContextAwareChecker\(checker\.Checker\):[\s\S]*?\n( {12})def __init__\(self, tree, filename='<input>', known_context=None\):\n([\s\S]*?)\n\1def /
-    );
-    expect(classMatch).not.toBeNull();
+describe('PYTHON_SHIM lint_source formatter wiring', () => {
+  it('assigns application.formatter before calling make_guide(), so the collecting formatter actually receives live violations', () => {
+    // flake8.api.legacy.get_style_guide()'s convenience wrapper cannot
+    // capture structured results this way — confirmed by direct repro,
+    // see this plan's header. Regression test for that ordering
+    // requirement: reassigning application.formatter AFTER make_guide()/
+    // make_file_checker_manager() silently produces empty results.
+    const formatterAssignIdx = PYTHON_SHIM.indexOf('application.formatter = CollectingFormatter');
+    const makeGuideIdx = PYTHON_SHIM.indexOf('application.make_guide()');
 
-    const initBody = classMatch![2];
-    const superIdx = initBody.indexOf('super().__init__(tree, filename)');
-    const contextIdx = initBody.indexOf('self.known_context = known_context or set()');
+    expect(formatterAssignIdx).toBeGreaterThan(-1);
+    expect(makeGuideIdx).toBeGreaterThan(-1);
+    expect(formatterAssignIdx).toBeLessThan(makeGuideIdx);
+  });
 
-    expect(superIdx).toBeGreaterThan(-1);
-    expect(contextIdx).toBeGreaterThan(-1);
-    expect(contextIdx).toBeLessThan(superIdx);
+  it('suppresses printing by returning None from format()', () => {
+    expect(PYTHON_SHIM).toMatch(/def format\(self, error\):\s*\n\s*return None/);
+  });
+
+  it('routes ignore_codes into flake8\'s own native config, not a client-side filter', () => {
+    expect(PYTHON_SHIM).toContain('application.options.ignore = ignore_codes');
   });
 });
