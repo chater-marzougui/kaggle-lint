@@ -2,12 +2,15 @@
   "name": "@kaggle-lint/ui-components",
   "version": "2.0.0",
   "description": "React UI components for Kaggle Python Linter",
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-css",
+    "copy-css": "copyfiles -u 1 \"src/**/*.css\" dist",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
@@ -25,7 +28,6 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/react": "^19.2.8",
-    "@types/react-dom": "^19.2.3"
+    "copyfiles": "^2.4.1"
   }
 }

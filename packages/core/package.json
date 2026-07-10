@@ -2,6 +2,7 @@
   "name": "@kaggle-lint/core",
   "version": "2.0.0",
   "description": "Core linting logic for Kaggle Python Linter",
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -12,6 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
     "clean": "rm -rf dist"
   },
   "keywords": [

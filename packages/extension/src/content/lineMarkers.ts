@@ -40,7 +40,6 @@ function requestApplyMarkers(targets: LineMarkerTarget[]): Promise<number> {
   return new Promise((resolve) => {
     const requestId = crypto.randomUUID();
     let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout>;
 
     const cleanup = () => {
       window.removeEventListener('message', handleMessage);
@@ -60,7 +59,7 @@ function requestApplyMarkers(targets: LineMarkerTarget[]): Promise<number> {
 
     window.addEventListener('message', handleMessage);
 
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (settled) return;
       settled = true;
       cleanup();

@@ -26,8 +26,8 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 
 ### Prerequisites
 
-- Node.js 18+
-- npm 8+
+- Node.js 22+
+- npm 10+
 
 ### From Source
 
