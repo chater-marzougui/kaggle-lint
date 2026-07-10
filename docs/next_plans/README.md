@@ -16,16 +16,16 @@ Every plan references finding IDs (F1–F34) from [../review-findings.md](../rev
 | 2 | [milestone-2-reliable-code-extraction](milestone-2-reliable-code-extraction/plan.md) | MAIN-world extraction bridge, cell store, re-lint on edit | F3, F7, F8, F25 | ✅ merged 2026-07-09 |
 | 3 | [milestone-3-working-flake8](milestone-3-working-flake8/plan.md) | Pyodide in offscreen doc, bundled wheels, lint protocol | F1, F9, F13 | ✅ merged 2026-07-09 |
 | — | lint-engine-consolidation (unplanned) | Delete handmade engine; real flake8 API; add ruff; ignore-codes UI | F14/F16/F19/F20/F31 mooted or resolved | ✅ merged 2026-07-10 |
-| 7 | [milestone-7-single-frame-and-navigation](milestone-7-single-frame-and-navigation/plan.md) | One overlay in the right frame; exact-line click-to-scroll; deleted cells shed errors | F32, F33, F34 | **next** — no blockers |
-| 8 | [milestone-8-user-experience](milestone-8-user-experience/plan.md) | React-pure overlay (ex-M6 T1), ruff default, in-editor line markers, one-click ignore, badges, panel persistence | F11(full), F29 + features | M7 |
-| 4 | [milestone-4-config-and-build-hygiene](milestone-4-config-and-build-hygiene/plan.md) | Manifest cleanup, cut old-linter dep, dedupe types, single-source version | F15, F17, F18, F21–F23 (F16/F19/F20 moot) | M1 ✅ (Tasks 4–5 rescoped — see plan notes) |
+| 7 | [milestone-7-single-frame-and-navigation](milestone-7-single-frame-and-navigation/plan.md) | One overlay in the right frame; exact-line click-to-scroll; deleted cells shed errors | F32, F33, F34 | ✅ merged 2026-07-10 |
+| 8 | [milestone-8-user-experience](milestone-8-user-experience/plan.md) | React-pure overlay (ex-M6 T1), ruff default, in-editor line markers, one-click ignore, badges, panel persistence | F11(full), F29 + features | ✅ merged 2026-07-10 (Task 7 manual gate passed — see notes.md for the live bugs found/fixed) |
+| 4 | [milestone-4-config-and-build-hygiene](milestone-4-config-and-build-hygiene/plan.md) | Manifest cleanup, cut old-linter dep, dedupe types, single-source version | F15, F17, F18, F21–F23 (F16/F19/F20 moot) | **next** — no blockers (Tasks 4–5 rescoped — see plan notes) |
 | 5 | [milestone-5-tests-and-ci](milestone-5-tests-and-ci/plan.md) | Real lint job, extension test infra, honest coverage | F4, F5, part of F24 (Task 1 moot) | M4 for lint scripts |
 | 6 | [milestone-6-ux-and-release](milestone-6-ux-and-release/plan.md) | Popup robustness, honest README, old-linter removal, release | F12, F24, F27–F30 (T1 moved to M8) | M4, M5, M7, M8 |
 
 ## Execution order
 
 ```
-[M1 ✅ ─► M2 ✅ ─► M3 ✅ ─► consolidation ✅] ─► M7 ─► M8 ─► M4 ─► M5 ─► M6 (release)
+[M1 ✅ ─► M2 ✅ ─► M3 ✅ ─► consolidation ✅ ─► M7 ✅ ─► M8 ✅] ─► M4 ─► M5 ─► M6 (release)
 ```
 
 - **M7 first** — both remaining user-visible bugs (duplicate overlay, wrong-position scroll) live there, and M8's features need its uuid/scroll plumbing.
