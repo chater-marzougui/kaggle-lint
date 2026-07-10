@@ -194,6 +194,54 @@ function findCellWidget(
 }
 
 /**
+ * Best-effort refinement of the reveal below: `content.scrollToItem`/
+ * `editor.revealPosition` land the line at whatever edge their own
+ * "nearest visible" scroll logic picks (observed live: bottom of the
+ * viewport, confirmed by user), not the vertical center. This centers it
+ * precisely and briefly highlights the exact line, by reading the real
+ * CM6 EditorView through Jupyter's own editor wrapper — `@jupyterlab/
+ * codemirror`'s CodeMirrorEditor class exposes the live view as its
+ * `.editor` property, a proper object-graph reference reached via
+ * window.jupyterapp, NOT the `cmView` DOM expando that doesn't exist on
+ * Kaggle's build (see extractViaJupyterModel's doc comment above) — so
+ * this isn't the same dead end. It only reads layout (`lineBlockAt`,
+ * `domAtPos`) and sets `scrollDOM.scrollTop` directly; it never dispatches
+ * a CM6 transaction/effect, so there's no risk of mutating the wrong
+ * instance's state. Silently no-ops if the view isn't shaped as expected —
+ * the caller's `revealPosition` call already positioned the view (just not
+ * centered), so this is a pure enhancement, never required for
+ * `scrollToCellLine` to report success.
+ */
+function centerAndHighlightLine(view: any, line: number): void {
+  try {
+    const doc = view?.state?.doc;
+    if (!doc || typeof view.lineBlockAt !== 'function' || !view.scrollDOM) {
+      return;
+    }
+
+    const lineNumber = Math.min(Math.max(1, line), doc.lines);
+    const linePos = doc.line(lineNumber).from;
+    const block = view.lineBlockAt(linePos);
+    const scroller = view.scrollDOM;
+    scroller.scrollTop = block.top - scroller.clientHeight / 2 + block.height / 2;
+
+    if (typeof view.domAtPos !== 'function') {
+      return;
+    }
+    const domPos = view.domAtPos(linePos);
+    const node: Node | null = domPos?.node ?? null;
+    const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
+    const lineEl = el?.closest?.('.cm-line');
+    if (lineEl) {
+      lineEl.classList.add('kaggle-lint-line-highlight');
+      setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
+    }
+  } catch {
+    // Enhancement only — see doc comment above.
+  }
+}
+
+/**
  * Scrolls the notebook to a cell and reveals a specific line inside it,
  * using Jupyter's own virtualization-aware widget/editor APIs (expected
  * shape for JupyterLab 4 — live-probe target, see this milestone's
@@ -224,6 +272,8 @@ function scrollToCellLine(uuid: string | null, cellIndex: number, line: number):
     if (editor && typeof editor.revealPosition === 'function') {
       editor.revealPosition(position);
     }
+
+    centerAndHighlightLine(editor?.editor, line);
 
     return true;
   } catch {

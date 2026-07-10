@@ -518,6 +518,23 @@
   }
 }
 
+/* Exact-line highlight (F33 follow-up): applied to the specific .cm-line
+   the click-to-scroll landed on, in addition to the whole-cell highlight
+   above. */
+.kaggle-lint-line-highlight {
+  animation: kaggle-lint-line-pulse 0.6s ease-in-out 2;
+}
+
+@keyframes kaggle-lint-line-pulse {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(76, 175, 80, 0.35);
+  }
+}
+
 /* Scrollbar styling */
 .kaggle-lint-content::-webkit-scrollbar {
   width: 10px;
