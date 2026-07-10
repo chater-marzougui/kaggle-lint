@@ -211,22 +211,38 @@ export class KaggleDomParser {
 
   /**
    * Resolves a DOM Element for each bridge-extracted cell: by `data-uuid`
-   * when present, else by walking `.jp-Cell` in notebook order to the same
-   * cellIndex. Elements are legitimately null for cells Kaggle has
-   * virtualized out of the DOM.
+   * when present, else by `data-windowed-list-index` (JupyterLab 4's own
+   * windowed-notebook attribute, confirmed present on live Kaggle DOM),
+   * else by walking `.jp-Cell` in notebook order to the same cellIndex.
+   * The plain positional fallback is unreliable on its own — live-probed
+   * and confirmed `document.querySelectorAll('.jp-Cell')` does not return
+   * elements in notebook-index order under Kaggle's windowed rendering, so
+   * `allCellElements[cell.cellIndex]` silently grabbed the wrong node (or
+   * none) for all but one cell in a 13-cell notebook. Elements are
+   * legitimately null for cells Kaggle has virtualized out of the DOM
+   * entirely (no `.jp-Cell` node at all, not just a reordered one).
    */
   private resolveElements(cells: PageExtractedCell[], root: Document): CodeCell[] {
     const allCellElements = Array.from(root.querySelectorAll('.jp-Cell'));
     const byUuid = new Map<string, Element>();
+    const byWindowedIndex = new Map<number, Element>();
     allCellElements.forEach((el) => {
       const uuid = el.getAttribute('data-uuid');
       if (uuid) byUuid.set(uuid, el);
+
+      const windowedIndex = el.getAttribute('data-windowed-list-index');
+      if (windowedIndex !== null) {
+        const idx = Number.parseInt(windowedIndex, 10);
+        if (Number.isInteger(idx)) byWindowedIndex.set(idx, el);
+      }
     });
 
     return cells.map((cell) => {
       let element: Element | null = null;
       if (cell.uuid && byUuid.has(cell.uuid)) {
         element = byUuid.get(cell.uuid)!;
+      } else if (byWindowedIndex.has(cell.cellIndex)) {
+        element = byWindowedIndex.get(cell.cellIndex)!;
       } else if (cell.cellIndex >= 0 && cell.cellIndex < allCellElements.length) {
         element = allCellElements[cell.cellIndex] ?? null;
       }

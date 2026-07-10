@@ -45,3 +45,35 @@ export interface ScrollToCellLineResponseMessage {
   requestId: string;
   ok: boolean;
 }
+
+// M8 Task 3 follow-up: live-probed against real Kaggle DOM, confirmed there
+// is no line-number gutter at all (`.cm-gutters`/`.cm-lineNumbers` both
+// absent), invalidating the isolated-world gutter-mapping this milestone's
+// notes.md flagged as unvalidated. Per that doc's own documented fallback,
+// marker application moves into MAIN world, which resolves a document line
+// number to its live `.cm-line` DOM node via the real CM6 EditorView's
+// domAtPos() — the same technique SCROLL_TO_CELL_LINE_REQUEST's highlight
+// already uses successfully — instead of guessing from isolated-world DOM.
+export const APPLY_LINE_MARKERS_REQUEST = 'KAGGLE_LINT_APPLY_LINE_MARKERS_REQUEST' as const;
+export const APPLY_LINE_MARKERS_RESPONSE = 'KAGGLE_LINT_APPLY_LINE_MARKERS_RESPONSE' as const;
+
+export interface LineMarkerTarget {
+  uuid: string | null;
+  cellIndex: number;
+  cellLine: number;
+  severity: 'error' | 'warning' | 'info';
+  title: string;
+}
+
+export interface ApplyLineMarkersRequestMessage {
+  type: typeof APPLY_LINE_MARKERS_REQUEST;
+  requestId: string;
+  // Empty array means "clear every marker" — applying always clears first.
+  targets: LineMarkerTarget[];
+}
+
+export interface ApplyLineMarkersResponseMessage {
+  type: typeof APPLY_LINE_MARKERS_RESPONSE;
+  requestId: string;
+  markedCount: number;
+}

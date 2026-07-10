@@ -13,9 +13,13 @@ import {
   EXTRACT_RESPONSE,
   SCROLL_TO_CELL_LINE_REQUEST,
   SCROLL_TO_CELL_LINE_RESPONSE,
+  APPLY_LINE_MARKERS_REQUEST,
+  APPLY_LINE_MARKERS_RESPONSE,
   type PageExtractedCell,
   type ExtractResponseMessage,
   type ScrollToCellLineResponseMessage,
+  type LineMarkerTarget,
+  type ApplyLineMarkersResponseMessage,
 } from './bridgeProtocol';
 
 const LOADED_MARKER = '__kaggleLintPageExtractorLoaded';
@@ -253,27 +257,32 @@ function findScrollableAncestor(el: Element): Element | null {
  * so reading `domAtPos` in the same synchronous tick found nothing yet.
  * See the bounded animation-frame poll below.
  */
-function centerAndHighlightLine(view: any, line: number): void {
+/**
+ * Resolves a document line number to its live, currently-mounted `.cm-line`
+ * DOM node via the real CM6 EditorView's domAtPos() — works regardless of
+ * virtualization state (returns null if that line genuinely isn't mounted,
+ * rather than guessing). Shared by the scroll-to-line highlight below and
+ * by the in-editor lint markers, both of which need exactly this lookup.
+ */
+function findLineElement(view: any, line: number): HTMLElement | null {
   const doc = view?.state?.doc;
   if (!doc || typeof view.domAtPos !== 'function') {
-    return;
+    return null;
   }
+  try {
+    const lineNumber = Math.min(Math.max(1, line), doc.lines);
+    const linePos = doc.line(lineNumber).from;
+    const domPos = view.domAtPos(linePos);
+    const node: Node | null = domPos?.node ?? null;
+    const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
+    const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
+    return lineEl && lineEl.isConnected ? lineEl : null;
+  } catch {
+    return null;
+  }
+}
 
-  const lineNumber = Math.min(Math.max(1, line), doc.lines);
-  const linePos = doc.line(lineNumber).from;
-
-  const findLineElement = (): HTMLElement | null => {
-    try {
-      const domPos = view.domAtPos(linePos);
-      const node: Node | null = domPos?.node ?? null;
-      const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
-      const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
-      return lineEl && lineEl.isConnected ? lineEl : null;
-    } catch {
-      return null;
-    }
-  };
-
+function centerAndHighlightLine(view: any, line: number): void {
   const applyToLine = (lineEl: HTMLElement): void => {
     try {
       const scroller = findScrollableAncestor(lineEl);
@@ -300,7 +309,7 @@ function centerAndHighlightLine(view: any, line: number): void {
   // frames instead of assuming the DOM has already settled.
   const MAX_ATTEMPTS = 20;
   const poll = (attemptsLeft: number): void => {
-    const lineEl = findLineElement();
+    const lineEl = findLineElement(view, line);
     if (lineEl) {
       applyToLine(lineEl);
       return;
@@ -312,6 +321,64 @@ function centerAndHighlightLine(view: any, line: number): void {
   };
 
   poll(MAX_ATTEMPTS);
+}
+
+const LINE_MARKER_CLASSES = [
+  'kaggle-lint-line-error',
+  'kaggle-lint-line-warning',
+  'kaggle-lint-line-info',
+] as const;
+
+const LINE_MARKER_SEVERITY_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
+
+function clearLineMarkersInDom(): void {
+  const marked = document.querySelectorAll(
+    '.cm-line.kaggle-lint-line-error, .cm-line.kaggle-lint-line-warning, .cm-line.kaggle-lint-line-info'
+  );
+  marked.forEach((el) => {
+    el.classList.remove(...LINE_MARKER_CLASSES);
+    el.removeAttribute('title');
+  });
+}
+
+/**
+ * Applies (or, given an empty array, only clears) in-editor lint markers.
+ * Runs entirely in MAIN world because only here is the real CM6
+ * EditorView (via findCellWidget/domAtPos) available to reliably resolve a
+ * document line number to its DOM node — the isolated-world content script
+ * has no equivalent signal on Kaggle's actual page (no gutter exists to
+ * read from; live-probed and confirmed absent).
+ */
+function applyLineMarkersInMain(targets: LineMarkerTarget[]): number {
+  clearLineMarkersInDom();
+
+  const bestSeverityByLine = new Map<HTMLElement, LineMarkerTarget['severity']>();
+  const titlesByLine = new Map<HTMLElement, string[]>();
+
+  for (const target of targets) {
+    const found = findCellWidget(target.uuid, target.cellIndex);
+    const view = found?.widget?.editor?.editor;
+    if (!view) continue;
+    const lineEl = findLineElement(view, target.cellLine);
+    if (!lineEl) continue;
+
+    const current = bestSeverityByLine.get(lineEl);
+    if (!current || LINE_MARKER_SEVERITY_RANK[target.severity] < LINE_MARKER_SEVERITY_RANK[current]) {
+      bestSeverityByLine.set(lineEl, target.severity);
+    }
+    const titles = titlesByLine.get(lineEl) ?? [];
+    titles.push(target.title);
+    titlesByLine.set(lineEl, titles);
+  }
+
+  bestSeverityByLine.forEach((severity, lineEl) => {
+    lineEl.classList.add(`kaggle-lint-line-${severity}`);
+  });
+  titlesByLine.forEach((titles, lineEl) => {
+    lineEl.setAttribute('title', titles.join('\n'));
+  });
+
+  return bestSeverityByLine.size;
 }
 
 /**
@@ -385,6 +452,18 @@ function handleMessage(event: MessageEvent): void {
       type: SCROLL_TO_CELL_LINE_RESPONSE,
       requestId: data.requestId,
       ok,
+    };
+    window.postMessage(response, '*');
+    return;
+  }
+
+  if (data.type === APPLY_LINE_MARKERS_REQUEST) {
+    const targets: LineMarkerTarget[] = Array.isArray(data.targets) ? data.targets : [];
+    const markedCount = applyLineMarkersInMain(targets);
+    const response: ApplyLineMarkersResponseMessage = {
+      type: APPLY_LINE_MARKERS_RESPONSE,
+      requestId: data.requestId,
+      markedCount,
     };
     window.postMessage(response, '*');
   }

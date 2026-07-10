@@ -160,11 +160,6 @@ export const ContentApp: React.FC = () => {
         element:
           elementByCellId.get(codeMirrorManager.getCellId(stored.cellIndex, stored.uuid)) ?? null,
       }));
-      logger.log(
-        `cellsForLinting: ${cellsForLinting.length} total, ` +
-          `${cellsForLinting.filter((c) => c.element).length} with element, ` +
-          `cellIndexes=${cellsForLinting.map((c) => c.cellIndex).join(',')}`
-      );
 
       // The protocol is JSON-only (no DOM elements cross chrome.runtime
       // messaging), so strip elements before sending and re-attach them
@@ -202,12 +197,6 @@ export const ContentApp: React.FC = () => {
             uuid: cell?.uuid ?? null,
           };
         });
-        logger.log(
-          `lintErrors: ${lintErrors.length} total, ` +
-            `${lintErrors.filter((e) => e.element).length} with element, ` +
-            `sample error.cellIndexes=${rawErrors.slice(0, 5).map((e) => e.cellIndex).join(',')}, ` +
-            `cellByCellIndex keys=${Array.from(cellByCellIndex.keys()).join(',')}`
-        );
         setEngineStatus('ready');
         logger.log(`${settings.linterEngine} engine found ${lintErrors.length} errors`);
       } catch (error) {
@@ -354,20 +343,21 @@ export const ContentApp: React.FC = () => {
 
   /**
    * In-editor line markers (Task 3). Converts the current error list into
-   * lineMarkers.ts's MarkerTarget shape — only errors whose cell element
-   * is still live get a target; a virtualized-out cell simply gets no
-   * marker until it's scrolled back into view and this reruns.
+   * lineMarkers.ts's MarkerTarget shape, keyed by uuid/cellIndex — the
+   * MAIN-world bridge resolves the actual DOM node itself (via the real
+   * CM6 view), so no local element reference is needed here. A cell whose
+   * line isn't currently mounted simply gets no marker until it's scrolled
+   * back into view and this reruns.
    */
   const buildMarkerTargets = (list: LintUIError[]) =>
-    list
-      .filter((error): error is LintUIError & { element: Element } => Boolean(error.element))
-      .map((error) => ({
-        cellElement: error.element,
-        cellLine: error.cellLine ?? error.line,
-        severity: error.severity,
-        code: error.code,
-        msg: error.msg,
-      }));
+    list.map((error) => ({
+      uuid: error.uuid ?? null,
+      cellIndex: error.cellIndex ?? 0,
+      cellLine: error.cellLine ?? error.line,
+      severity: error.severity,
+      code: error.code,
+      msg: error.msg,
+    }));
 
   /**
    * Refresh markers whenever the error list itself changes (a completed
@@ -381,7 +371,7 @@ export const ContentApp: React.FC = () => {
   useEffect(() => {
     errorsRef.current = errors;
     if (!visibleRef.current) return;
-    applyLineMarkers(buildMarkerTargets(errors));
+    void applyLineMarkers(buildMarkerTargets(errors));
   }, [errors]);
 
   /**
@@ -405,7 +395,7 @@ export const ContentApp: React.FC = () => {
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
         if (!visibleRef.current) return;
-        applyLineMarkers(buildMarkerTargets(errorsRef.current));
+        void applyLineMarkers(buildMarkerTargets(errorsRef.current));
       }, 300);
     };
 
@@ -430,9 +420,9 @@ export const ContentApp: React.FC = () => {
   useEffect(() => {
     visibleRef.current = visible;
     if (visible) {
-      applyLineMarkers(buildMarkerTargets(errorsRef.current));
+      void applyLineMarkers(buildMarkerTargets(errorsRef.current));
     } else {
-      clearAllLineMarkers();
+      void clearAllLineMarkers();
     }
   }, [visible]);
 
