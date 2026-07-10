@@ -11,6 +11,14 @@ describe('KaggleDomParser', () => {
   beforeEach(() => {
     document.body.innerHTML = fixtureHtml;
     document.body.className = '';
+    // Suppress console noise from KaggleDomParser's DEBUG logger
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('extractCells (DOM-scrape fallback)', () => {
