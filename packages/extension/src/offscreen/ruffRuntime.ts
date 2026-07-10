@@ -5,9 +5,20 @@
  * doesn't grant 'wasm-unsafe-eval'), even though ruff needs no Python
  * runtime at all. Much lighter than Pyodide: one ~10.8 MB .wasm asset,
  * no wheels, no Python stdlib.
+ *
+ * Uses the package's async default-export initializer (`init`), not the
+ * `initSync` named export: initSync does `new WebAssembly.Module(bytes)`,
+ * a SYNCHRONOUS compile, which Chrome refuses on a document's main thread
+ * once the buffer exceeds 8MB (confirmed by reading the package's actual
+ * ruff_wasm.js — initSync's WebAssembly.Module() vs init's
+ * WebAssembly.instantiateStreaming()/instantiate(), both async and exempt
+ * from that limit). The ruff wasm binary is ~10.3MB, over the limit.
+ * Node has no such restriction, which is why this didn't surface during
+ * this plan's Node-based verification of the package's row/column
+ * indexing — it's a browser-only main-thread constraint.
  */
 
-import { initSync, Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
+import init, { Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
 import { buildNotebookSource, mapDiagnostics, type NotebookCellInput } from '@kaggle-lint/core';
 import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
@@ -28,9 +39,10 @@ export class RuffRuntime {
     this.status = 'loading';
     this.loadPromise = (async () => {
       try {
-        const response = await fetch(RUFF_WASM_URL);
-        const buffer = await response.arrayBuffer();
-        initSync({ module: buffer });
+        // Passing the URL lets init() fetch it itself and use
+        // WebAssembly.instantiateStreaming when available — async,
+        // streaming compile, no main-thread size restriction.
+        await init(RUFF_WASM_URL);
         this.status = 'ready';
       } catch (error) {
         this.status = 'failed';
