@@ -13,8 +13,7 @@
 
 import {
   PYTHON_SHIM,
-  buildNotebookSource,
-  mapDiagnostics,
+  lintNotebookWithSyntaxIsolation,
   type RawDiagnostic,
   type NotebookCellInput,
 } from '@kaggle-lint/core';
@@ -101,14 +100,21 @@ export class PyodideRuntime {
   async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
     await this.load();
 
-    const { source, cellOffsets } = buildNotebookSource(cells);
-
-    const raw = await this.pyodide!.runPythonAsync(`
+    return lintNotebookWithSyntaxIsolation(
+      cells,
+      'flake8',
+      async (source) => {
+        const raw = await this.pyodide!.runPythonAsync(`
 import json
 json.dumps(lint_source(${JSON.stringify(source)}, ${JSON.stringify(ignoreCodes)}))
-    `);
-    const rawResults = JSON.parse(raw) as RawDiagnostic[];
-
-    return mapDiagnostics(rawResults, cellOffsets, 'flake8');
+        `);
+        return JSON.parse(raw) as RawDiagnostic[];
+      },
+      // flake8 bails entirely on a file that fails to parse, reporting
+      // ONLY E999 (confirmed by direct repro against the real flake8
+      // wheel) — a single-cell syntax error must not suppress every
+      // other cell's real findings (see lintWithSyntaxIsolation.ts).
+      (diagnostics) => diagnostics.length > 0 && diagnostics.every((d) => d.code === 'E999')
+    );
   }
 }

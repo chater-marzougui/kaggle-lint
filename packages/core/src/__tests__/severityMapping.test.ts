@@ -14,6 +14,11 @@ describe('classifySeverity', () => {
     expect(classifySeverity('RUF100')).toBe('warning');
     expect(classifySeverity('B006')).toBe('warning');
   });
+
+  it('classifies syntax-error codes (flake8 E999, ruff invalid-syntax) as error, not a style warning', () => {
+    expect(classifySeverity('E999')).toBe('error');
+    expect(classifySeverity('invalid-syntax')).toBe('error');
+  });
 });
 
 describe('mapDiagnostics', () => {

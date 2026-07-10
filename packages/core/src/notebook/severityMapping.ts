@@ -20,6 +20,12 @@ export interface RawDiagnostic {
 }
 
 export function classifySeverity(code: string): LintError['severity'] {
+  // A syntax error is always an error, regardless of which engine reports
+  // it or that it doesn't start with F (flake8's E999, ruff's
+  // invalid-syntax) — the file didn't parse at all, not a style nit.
+  if (code === 'E999' || code === 'invalid-syntax') {
+    return 'error';
+  }
   return code.startsWith('F') ? 'error' : 'warning';
 }
 

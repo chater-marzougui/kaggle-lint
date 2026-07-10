@@ -19,7 +19,7 @@
  */
 
 import init, { Workspace, PositionEncoding, type Diagnostic } from '@astral-sh/ruff-wasm-web';
-import { buildNotebookSource, mapDiagnostics, type NotebookCellInput } from '@kaggle-lint/core';
+import { lintNotebookWithSyntaxIsolation, type NotebookCellInput } from '@kaggle-lint/core';
 import type { EngineResultError, EngineStatus } from '../engine/protocol';
 
 const RUFF_WASM_URL = chrome.runtime.getURL('ruff/ruff_wasm_bg.wasm');
@@ -39,10 +39,14 @@ export class RuffRuntime {
     this.status = 'loading';
     this.loadPromise = (async () => {
       try {
-        // Passing the URL lets init() fetch it itself and use
+        // Passing { module_or_path } (not a bare string) is this
+        // wasm-bindgen version's current calling convention — a bare
+        // string still works via a legacy fallback path, but logs
+        // "using deprecated parameters" on every load. Passing the URL
+        // lets init() fetch it itself and use
         // WebAssembly.instantiateStreaming when available — async,
         // streaming compile, no main-thread size restriction.
-        await init(RUFF_WASM_URL);
+        await init({ module_or_path: RUFF_WASM_URL });
         this.status = 'ready';
       } catch (error) {
         this.status = 'failed';
@@ -57,34 +61,46 @@ export class RuffRuntime {
   async lintNotebook(cells: NotebookCellInput[], ignoreCodes: string[]): Promise<EngineResultError[]> {
     await this.load();
 
-    // Workspace's settings (including lint.ignore) are fixed at
-    // construction time, with no way to update them on an existing
-    // instance — construct a fresh one per call (cheap; the expensive
-    // part, WASM instantiation, already happened in load()) so a changed
-    // ignoreCodes setting takes effect immediately, matching the flake8
-    // shim's fresh-Application-per-call pattern.
-    const workspace = new Workspace(
-      { 'line-length': 88, lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes } },
-      PositionEncoding.Utf16
+    return lintNotebookWithSyntaxIsolation(
+      cells,
+      'ruff',
+      async (source) => {
+        // Workspace's settings (including lint.ignore) are fixed at
+        // construction time, with no way to update them on an existing
+        // instance — construct a fresh one per call (cheap; the
+        // expensive part, WASM instantiation, already happened in
+        // load()) so a changed ignoreCodes setting takes effect
+        // immediately, matching the flake8 shim's
+        // fresh-Application-per-call pattern. This also means each
+        // syntax-error-isolation retry pass gets its own Workspace.
+        const workspace = new Workspace(
+          { 'line-length': 88, lint: { select: ['E4', 'E7', 'E9', 'F'], ignore: ignoreCodes } },
+          PositionEncoding.Utf16
+        );
+
+        let raw: Diagnostic[];
+        try {
+          raw = workspace.check(source);
+        } finally {
+          // wasm-bindgen classes need explicit disposal — WASM-side
+          // memory isn't GC'd by JS — so free() must run even if
+          // check() throws.
+          workspace.free();
+        }
+
+        return raw.map((d) => ({
+          line: d.start_location.row,
+          column: d.start_location.column,
+          code: d.code ?? '',
+          message: d.message,
+        }));
+      },
+      // ruff also bails entirely on a file that fails to parse,
+      // reporting only invalid-syntax diagnostics (confirmed by direct
+      // repro against the real @astral-sh/ruff-wasm-web package) — a
+      // single-cell syntax error must not suppress every other cell's
+      // real findings (see lintWithSyntaxIsolation.ts).
+      (diagnostics) => diagnostics.length > 0 && diagnostics.every((d) => d.code === 'invalid-syntax')
     );
-
-    const { source, cellOffsets } = buildNotebookSource(cells);
-    let raw: Diagnostic[];
-    try {
-      raw = workspace.check(source);
-    } finally {
-      // wasm-bindgen classes need explicit disposal — WASM-side memory
-      // isn't GC'd by JS — so free() must run even if check() throws.
-      workspace.free();
-    }
-
-    const normalized = raw.map((d) => ({
-      line: d.start_location.row,
-      column: d.start_location.column,
-      code: d.code ?? '',
-      message: d.message,
-    }));
-
-    return mapDiagnostics(normalized, cellOffsets, 'ruff');
   }
 }
