@@ -1,16 +1,17 @@
 /**
- * Loads Pyodide + the flake8/pyflakes Python shim inside the offscreen
+ * Loads Pyodide + calls the flake8 Python shim inside the offscreen
  * document (an extension page — WASM and 'wasm-unsafe-eval' are allowed
  * here, unlike in the content script's isolated world; see F1 in
  * docs/review-findings.md). Single instance, created once in
  * offscreen/index.ts.
  *
- * PYTHON_SHIM and mapFlake8Results live in packages/core so core owns the
- * one copy (see packages/core/src/engines/flake8Shim.ts and
- * flake8Mapping.ts).
+ * lintNotebook builds one whole-notebook source string (via
+ * buildNotebookSource) and makes ONE Python call per lint — no more
+ * per-cell loop or cross-cell context tracking; a single real Python
+ * "file" gives correct cross-cell scoping natively.
  */
 
-import { PYTHON_SHIM, mapFlake8Results, type RawFlake8Error } from '@kaggle-lint/core';
+import { PYTHON_SHIM, buildNotebookSource, mapDiagnostics, type RawDiagnostic } from '@kaggle-lint/core';
 import type { Flake8CellInput, Flake8ResultError, Flake8Status } from '../flake8/protocol';
 
 declare global {
@@ -91,39 +92,17 @@ export class PyodideRuntime {
     });
   }
 
-  async lintNotebook(cells: Flake8CellInput[]): Promise<Flake8ResultError[]> {
+  async lintNotebook(cells: Flake8CellInput[], ignoreCodes: string[]): Promise<Flake8ResultError[]> {
     await this.load();
-    await this.pyodide!.runPythonAsync('reset_notebook_context()');
 
-    const allErrors: Flake8ResultError[] = [];
-    let lineOffset = 0;
+    const { source, cellOffsets } = buildNotebookSource(cells);
 
-    for (const cell of cells) {
-      const code = cell.code;
-      const trimmed = code.trim();
-      const shouldLint = trimmed.length > 0 && !trimmed.startsWith('%%') && !trimmed.startsWith('!');
-
-      if (shouldLint) {
-        const raw = await this.pyodide!.runPythonAsync(`
+    const raw = await this.pyodide!.runPythonAsync(`
 import json
-results = lint_cell_with_notebook_context(${JSON.stringify(code)})
-json.dumps(results)
-        `);
-        const rawResults = JSON.parse(raw) as RawFlake8Error[];
-        const mapped = mapFlake8Results(rawResults, lineOffset);
+json.dumps(lint_source(${JSON.stringify(source)}, ${JSON.stringify(ignoreCodes)}))
+    `);
+    const rawResults = JSON.parse(raw) as RawDiagnostic[];
 
-        mapped.forEach((error, i) => {
-          allErrors.push({
-            ...error,
-            cellIndex: cell.cellIndex,
-            cellLine: rawResults[i].line,
-          });
-        });
-      }
-
-      lineOffset += code.split('\n').length;
-    }
-
-    return allErrors;
+    return mapDiagnostics(rawResults, cellOffsets, 'flake8');
   }
 }
