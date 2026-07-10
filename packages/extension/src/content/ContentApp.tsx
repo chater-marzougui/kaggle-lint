@@ -467,7 +467,11 @@ export const ContentApp: React.FC = () => {
    * Debounced MutationObserver watching for changes inside `.cm-content`
    * (CodeMirror's editable text), ignoring mutations inside the overlay's
    * own root (#kaggle-linter-root) so re-rendering lint results doesn't
-   * trigger another lint.
+   * trigger another lint. Also fires on whole-cell removal (deleting a
+   * cell) regardless of focus — the deleted cell's own content is gone,
+   * so "does its editor have focus" is meaningless, but its stale errors
+   * still need clearing without the user having to press Ctrl+Shift+L
+   * themselves (found during Task 7's manual gate).
    */
   useEffect(() => {
     if (!settingsLoaded) return undefined;
@@ -486,6 +490,14 @@ export const ContentApp: React.FC = () => {
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
+        const removedCell = Array.from(mutation.removedNodes).some(
+          (node) =>
+            node instanceof Element && (node.classList.contains('jp-Cell') || node.querySelector('.jp-Cell'))
+        );
+        if (removedCell) {
+          scheduleRelint();
+          return;
+        }
         const target = mutation.target;
         const el = target instanceof Element ? target : target.parentElement;
         if (!el) continue;

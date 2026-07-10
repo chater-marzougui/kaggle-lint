@@ -620,15 +620,15 @@
    .kaggle-lint-theme-dark variant (same approach already used for
    .kaggle-lint-severity-* below). */
 .cm-line.kaggle-lint-line-error {
-  background-color: rgba(244, 71, 113, 0.18);
+  background-color: rgba(244, 71, 113, 0.35);
 }
 
 .cm-line.kaggle-lint-line-warning {
-  background-color: rgba(222, 184, 135, 0.18);
+  background-color: rgba(222, 184, 135, 0.35);
 }
 
 .cm-line.kaggle-lint-line-info {
-  background-color: rgba(106, 159, 181, 0.18);
+  background-color: rgba(106, 159, 181, 0.35);
 }
 
 /* Glanceable status (Milestone 8, Task 5): only visually distinct while
