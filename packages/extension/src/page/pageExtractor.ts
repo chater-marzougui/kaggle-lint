@@ -194,48 +194,85 @@ function findCellWidget(
 }
 
 /**
+ * Walks up from an element to find its nearest scrollable ancestor (an
+ * element that both allows y-overflow and actually has overflow to
+ * scroll). Generic DOM technique, deliberately independent of Jupyter/
+ * CodeMirror internals or class names — see the note below on why that
+ * matters here.
+ */
+function findScrollableAncestor(el: Element): Element | null {
+  let node: Element | null = el.parentElement;
+  while (node) {
+    const style = getComputedStyle(node);
+    const canScrollY = style.overflowY === 'auto' || style.overflowY === 'scroll';
+    if (canScrollY && node.scrollHeight > node.clientHeight + 1) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/**
  * Best-effort refinement of the reveal below: `content.scrollToItem`/
  * `editor.revealPosition` land the line at whatever edge their own
- * "nearest visible" scroll logic picks (observed live: bottom of the
- * viewport, confirmed by user), not the vertical center. This centers it
+ * "nearest visible" scroll logic picks (observed live: no scroll if
+ * already visible, top edge if approached from above, bottom edge if
+ * approached from below), not the vertical center. This centers it
  * precisely and briefly highlights the exact line, by reading the real
  * CM6 EditorView through Jupyter's own editor wrapper — `@jupyterlab/
  * codemirror`'s CodeMirrorEditor class exposes the live view as its
  * `.editor` property, a proper object-graph reference reached via
  * window.jupyterapp, NOT the `cmView` DOM expando that doesn't exist on
  * Kaggle's build (see extractViaJupyterModel's doc comment above) — so
- * this isn't the same dead end. It only reads layout (`lineBlockAt`,
- * `domAtPos`) and sets `scrollDOM.scrollTop` directly; it never dispatches
- * a CM6 transaction/effect, so there's no risk of mutating the wrong
- * instance's state. Silently no-ops if the view isn't shaped as expected —
- * the caller's `revealPosition` call already positioned the view (just not
- * centered), so this is a pure enhancement, never required for
- * `scrollToCellLine` to report success.
+ * this isn't the same dead end.
+ *
+ * First attempt at this (superseded) set `view.scrollDOM.scrollTop`
+ * directly — confirmed live to have no visible effect, because a Jupyter
+ * cell's CM6 editor auto-grows to fit its content (no internal scrollbar
+ * of its own); the vertical scrolling a user actually sees happens one
+ * level up, in the notebook's own windowed/virtualized scroll container,
+ * which `scrollDOM` isn't. Rather than hardcode that container's class
+ * name (version-fragile, another guess), this walks up from the target
+ * line's real DOM element (found via `domAtPos` — already confirmed
+ * working, since the highlight below worked) to whichever ancestor
+ * actually has overflow to scroll, and adjusts *that* element's
+ * `scrollTop` by the exact pixel delta needed to center the line. Never
+ * dispatches a CM6 transaction/effect — only reads layout (`getBoundingClientRect`)
+ * and sets `scrollTop`, so there's no risk of mutating the wrong
+ * instance's state. Silently no-ops if the view isn't shaped as
+ * expected — the caller's `revealPosition` call already positioned the
+ * view (just not centered), so this is a pure enhancement, never required
+ * for `scrollToCellLine` to report success.
  */
 function centerAndHighlightLine(view: any, line: number): void {
   try {
     const doc = view?.state?.doc;
-    if (!doc || typeof view.lineBlockAt !== 'function' || !view.scrollDOM) {
+    if (!doc || typeof view.domAtPos !== 'function') {
       return;
     }
 
     const lineNumber = Math.min(Math.max(1, line), doc.lines);
     const linePos = doc.line(lineNumber).from;
-    const block = view.lineBlockAt(linePos);
-    const scroller = view.scrollDOM;
-    scroller.scrollTop = block.top - scroller.clientHeight / 2 + block.height / 2;
-
-    if (typeof view.domAtPos !== 'function') {
-      return;
-    }
     const domPos = view.domAtPos(linePos);
     const node: Node | null = domPos?.node ?? null;
     const el = node && (node.nodeType === 1 ? (node as Element) : node.parentElement);
-    const lineEl = el?.closest?.('.cm-line');
-    if (lineEl) {
-      lineEl.classList.add('kaggle-lint-line-highlight');
-      setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
+    const lineEl = el?.closest?.('.cm-line') as HTMLElement | null;
+    if (!lineEl) {
+      return;
     }
+
+    const scroller = findScrollableAncestor(lineEl);
+    if (scroller) {
+      const scrollerRect = scroller.getBoundingClientRect();
+      const lineRect = lineEl.getBoundingClientRect();
+      const delta =
+        lineRect.top + lineRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
+      scroller.scrollTop += delta;
+    }
+
+    lineEl.classList.add('kaggle-lint-line-highlight');
+    setTimeout(() => lineEl.classList.remove('kaggle-lint-line-highlight'), 2000);
   } catch {
     // Enhancement only — see doc comment above.
   }
