@@ -1,22 +1,20 @@
 /**
  * Popup App Component
  * Extension settings panel
- *
- * MIGRATION NOTE: Migrated from old-linter/src/popup/popup.js
- * Converted to React with TypeScript
  */
 
 import React, { useState, useEffect } from 'react';
-import { RULE_REGISTRY, defaultRuleToggles } from '@kaggle-lint/core';
 
 interface Settings {
-  linterEngine: 'handmade' | 'flake8';
-  rules: Record<string, boolean>;
+  linterEngine: 'flake8' | 'ruff';
+  flake8IgnoreCodes: string;
+  ruffIgnoreCodes: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  linterEngine: 'handmade',
-  rules: defaultRuleToggles(),
+  linterEngine: 'flake8',
+  flake8IgnoreCodes: '',
+  ruffIgnoreCodes: '',
 };
 
 export const PopupApp: React.FC = () => {
@@ -32,10 +30,6 @@ export const PopupApp: React.FC = () => {
           setSettings({
             ...DEFAULT_SETTINGS,
             ...result.linterSettings,
-            rules: {
-              ...DEFAULT_SETTINGS.rules,
-              ...(result.linterSettings.rules || {}),
-            },
           });
         }
       });
@@ -95,13 +89,16 @@ export const PopupApp: React.FC = () => {
     }
   };
 
-  const handleEngineChange = (engine: 'handmade' | 'flake8') => {
+  const handleEngineChange = (engine: 'flake8' | 'ruff') => {
     saveSettings({ ...settings, linterEngine: engine });
   };
 
-  const handleRuleToggle = (ruleId: string, enabled: boolean) => {
-    const newRules = { ...settings.rules, [ruleId]: enabled };
-    saveSettings({ ...settings, rules: newRules });
+  const handleIgnoreCodesChange = (engine: 'flake8' | 'ruff', value: string) => {
+    if (engine === 'flake8') {
+      saveSettings({ ...settings, flake8IgnoreCodes: value });
+    } else {
+      saveSettings({ ...settings, ruffIgnoreCodes: value });
+    }
   };
 
   const handleRefresh = () => {
@@ -155,6 +152,9 @@ export const PopupApp: React.FC = () => {
     );
   }
 
+  const currentIgnoreCodes =
+    settings.linterEngine === 'flake8' ? settings.flake8IgnoreCodes : settings.ruffIgnoreCodes;
+
   return (
     <div className="popup-container">
       <div className="header">
@@ -183,21 +183,6 @@ export const PopupApp: React.FC = () => {
                 <input
                   type="radio"
                   name="linter-engine"
-                  value="handmade"
-                  checked={settings.linterEngine === 'handmade'}
-                  onChange={() => handleEngineChange('handmade')}
-                />
-                <div className="option-info">
-                  <span className="option-label">Built-in</span>
-                  <span className="option-description">
-                    Custom Python linting rules
-                  </span>
-                </div>
-              </label>
-              <label className="option-item">
-                <input
-                  type="radio"
-                  name="linter-engine"
                   value="flake8"
                   checked={settings.linterEngine === 'flake8'}
                   onChange={() => handleEngineChange('flake8')}
@@ -205,52 +190,51 @@ export const PopupApp: React.FC = () => {
                 <div className="option-info">
                   <span className="option-label">Flake8</span>
                   <span className="option-description">
-                    Industry-standard Python linter
+                    Industry-standard Python linter (pyflakes + pycodestyle + mccabe)
+                  </span>
+                </div>
+              </label>
+              <label className="option-item">
+                <input
+                  type="radio"
+                  name="linter-engine"
+                  value="ruff"
+                  checked={settings.linterEngine === 'ruff'}
+                  onChange={() => handleEngineChange('ruff')}
+                />
+                <div className="option-info">
+                  <span className="option-label">Ruff</span>
+                  <span className="option-description">
+                    Fast Rust-based Python linter — no Python runtime needed
                   </span>
                 </div>
               </label>
             </div>
-            {settings.linterEngine === 'flake8' && (
-              <div className="status-message">
-                Flake8 will be loaded on first lint
-              </div>
-            )}
+            <div className="status-message">
+              {settings.linterEngine} will be loaded on first lint
+            </div>
           </div>
         </div>
 
-        {/* Built-in Rules Section */}
-        {settings.linterEngine === 'handmade' && (
-          <div className="section" id="rules-section">
-            <div className="section-header">
-              <h2 className="section-title">Built-in Rules</h2>
-            </div>
-            <div className="section-content" id="rules-list">
-              {RULE_REGISTRY.map((rule) => {
-                const isEnabled = settings.rules?.[rule.id] !== false;
-                return (
-                  <div key={rule.id} className="rule-item">
-                    <div className="rule-info">
-                      <span className="rule-name">{rule.displayName}</span>
-                      <span className="rule-description">
-                        {rule.description}
-                      </span>
-                    </div>
-                    <label className="rule-toggle">
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={(e) =>
-                          handleRuleToggle(rule.id, e.target.checked)
-                        }
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
+        {/* Ignore Codes Section */}
+        <div className="section" id="ignore-codes-section">
+          <div className="section-header">
+            <h2 className="section-title">Ignore Codes</h2>
           </div>
-        )}
+          <div className="section-content">
+            <label className="option-item" style={{ display: 'block' }}>
+              <span className="option-description">
+                Comma-separated codes to ignore for {settings.linterEngine} (e.g. E501, F401)
+              </span>
+              <input
+                type="text"
+                value={currentIgnoreCodes}
+                onChange={(e) => handleIgnoreCodesChange(settings.linterEngine, e.target.value)}
+                placeholder="E501, F401"
+              />
+            </label>
+          </div>
+        </div>
 
         {/* Actions Section */}
         <div className="section">
