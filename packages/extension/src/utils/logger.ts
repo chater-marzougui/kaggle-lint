@@ -5,6 +5,11 @@
  * Linter]"), ContentApp.tsx ("[Linter]"), KaggleDomParser.ts ("[Kaggle
  * Linter DomParser]"), and CodeMirrorManager.ts ("[Kaggle Linter
  * CodeMirror]") drift into three different tag families.
+ *
+ * `log()` is gated behind `process.env.DEBUG === 'true'` (F27) — webpack's
+ * DefinePlugin substitutes this at build time, so a production build ships
+ * console-quiet by default. `warn()`/`error()` are never gated: a real
+ * failure should always be visible regardless of the DEBUG flag.
  */
 
 const BASE_TAG = '[Kaggle Linter]';
@@ -15,10 +20,16 @@ export interface Logger {
   error(...args: unknown[]): void;
 }
 
+function isDebugEnabled(): boolean {
+  return process.env.DEBUG === 'true';
+}
+
 export function createLogger(component?: string): Logger {
   const tag = component ? `[Kaggle Linter ${component}]` : BASE_TAG;
   return {
-    log: (...args: unknown[]) => console.log(tag, ...args),
+    log: (...args: unknown[]) => {
+      if (isDebugEnabled()) console.log(tag, ...args);
+    },
     warn: (...args: unknown[]) => console.warn(tag, ...args),
     error: (...args: unknown[]) => console.error(tag, ...args),
   };

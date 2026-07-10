@@ -21,7 +21,8 @@ describe('KaggleDomParser', () => {
   beforeEach(() => {
     document.body.innerHTML = fixtureHtml;
     document.body.className = '';
-    // Suppress console noise from KaggleDomParser's DEBUG logger
+    // Suppress console.warn/error noise (console.log is already silent
+    // under test — logger.ts gates it behind DEBUG, unset here).
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});

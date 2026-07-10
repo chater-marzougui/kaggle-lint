@@ -31,11 +31,10 @@ const BRIDGE_TIMEOUT_MS = 1500;
 const logger = createLogger('DomParser');
 
 export class KaggleDomParser {
-  private DEBUG = true;
   private lastSource: 'model' | 'dom' | 'dom-scrape' = 'dom-scrape';
 
   private log(...args: unknown[]): void {
-    if (this.DEBUG) logger.log(...args);
+    logger.log(...args);
   }
 
   /**
