@@ -2440,6 +2440,8 @@ git commit -m "docs: update CLAUDE.md and README for flake8/ruff engines, remove
 
 This repo has no e2e scripts; this gate requires a real Chrome browser and a logged-in Kaggle notebook. **If you cannot drive a browser, stop here and hand this checklist to the user — do not claim it passed.**
 
+**Real-notebook test fixture:** the user provided a real Kaggle notebook with many pre-existing lint findings (~14 errors plus warnings) at `.superpowers/sdd/barbados-v4.ipynb` (git-ignored scratch dir — not committed, but present on this machine). Used during this gate to root-cause and verify the fix for the "buildNotebookSource blanked a real code continuation line as a magic/shell-escape, collapsing the whole notebook to 1 finding" bug (see commits 1bdc861/985e1ab). Any future debugging of this pipeline should test against this file's actual cell content first, via the same local-repro technique (extract cells, run through `buildNotebookSource` + the real flake8 shim outside the browser) rather than only synthetic examples.
+
 - [ ] **Step 1: Build and load**
 
 ```bash
