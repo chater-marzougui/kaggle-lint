@@ -61,17 +61,22 @@ export const ContentApp: React.FC = () => {
       const cells = await domParser.extractCells();
       console.log(`[Linter] Extracted ${cells.length} cells`);
 
-      // Never clear() the store here. Both extraction paths are DOM-based:
-      // the MAIN-world bridge sees full CodeMirror document text for
-      // editors that ARE rendered, but — like the DOM-scrape fallback — it
-      // has no visibility into cells Kaggle hasn't mounted a `.cm-editor`
-      // for at all (i.e. cells scrolled out of a virtualized notebook). So
-      // "bridge succeeded" never means "saw every cell," and clearing on
-      // that basis would wipe exactly the virtualized-out coverage this
-      // store exists to provide. We only ever merge; a cell the user
-      // deletes leaves a stale store entry until the page reloads, which
-      // is an accepted tradeoff (extraction can't tell "deleted" apart
-      // from "not currently rendered").
+      // The Jupyter-model path (pageExtractor.ts's extractViaJupyterModel)
+      // is rendering-independent — it reads every cell's source straight
+      // off the notebook model via sharedModel.getSource(), so it sees
+      // cells Kaggle has virtualized out of the DOM just as reliably as
+      // ones currently rendered. That result is a complete, authoritative
+      // sweep, so the store can safely be replaced: a cell the user
+      // deleted simply isn't in the new sweep and drops out (F34). Both
+      // DOM-based paths — the bridge's own internal DOM fallback, and this
+      // class's isolated-world DOM-scrape fallback used when the bridge
+      // doesn't respond at all — only ever see cells/lines Kaggle
+      // currently has mounted, so they stay merge-only; replacing on a
+      // partial sweep would wipe exactly the virtualized-out coverage this
+      // store exists to provide.
+      if (domParser.getLastExtractionSource() === 'model') {
+        codeMirrorManager.clear();
+      }
       codeMirrorManager.syncCells(cells);
 
       // Lint from the store (survives cells Kaggle has unloaded from the

@@ -30,7 +30,7 @@ const BRIDGE_TIMEOUT_MS = 1500;
 
 export class KaggleDomParser {
   private DEBUG = true;
-  private lastSource: 'bridge' | 'dom-scrape' = 'dom-scrape';
+  private lastSource: 'model' | 'dom' | 'dom-scrape' = 'dom-scrape';
 
   private log(...args: any[]): void {
     if (this.DEBUG) console.log('[KaggleDomParser]', ...args);
@@ -84,11 +84,14 @@ export class KaggleDomParser {
 
   /**
    * Which path the most recent extractCells() call used. ContentApp reads
-   * this to decide whether the cell store can be safely cleared before
-   * syncing: a bridge result is a full sweep of the notebook, a DOM-scrape
-   * result is partial (only currently-rendered cells).
+   * this to decide whether the cell store can be safely replaced before
+   * syncing: 'model' is a complete, rendering-independent sweep of every
+   * cell (safe to replace on); 'dom' (the bridge's own internal DOM
+   * fallback) and 'dom-scrape' (this class's isolated-world fallback, used
+   * when the bridge doesn't respond at all) both only see currently-
+   * rendered cells/lines, so they stay merge-only.
    */
-  getLastExtractionSource(): 'bridge' | 'dom-scrape' {
+  getLastExtractionSource(): 'model' | 'dom' | 'dom-scrape' {
     return this.lastSource;
   }
 
@@ -97,11 +100,13 @@ export class KaggleDomParser {
    * first; falls back to DOM scraping if it doesn't respond in time.
    */
   async extractCells(root: Document = document): Promise<CodeCell[]> {
-    const bridgeCells = await this.requestFromPage();
-    if (bridgeCells) {
-      this.lastSource = 'bridge';
-      const resolved = this.resolveElements(bridgeCells, root);
-      this.log(`Extracted ${resolved.length} code cells via MAIN-world bridge`);
+    const bridgeResult = await this.requestFromPage();
+    if (bridgeResult) {
+      this.lastSource = bridgeResult.source;
+      const resolved = this.resolveElements(bridgeResult.cells, root);
+      this.log(
+        `Extracted ${resolved.length} code cells via MAIN-world bridge (${bridgeResult.source})`
+      );
       return resolved;
     }
 
@@ -115,7 +120,7 @@ export class KaggleDomParser {
    * window.postMessage. Resolves null on timeout so the caller can fall
    * back to DOM scraping; always removes its listener either way.
    */
-  private requestFromPage(): Promise<PageExtractedCell[] | null> {
+  private requestFromPage(): Promise<{ cells: PageExtractedCell[]; source: 'model' | 'dom' } | null> {
     return new Promise((resolve) => {
       const requestId = crypto.randomUUID();
       let settled = false;
@@ -133,7 +138,14 @@ export class KaggleDomParser {
 
         settled = true;
         cleanup();
-        resolve(data.cells as PageExtractedCell[]);
+        // A stale-cached pageExtractor.js predating the `source` field
+        // omits it entirely — treat that as 'dom' (merge-only), never as
+        // the authoritative 'model' path, per this plan's additive-
+        // protocol constraint.
+        resolve({
+          cells: data.cells as PageExtractedCell[],
+          source: data.source === 'model' ? 'model' : 'dom',
+        });
       };
 
       window.addEventListener('message', handleMessage);

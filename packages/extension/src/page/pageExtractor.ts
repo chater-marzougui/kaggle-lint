@@ -153,8 +153,12 @@ function extractAllCellsViaDom(): PageExtractedCell[] {
   return results;
 }
 
-function extractAllCells(): PageExtractedCell[] {
-  return extractViaJupyterModel() ?? extractAllCellsViaDom();
+function extractAllCells(): { cells: PageExtractedCell[]; source: 'model' | 'dom' } {
+  const modelCells = extractViaJupyterModel();
+  if (modelCells) {
+    return { cells: modelCells, source: 'model' };
+  }
+  return { cells: extractAllCellsViaDom(), source: 'dom' };
 }
 
 /**
@@ -237,10 +241,12 @@ function handleMessage(event: MessageEvent): void {
   }
 
   if (data.type === EXTRACT_REQUEST) {
+    const { cells, source } = extractAllCells();
     const response: ExtractResponseMessage = {
       type: EXTRACT_RESPONSE,
       requestId: data.requestId,
-      cells: extractAllCells(),
+      cells,
+      source,
     };
     window.postMessage(response, '*');
     return;

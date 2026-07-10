@@ -23,6 +23,10 @@ export interface ExtractResponseMessage {
   type: typeof EXTRACT_RESPONSE;
   requestId: string;
   cells: PageExtractedCell[];
+  // Optional so a stale-cached pageExtractor.js predating this field still
+  // produces a valid message — the consumer (KaggleDomParser) treats a
+  // missing source as the more conservative 'dom' (merge-only) path.
+  source?: 'model' | 'dom';
 }
 
 export const SCROLL_TO_CELL_LINE_REQUEST = 'KAGGLE_LINT_SCROLL_TO_CELL_LINE_REQUEST' as const;
