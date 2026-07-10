@@ -1,6 +1,6 @@
 # Architecture
 
-How kaggle-lint is structured today (v2.0.0, post TypeScript/React migration). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
+How kaggle-lint is structured today (v2.0.0, post TypeScript/React migration, and post an unplanned "lint-engine-consolidation" project that landed 2026-07-10 between Milestone 3 and Milestone 4 — see the note at the end of this file). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
 
 ## Monorepo layout
 
@@ -13,7 +13,7 @@ core  →  ui-components  →  extension
 ```
 kaggle-lint/
 ├── packages/
-│   ├── core/            @kaggle-lint/core          — lint engines + rules (pure TS, no DOM)
+│   ├── core/            @kaggle-lint/core          — shared notebook/lint logic (pure TS, no DOM)
 │   ├── ui-components/   @kaggle-lint/ui-components — React overlay UI
 │   └── extension/       @kaggle-lint/extension     — Chrome MV3 extension (webpack)
 ├── old-linter/          original vanilla-JS extension (reference + still a build input, see below)
@@ -24,37 +24,28 @@ kaggle-lint/
 
 ## packages/core
 
-Pure TypeScript, no DOM dependencies, tested with Jest (ts-jest, node env).
+Pure TypeScript, no DOM dependencies, tested with Jest (ts-jest, node env). **The handmade rule engine described in earlier versions of this document (`engines/LintEngine.ts`, `rules/` — nine regex/line-based rule classes, `BaseRule`, a rule registry) was deleted entirely** by the lint-engine-consolidation project (2026-07-10) — it duplicated what real Python tooling does better and required touching three files per rule (finding F14, now moot: the subsystem it described no longer exists). There is no "built-in"/handmade engine anymore.
 
-### Two lint engines, swapped at runtime (never composed)
+### Shared notebook logic
 
-**`engines/LintEngine.ts`** — the "handmade"/built-in engine.
-- Constructed with an array of `LintRule` instances (default: `DEFAULT_RULES` from `rules/index.ts`).
-- `lintNotebook(cells)` walks cells in order, accumulating a cross-cell `LintContext` (`definedNames`) so a variable defined in cell 1 is known in cell 3.
-- Only rules named in `CONTEXT_AWARE_RULES` (currently just `undefinedVariables`) consume that context. Context extraction reaches into the rule via `as any` (`resetContext`, `extractDefinedNamesPublic`) — untyped private API.
+- `notebook/buildNotebookSource.ts` — concatenates a notebook's cells into ONE Python source string for a single whole-notebook lint pass (the "nbqa technique"): magic commands (`%foo`) and shell escapes (`!foo`) are blanked in place (preserving line counts), with a bracket/quote/comment-aware scan so a real continuation line (e.g. old-style `%`-format string wrapping, or a `!=` comparison split across lines) is never mistaken for a magic line. Also exports `mapLineToCell()` to map a diagnostic's global line back to `(cellIndex, cellLine)`.
+- `notebook/severityMapping.ts` — `classifySeverity()` (F-codes and syntax-error codes `E999`/`invalid-syntax` → error, else → warning — neither engine's real API exposes severity natively) and `mapDiagnostics()` (applies the offset-mapping above plus severity/rule/code tagging).
+- `notebook/lintWithSyntaxIsolation.ts` — real notebooks routinely contain cells that were never meant to run; a genuine Python SyntaxError in any one cell would otherwise make flake8/ruff bail on the WHOLE concatenated file, hiding every other cell's findings. This function runs the whole-notebook pass first (fast path, correct cross-cell scoping); if the result is ONLY syntax-error diagnostics, it excludes the implicated cell(s) (keeping their syntax-error finding, correctly cell-mapped) and retries on the remaining cells — bounded by `cells.length + 1` attempts. Engine-agnostic: both runtimes inject their own single-pass call and their own "is this result syntax-error-only" predicate.
+- `engines/flake8Shim.ts` — `PYTHON_SHIM`, the Python source run once inside Pyodide. Calls flake8's REAL `Application`/`StyleGuide`/`BaseFormatter` API (not raw pyflakes, and not `flake8.api.legacy.get_style_guide()` — that convenience wrapper cannot capture structured results) once per lint against the one whole-notebook source string. This file only owns the pure Python string; the Pyodide-loading glue lives in the extension package.
 
-**`engines/Flake8Engine.ts`** — Pyodide-based engine.
-- Loads Pyodide (Python compiled to WASM), installs flake8 via `micropip.install('flake8')` (network → PyPI at runtime; wheels are **not** bundled), then runs a large embedded Python shim string that wraps pyflakes with its own notebook-context tracking (a `_notebook_context` set global in the Python runtime — a parallel reimplementation of LintEngine's cross-cell logic).
-- Resolves Pyodide assets via `chrome.runtime.getURL('pyodide/')` when in an extension, else jsDelivr CDN.
-- Loads `pyodide.js` by appending a `<script>` tag — which executes in the page's MAIN world, while the engine reads `window.loadPyodide` from the content script's isolated world. **This cannot work inside the extension** (review finding F1).
-
-Both engines expose the same shape: `lint(code, offset)`, `lintNotebook(cells)`, `getStats(errors)` — but there is no shared interface type; each redeclares `NotebookCell`/`NotebookError`/`ErrorStats` locally.
-
-### Rules
-
-`rules/` — one class per rule, each extending `BaseRule` (`run(code, cellOffset, context?) → LintError[] | LintResult`). Nine rules: undefinedVariables, capitalizationTypos, duplicateFunctions, emptyCells, importIssues, indentationErrors, missingReturn, redefinedVariables, unclosedBrackets. All are regex/line-based analyzers (no real Python parsing).
+The ruff engine (`@astral-sh/ruff-wasm-web`, no Python/Pyodide involved at all) lives entirely in the extension package (`packages/extension/src/offscreen/ruffRuntime.ts`) — nothing ruff-specific lives in `packages/core`.
 
 ### Pyodide assets
 
-`src/pyodide/` holds the Pyodide 0.24.1 runtime (`pyodide.js`, `pyodide.asm.wasm`, `python_stdlib.zip`, micropip wheel — ~19 MB total). The core `build` script copies them to `dist/pyodide`, and the extension's webpack copies them from there into the extension bundle. **Flake8's own wheels are not among them** — flake8 install requires network.
+`src/pyodide/` holds the Pyodide 0.24.1 runtime (`pyodide.js`, `pyodide.asm.wasm`, `python_stdlib.zip`, micropip wheel — ~19 MB total) **plus bundled flake8/pyflakes/pycodestyle/mccabe wheels** (`src/pyodide/wheels/`, added in Milestone 3 — F9 is resolved, install is from these local `chrome.runtime.getURL()` paths only, never PyPI at runtime). The core `build` script copies everything to `dist/pyodide`, and the extension's webpack copies them from there into the extension bundle.
 
 ## packages/ui-components
 
-React 18 components: `Overlay` (draggable panel, minimize, refresh, stats), `ErrorList`, `ErrorItem`. Notable properties:
+React 18 components: `Overlay` (draggable panel, minimize, refresh, stats), `ErrorList` (sorts by severity then cell position before rendering), `ErrorItem`. Notable properties:
 
-- Types in `src/types/index.ts` **duplicate** core's `LintError`/`Severity` (comment claims circular-dependency avoidance; no cycle actually exists — ui-components already depends on core in package.json).
-- `Overlay.tsx` mixes React state with direct DOM manipulation (minimize animation, close button set `style.display` directly) — a verbatim port of the old vanilla overlay.
-- Build is plain `tsc` — `Overlay.css` is imported by the component but never copied to `dist/`, so the published package shape (`main: dist/index.js`) is broken for standalone consumption. It only works because the extension's webpack aliases `@kaggle-lint/ui-components` to `src/`.
+- Types in `src/types/index.ts` **still duplicate** core's `LintError`/`Severity` (F15, still open — comment claims circular-dependency avoidance; no cycle actually exists, ui-components already depends on core in package.json). The `code?: string` field that was missing (part of F15's drift) was added back in the lint-engine-consolidation project so the overlay could display violation codes, but the duplication itself is unresolved.
+- `Overlay.tsx` mixes React state with direct DOM manipulation (minimize animation, close button set `style.display` directly) — a verbatim port of the old vanilla overlay. Unchanged by the consolidation project (F11's full fix is still Milestone 6, Task 1).
+- Build is plain `tsc` — `Overlay.css` is imported by the component but never copied to `dist/`, so the published package shape (`main: dist/index.js`) is broken for standalone consumption. It only works because the extension's webpack aliases `@kaggle-lint/ui-components` to `src/`. Unchanged (F23, still Milestone 4, Task 6).
 
 ## packages/extension
 
@@ -65,52 +56,69 @@ Chrome Manifest V3 extension, bundled by webpack with two entries:
 ```
 ┌─ Kaggle notebook page (kaggle.com/code/*/edit + jupyter-proxy iframe) ─┐
 │                                                                        │
-│  MAIN world (page JS, CodeMirror 6 instances)                          │
-│    ⚠ nothing from this extension runs here (old-linter had             │
-│      pageInjection.js for this; the migration dropped it)              │
+│  MAIN world (page JS, CodeMirror 6 instances, JupyterLab app)          │
+│    page/pageExtractor.ts — MAIN-world script added in Milestone 2,     │
+│    reads cell source directly from Kaggle's real JupyterLab            │
+│    Application instance (window.jupyterapp), immune to scroll/         │
+│    virtualization; falls back to DOM scraping where unreachable        │
 │                                                                        │
 │  ISOLATED world (content script: content.js)                           │
 │    ContentApp (React) ── mounts #kaggle-linter-root overlay            │
-│    ├─ KaggleDomParser  — scrape .jp-Cell/.cm-editor DOM                │
-│    ├─ CodeMirrorManager — cell store (written, never read = dead)      │
-│    ├─ LintEngine (handmade) or Flake8Engine per settings               │
+│    ├─ KaggleDomParser — bridges to pageExtractor.ts, DOM-scrape        │
+│    │   fallback (.jp-Cell/.cm-editor)                                  │
+│    ├─ CodeMirrorManager — cell store, actively read (getAllCells())   │
+│    │   so lint survives cells Kaggle has unloaded from the DOM         │
+│    ├─ EngineClient — chrome.runtime messaging to whichever engine     │
+│    │   (flake8 or ruff) settings.linterEngine names                    │
 │    └─ <Overlay/> from ui-components                                    │
 └────────────────────────────────────────────────────────────────────────┘
         ▲ chrome.runtime.onMessage (runLinter / toggleOverlay / settingsChanged)
         │ chrome.storage.sync (linterSettings)
-┌─ Popup (popup.html/popup.js) ─┐
-│  PopupApp (React): engine     │      (no background service worker exists)
-│  radio, rule toggles, actions │
-└───────────────────────────────┘
+┌─ Popup (popup.html/popup.js) ─┐   ┌─ Background service worker ─┐   ┌─ Offscreen document ─┐
+│  PopupApp (React): engine     │   │  Relays ENGINE_LINT_NOTEBOOK/│   │  PyodideRuntime      │
+│  radio (flake8/ruff),         │──►│  ENGINE_STATUS to the        │──►│  (flake8, via        │
+│  per-engine ignore-codes      │   │  offscreen document via a    │   │  Pyodide) and        │
+│  input, actions                │   │  wrapped ENGINE_OFFSCREEN_   │   │  RuffRuntime (ruff,  │
+└───────────────────────────────┘   │  REQUEST envelope; owns the  │   │  via WASM, no Python)│
+                                     │  offscreen document's        │   └───────────────────────┘
+                                     │  create/reuse lifecycle       │
+                                     └───────────────────────────────┘
 ```
+
+The background service worker + offscreen document (added in Milestone 3) exist because content scripts inherit the host page's CSP for WASM instantiation — Kaggle's CSP doesn't grant `wasm-unsafe-eval` — so both engines must run in an extension-owned page instead.
 
 ### Content script flow (`content/ContentApp.tsx`)
 
-1. On mount: detect theme, load `linterSettings` from `chrome.storage.sync` (async, unawaited), schedule first lint after 1 s.
-2. `runLinter()`: `KaggleDomParser.extractCells()` → `CodeMirrorManager.syncCells()` (result unused) → pick engine by `settings.linterEngine` → `lintNotebook()` → `setErrors()` → `<Overlay/>` renders them.
-3. Re-lint triggers: Ctrl+Shift+L, popup "Re-lint Now" message, settings-changed message. There is **no** MutationObserver — despite README's "real-time feedback" claim, edits do not trigger linting.
-4. The mount effect depends on `runLinter`, whose useCallback identity changes every time `isLinting` or settings flip → the effect re-schedules a lint each time → **infinite re-lint loop** (finding F2).
+1. On mount: detect theme, load `linterSettings` from `chrome.storage.sync`, schedule first lint after 1 s plus a one-time catch-up lint at 4 s (Kaggle's cell content sometimes finishes loading after the first pass).
+2. `runLinter()`: `KaggleDomParser.extractCells()` → merge into `CodeMirrorManager`'s store → lint from the store (survives cells Kaggle has unloaded), enriched with live element references → `EngineClient.lintNotebook(settings.linterEngine, cells, ignoreCodes)` → `setErrors()` → `<Overlay/>` renders them, sorted by severity then cell position.
+3. Re-lint triggers: Ctrl+Shift+L, popup "Re-lint Now"/settings-changed messages, and a debounced `MutationObserver` on `.cm-content` scoped to whichever cell currently has focus (added in Milestone 2 — the "no real-time linting" gap, finding F8, is resolved).
+4. The `runLinterRef` indirection pattern (a ref holding the latest `runLinter` closure, read by effects instead of depended on directly) means no effect lists `runLinter` in its dependency array — the infinite re-lint loop (finding F2) is resolved since Milestone 1.
 
-### Code extraction (`utils/KaggleDomParser.ts`)
+### Code extraction (`utils/KaggleDomParser.ts`, `page/pageExtractor.ts`)
 
-Two strategies: (1) CodeMirror 6 API via `element.cmView.state.doc` — dead code in the extension because isolated worlds can't see page-JS expando properties; (2) DOM scrape of `.cm-line` textContent — the only path that actually runs, and it only sees cells currently rendered by Kaggle's virtualized notebook (off-screen cells are missing or force-rendered one at a time via `scrollIntoView`). `scrollToLine()` is a `console.log` placeholder.
+The CodeMirror-6-API path this document originally described (`element.cmView.state.doc`) was dead code — isolated worlds can't see page-JS expando properties. The real primary path, discovered live during Milestone 2, is `page/pageExtractor.ts`: a MAIN-world content script that reads cell source directly off Kaggle's real JupyterLab `Application` instance (`window.jupyterapp.shell.currentWidget.content.widgets[i].model.sharedModel.getSource()`) — full text, immune to scroll position or virtualization — and relays it to the isolated-world content script via `window.postMessage`. `KaggleDomParser` falls back to scraping `.cm-line` DOM text (lossy on virtualized/off-screen cells) only where `jupyterapp` isn't reachable.
 
 ### Webpack (`webpack.config.js`)
 
 - Aliases `@kaggle-lint/core` and `@kaggle-lint/ui-components` to their **`src/`** (not `dist/`), so TS compiles from source; yet the CopyPlugin pulls `pyodide/` from `core/dist/` — core must still be built first.
-- Copies `popup.css` from **`old-linter/src/popup/popup.css`** — a live build dependency on the legacy folder.
-- `manifest.json`, icons, and `Overlay.css` (→ `content.css`) are also copied.
+- Copies `popup.css` from **`old-linter/src/popup/popup.css`** — still a live build dependency on the legacy folder (finding F18, still open, Milestone 4).
+- Two extra entries beyond `content`/`popup` since Milestone 3: `background/index.ts` and `offscreen/index.ts`.
+- `manifest.json`, icons, `Overlay.css` (→ `content.css`), the Pyodide runtime + bundled flake8 wheels, and (since the lint-engine-consolidation project) `ruff_wasm_bg.wasm` (resolved via `require.resolve('@astral-sh/ruff-wasm-web/package.json')`, not a hardcoded path) are also copied.
 
 ### Manifest (`public/manifest.json`)
 
-MV3. Content script matches `https://www.kaggle.com/code/*/*/edit`, the Kaggle jupyter-proxy domain, and — nonsensically — the Pyodide CDN URL. Permissions: `activeTab`, `storage`, `scripting` (unused). `web_accessible_resources: ["*"]` for `<all_urls>` (far too broad). No background service worker, no `options_page`.
+MV3. Content script matches `https://www.kaggle.com/code/*/*/edit`, the Kaggle jupyter-proxy domain, and — nonsensically — the Pyodide CDN URL (finding F17, still open). Permissions: `activeTab`, `storage`, `scripting` (unused), and (since Milestone 3) `offscreen`. `web_accessible_resources: ["*"]` for `<all_urls>` (far too broad, F17). `background.service_worker` and `content_security_policy.extension_pages` were added in Milestone 3 — there **is** a background service worker now (see the runtime-contexts diagram above); the earlier "no background service worker" claim in this document was true pre-M3 and is no longer accurate.
 
 ## CI/CD
 
-- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`, but **no package defines a `lint` script**, so it checks nothing except the separate `format:check` step), type-check, test (only core has tests; codecov upload points at an lcov file that plain `jest` never generates), build (uploads extension dist artifact).
-- **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with hardcoded "What's New" notes.
+- **ci.yml**: four jobs on push/PR — lint (`npm run lint` = `turbo run lint`, but **no package defines a `lint` script**, so it checks nothing except the separate `format:check` step), type-check, test (core and now the lint-engine-consolidation project's additional core test suites; extension still has no test runner), build (uploads extension dist artifact). F4/F5 (lint no-op, dead coverage upload) are both still open, Milestone 5.
+- **release.yml**: on `v*.*.*` tags — build, zip `packages/extension/dist`, GitHub release with hardcoded "What's New" notes (F28, still open, Milestone 6).
 
 ## Settings & versioning
 
-- Settings shape `{ linterEngine: 'handmade'|'flake8', rules: Record<string, boolean> }` persisted in `chrome.storage.sync`; defaults duplicated in `ContentApp.tsx` and `PopupApp.tsx`, rule display metadata duplicated again in `PopupApp.tsx`'s `RULES` array, and the actual rule classes registered in a third place (`ContentApp`'s `RULE_MAP`) plus core's `DEFAULT_RULES`.
-- Version "2.0.0" is hardcoded independently in root package.json, three package.jsons, manifest.json, PopupApp's footer, and webpack's `EXTENSION_VERSION` default.
+- Settings shape is now `{ linterEngine: 'flake8' | 'ruff', flake8IgnoreCodes: string, ruffIgnoreCodes: string }` persisted in `chrome.storage.sync`'s `linterSettings` key — the old `{ linterEngine: 'handmade'|'flake8', rules: Record<string, boolean> }` shape (and its triple duplication of rule metadata, finding F14) no longer exists; there is no settings migration for users with old stored values (a deliberate decision — see `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`). Defaults are still independently duplicated between `ContentApp.tsx` and `PopupApp.tsx` (two copies now, not three — no third rule-registry copy exists anymore since there are no rules).
+- Version "2.0.0" is still hardcoded independently in root package.json, three package.jsons, manifest.json, PopupApp's footer, and webpack's `EXTENSION_VERSION` default (finding F21, still open, Milestone 4).
+
+## Note: the lint-engine-consolidation project (2026-07-10)
+
+Between Milestone 3 (merged) and Milestone 4 (not yet started), an unplanned project — not part of the original M1-M6 roadmap — deleted the handmade rule engine entirely, rewrote the flake8 engine to use flake8's real API on a whole-notebook single pass (replacing the old per-cell `ContextAwareChecker` hand-rolled cross-cell tracking), and added ruff as a second engine. Full spec: `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`; full implementation plan and execution ledger: `docs/superpowers/plans/2026-07-09-lint-engine-consolidation.md`. This document, `docs/next_plans/README.md`, `docs/next_plans/DEVELOPER_PROMPTS.md`, and the Milestone 4/5/6 plans were all updated 2026-07-10 to reflect this — see those files' own change notes for what specifically was rescoped or marked moot.

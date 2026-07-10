@@ -8,7 +8,7 @@
 
 **Tech Stack:** Jest, ts-jest, jsdom, GitHub Actions.
 
-**Fixes findings:** F4, F5, and the test-coverage half of F24. Depends on: Milestone 1 (registry exists); Task 4 needs Milestone 4 Task 6's per-package lint scripts (add them here if M4 hasn't landed).
+**Fixes findings:** F4, F5, and the test-coverage half of F24. Depends on: Milestone 1; Task 4 needs Milestone 4 Task 6's per-package lint scripts (add them here if M4 hasn't landed). **(2026-07-10 note: the "registry exists" dependency below is stale — the rule registry was deleted by an unplanned project between M3 and M4; see Task 1's inline note.)**
 
 ## Global Constraints
 
@@ -20,37 +20,23 @@
 
 ### Task 1: Per-rule test suites for the 8 untested rules
 
-**Files:**
-- Create: `packages/core/src/__tests__/rules/<RuleName>.test.ts` × 8 (capitalizationTypos, duplicateFunctions, emptyCells, importIssues, indentationErrors, missingReturn, redefinedVariables, unclosedBrackets)
-- Create: `packages/core/src/__tests__/helpers.ts` (`dedent`, `runRule(rule, code, context?)`)
-
-**Interfaces:**
-- Consumes: each rule class from `../rules`; `LintError` from `../types`.
-
-- [ ] **Step 1:** For each rule, write ≥ 4 cases first (red where a rule is genuinely broken): (a) one clear positive per behavior the popup description promises, (b) one clean-code negative, (c) one boundary (empty string / comment-only / string-literal containing the trigger token, e.g. `x = "import *"` must not flag), (d) line-number correctness with `cellOffset = 10`. Example shape (CapitalizationTypos):
-
-```ts
-const cases = [
-  { name: 'flags lowercase true', code: 'x = true', want: [{ line: 1, severity: 'warning', msgHas: 'True' }] },
-  { name: 'clean code', code: 'x = True', want: [] },
-  { name: 'inside string not flagged', code: 'x = "true"', want: [] },
-  { name: 'offset applied', code: 'x = true', offset: 10, want: [{ line: 11 }] },
-];
-```
-
-- [ ] **Step 2:** Run: `cd packages/core && npx jest rules -v`. **If a rule fails a reasonable case, the case is right and the rule is wrong** — fix the rule (root cause, minimal diff) in the same task and note it in the commit body. Expect the regex-based rules to have false-positive bugs (esp. importIssues/unclosedBrackets inside strings); fixing every conceivable case is out of scope — fix what your written cases catch, document known gaps as `it.skip` with a comment.
-- [ ] **Step 3: Commit per rule or in two batches** — `test(core): table-driven suite for <rule> (+ fixes)`
+> **MOOT 2026-07-10.** An unplanned "lint-engine-consolidation" project (between M3 and M4) deleted `packages/core/src/rules/` entirely — all 9 rule classes (including the 8 this task targets), `BaseRule`, and the registry are gone. There is nothing left to write per-rule tests for. **Skip this task.**
+>
+> What replaced it already has its own thorough Jest coverage, written by the consolidation project itself: `packages/core/src/__tests__/buildNotebookSource.test.ts` (magic/shell-line blanking, bracket/quote/comment-aware continuation detection), `packages/core/src/__tests__/severityMapping.test.ts` (severity classification, diagnostic mapping), `packages/core/src/__tests__/lintWithSyntaxIsolation.test.ts` (the syntax-error-isolation retry loop), `packages/core/src/__tests__/flake8Shim.test.ts` (Python shim string-inspection). If this milestone still wants a dedicated coverage-audit task, replace this one with: run `npx jest --coverage` in `packages/core`, read the actual line/branch coverage on those four files, and decide whether any gaps are worth closing — don't write new rule suites for deleted rules.
 
 ---
 
 ### Task 2: Engine and registry coverage
 
-**Files:**
-- Modify: `packages/core/src/__tests__/LintEngine.test.ts`
+> **RESCOPED 2026-07-10.** `packages/core/src/__tests__/LintEngine.test.ts` and the file it tested (`LintEngine.ts`) are both deleted. The specific behaviors this task wanted covered (cross-cell context accumulation, per-rule error isolation) don't exist in that form anymore — cross-cell scoping is now achieved via real Python/Rust semantics over one concatenated whole-notebook source (`buildNotebookSource.ts`, already tested), and per-cell error isolation is now `lintWithSyntaxIsolation.ts`'s syntax-error retry loop (already tested, 5 test cases covering termination/correctness). Before writing anything new, read those three test files and judge whether they already cover this task's intent. If a real gap remains (e.g. `mapDiagnostics`'s `engineName` tagging, or an end-to-end multi-engine scenario), write it against the current `packages/core/src/notebook/*` modules — do not target the deleted `LintEngine.test.ts` path.
 
-- [ ] **Step 1:** Add missing engine behaviors: `filterBySeverity` ordering, `groupByCell`/`groupByRule`, `getStats` counts, a rule that throws is isolated (engine returns other rules' errors — assert via a stub rule `{ name: 'boom', run() { throw new Error('x'); } }`), and cross-cell context accumulation across ≥ 3 cells.
-- [ ] **Step 2:** `cd packages/core && npx jest LintEngine -v` → green.
-- [ ] **Step 3: Commit** — `test(core): engine grouping, stats, error isolation, cross-cell context`
+**Files:**
+- Modify or extend: `packages/core/src/__tests__/{buildNotebookSource,severityMapping,lintWithSyntaxIsolation}.test.ts` as needed, not `LintEngine.test.ts` (deleted)
+
+- [ ] **Step 1:** Run `cd packages/core && npx jest --coverage -v` and read the actual coverage for `notebook/*`. Identify any genuine gap against this task's original intent (grouping/stats/error-isolation/cross-cell behaviors) that isn't already exercised.
+- [ ] **Step 2:** Write tests for any real gap found, following the existing files' table-driven style. If no real gap exists, note that in the commit body instead of writing tests for coverage's sake.
+- [ ] **Step 3:** `cd packages/core && npx jest -v` → green.
+- [ ] **Step 4: Commit** — `test(core): close notebook-pipeline coverage gaps` (or skip the commit if Step 1 found nothing to add)
 
 ---
 

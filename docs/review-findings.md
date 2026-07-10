@@ -135,6 +135,22 @@ Its `build` is plain `tsc`; `dist/` gets JS that still contains `import './Overl
 
 ---
 
+## Addendum (2026-07-10): findings obsoleted by the lint-engine-consolidation project
+
+An unplanned project — not part of the M1-M6 roadmap, landed between Milestone 3 and Milestone 4 — deleted the entire handmade rule engine (`rules/`, `LintEngine.ts`) and rewrote the flake8 engine. This section is appended, not edited into the findings above, to keep the original review's historical record intact (per the documented convention in `docs/next_plans/milestone-3-working-flake8/notes.md`). Full detail: `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`.
+
+The following findings are now **moot** — not fixed via their originally-planned milestone task, but obsoleted because the subsystem they described was deleted outright:
+
+- **F14** (rule metadata duplicated in three places) — moot. There are no rules and no rule metadata anymore.
+- **F16** (`NotebookCell`/`NotebookError`/`ErrorStats` triplicated across `LintEngine.ts`/`Flake8Engine.ts`) — moot. Both files are deleted; the real shared types now live in `packages/core/src/notebook/` and `packages/core/src/types/index.ts`, declared once.
+- **F19** (dead `emptyCells` branch in `LintEngine.lintCell`) — moot. `LintEngine.ts` is deleted.
+- **F20** (`as any` private-method coupling for cross-cell context in `LintEngine`) — moot. The whole cross-cell-context mechanism it described (hand-rolled `LintContext`/`resetContext`/`extractDefinedNamesPublic`) is gone, replaced by real Python/Rust scoping over one concatenated whole-notebook source (`packages/core/src/notebook/buildNotebookSource.ts`).
+- **F31** (no flake8 ignore-codes configuration UI) — resolved as a side effect, not deferred. The consolidation project shipped a per-engine ignore-codes UI (`PopupApp.tsx`'s "Ignore Codes" section) for both flake8 and ruff.
+
+**F15** (core types duplicated into ui-components) is still open and unaffected by the deletion — the duplicate (`packages/ui-components/src/types/index.ts`) still exists against the surviving `packages/core/src/types/index.ts`. Its `code?: string` gap specifically was patched during the consolidation project (the overlay needed to display violation codes), but the underlying duplication (Milestone 4, Task 4) remains.
+
+**F1's and F13's fix locations have moved again**: F1's `Flake8Engine.ts` (fixed in M3 by deletion) and M3's own replacement, `flake8Shim.ts`, was itself rewritten by the consolidation project to call flake8's real `Application`/`StyleGuide` API on one whole-notebook source instead of per-cell raw pyflakes — both are resolved-and-superseded, not open.
+
 ## Summary table
 
 | ID | Severity | Area | One-liner | Milestone |
@@ -152,15 +168,16 @@ Its `build` is plain `tsc`; `dist/` gets JS that still contains `import './Overl
 | F11 | P1 | UI | Close button desyncs DOM from React state | M1/M6 |
 | F12 | P1 | Popup | No sendMessage error handling; wrong page detection | M6 |
 | F13 | P1 | Flake8 | Busy-wait poll instead of awaiting loadPromise | M3 |
-| F14 | P2 | Duplication | Rule metadata in 3 places | M1 |
+| F14 | P2 | Duplication | Rule metadata in 3 places | ~~M1~~ **moot (2026-07-10) — rule system deleted** |
 | F15 | P2 | Duplication | Core types copy-pasted into ui-components | M4 |
-| F16 | P2 | Duplication | NotebookCell/ErrorStats/getStats duplicated across engines | M4 |
+| F16 | P2 | Duplication | NotebookCell/ErrorStats/getStats duplicated across engines | ~~M4~~ **moot (2026-07-10) — LintEngine.ts/Flake8Engine.ts deleted** |
 | F17 | P2 | Config | Manifest: CDN match, WAR `*`, unused `scripting` perm | M4 |
 | F18 | P2 | Build | webpack copies popup.css from old-linter | M4 |
-| F19 | P2 | Dead code | emptyCells branch identical to default | M4 |
-| F20 | P2 | Types | `as any` private-method coupling in LintEngine | M4 |
+| F19 | P2 | Dead code | emptyCells branch identical to default | ~~M4~~ **moot (2026-07-10) — LintEngine.ts deleted** |
+| F20 | P2 | Types | `as any` private-method coupling in LintEngine | ~~M4~~ **moot (2026-07-10) — LintEngine.ts deleted** |
 | F21 | P2 | Config | Version hardcoded in 7 files | M4 |
 | F22 | P2 | Config | Node/React-types version conflicts | M4 |
 | F23 | P2 | Build | ui-components dist unusable (CSS not emitted) | M4 |
 | F24 | P2 | Docs | README claims false test coverage, dead links | M6 |
-| F25–F31 | P3 | Various | Placeholders, console noise, hardcoded release notes, `any`s | M4/M6 |
+| F25–F30 | P3 | Various | Placeholders, console noise, hardcoded release notes, `any`s | M4/M6 |
+| F31 | P3 | UX | No flake8 ignore-codes config UI | ~~M6~~ **resolved (2026-07-10) — ignore-codes UI shipped for both engines** |

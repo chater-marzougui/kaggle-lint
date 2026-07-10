@@ -2,7 +2,7 @@
 
 Six milestones, ordered by dependency. Each folder contains a `plan.md` written for an agentic worker (Sonnet-class model) to expand and execute task-by-task using the superpowers workflow (`superpowers:executing-plans` or `superpowers:subagent-driven-development`).
 
-Every plan references finding IDs (F1–F31) from [../review-findings.md](../review-findings.md) — read that file and [../architecture.md](../architecture.md) before starting any milestone.
+Every plan references finding IDs (F1–F31) from [../review-findings.md](../review-findings.md) — read that file and [../architecture.md](../architecture.md) before starting any milestone. **Both were updated 2026-07-10** after an unplanned "lint-engine-consolidation" project (not part of this roadmap) landed between M3 and M4, deleting the handmade rule engine entirely and rewriting the flake8 engine — see the note at the end of `../architecture.md` and the addendum in `../review-findings.md`. **Milestone 4 Tasks 4–5 and Milestone 5 Task 1 target files/subsystems that no longer exist** — read their plan.md files' inline notes before expanding them with `superpowers:writing-plans`, don't execute them as originally written.
 
 **For the human driving execution:** [DEVELOPER_PROMPTS.md](DEVELOPER_PROMPTS.md) is the session playbook — which model/effort per session type, when to `/clear`, per-milestone batch maps, and the paste-ready P1/P2/P3 prompts.
 
@@ -13,8 +13,8 @@ Every plan references finding IDs (F1–F31) from [../review-findings.md](../rev
 | 1 | [milestone-1-stabilize-content-script](milestone-1-stabilize-content-script/plan.md) | Stop the infinite lint loop, fix settings race, single-source rule metadata, basic UI state sanity | F2, F6, F10, F11(close), F14, F26 | — |
 | 2 | [milestone-2-reliable-code-extraction](milestone-2-reliable-code-extraction/plan.md) | MAIN-world extraction bridge, virtualized-cell store, auto re-lint on edit | F3, F7, F8, F25 | M1 |
 | 3 | [milestone-3-working-flake8](milestone-3-working-flake8/plan.md) | Run Pyodide in an offscreen document, bundle flake8 wheels, message-based lint protocol | F1, F9, F13 | M1 (M2 recommended) |
-| 4 | [milestone-4-config-and-build-hygiene](milestone-4-config-and-build-hygiene/plan.md) | Manifest cleanup, cut old-linter build dependency, dedupe types, single-source version | F15–F23, F19, F20 | M1 |
-| 5 | [milestone-5-tests-and-ci](milestone-5-tests-and-ci/plan.md) | Real lint job, per-rule tests, extension test infra, working coverage | F4, F5, part of F24 | M1 (M4 for lint scripts) |
+| 4 | [milestone-4-config-and-build-hygiene](milestone-4-config-and-build-hygiene/plan.md) | Manifest cleanup, cut old-linter build dependency, dedupe types, single-source version | F15, F17–F23 (F16/F19/F20 now moot, see plan.md) | M1 |
+| 5 | [milestone-5-tests-and-ci](milestone-5-tests-and-ci/plan.md) | Real lint job, extension test infra, working coverage | F4, F5, part of F24 (Task 1's 8 rule suites now moot, see plan.md) | M1 (M4 for lint scripts) |
 | 6 | [milestone-6-ux-and-release](milestone-6-ux-and-release/plan.md) | React-pure overlay, popup robustness, honest README, old-linter removal, release | F11(full), F12, F24, F27–F31 | M1–M5 |
 
 ## Execution order

@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18, CSS transitions, Chrome extension APIs, GitHub Actions release workflow.
 
-**Fixes findings:** F11 (full), F12, F24, F25 (already gone in M2 — verify), F27, F28, F29, F30, F31 (documented decision). Depends on: Milestones 1–5.
+**Fixes findings:** F11 (full), F12, F24, F25 (already gone in M2 — verify), F27, F28, F29, F30. (F31 was resolved as a side effect of the 2026-07-10 lint-engine-consolidation project — it shipped a per-engine ignore-codes UI — no longer a Milestone 6 deferred item.) Depends on: Milestones 1–5.
 
 ## Global Constraints
 
@@ -25,7 +25,7 @@
 
 - [ ] **Step 1:** Replace the minimize/expand imperative block (`Overlay.tsx:135-176` — direct `style.width/right/bottom/opacity` writes and nested setTimeouts) with a `kaggle-lint-minimized` class toggled from the existing `isMinimized` state, and move all geometry/opacity/transition rules into `Overlay.css`.
 - [ ] **Step 2:** Convert dragging to state-lite React: keep the mousemove math but write position into a `useRef`-held style application on the root via `transform: translate(…)`; reset position on minimize so the panel docks bottom-right (current UX). Dragging must not re-render per mousemove (perf) — ref-based style writes inside the existing listeners are fine; the point is removing *stateful* UI (visibility, size, minimize) from imperative code, not banning refs.
-- [ ] **Step 3:** Type the error props: replace `onErrorClick?: (error: any)` and ContentApp's `errors: any[]` / `error: any` (F29) with the shared `NotebookError`-based types from core (M4 Task 4 exported them).
+- [ ] **Step 3:** Type the error props: replace `onErrorClick?: (error: any)` and ContentApp's `errors: any[]` / `error: any` (F29). **(2026-07-10 note: M4 Task 4 no longer exports a `NotebookError` type — that type never existed post-consolidation; M4 Task 4 was rescoped to just importing `LintError`/`Severity` from core instead of duplicating them.)** Use core's actual `LintError` type plus the `cellIndex`/`cellLine`/`element` fields already present on `OverlayProps.errors[]`'s inline type (read `packages/ui-components/src/types/index.ts` for the current exact shape before writing this).
 - [ ] **Step 4: Verify** — build; manual: minimize/expand animates, drag works, click-to-scroll works.
 - [ ] **Step 5: Commit** — `refactor(ui): overlay state and animation via React + CSS; typed error props`
 
@@ -57,11 +57,13 @@
 
 ### Task 4: Honest documentation (F24)
 
+> **2026-07-10 note:** `README.md`, `CLAUDE.md`, `docs/architecture.md`, and `docs/review-findings.md` were all already updated once — first during the lint-engine-consolidation project (README/CLAUDE.md, describing the two-engine flake8+ruff architecture) and then again on 2026-07-10 specifically to refresh `docs/architecture.md` in full and add an addendum to `docs/review-findings.md` (both previously deferred per the M3 precedent, but the drift became too large to keep deferring once the consolidation project landed). Step 1 and Step 2 below are likely much smaller now than originally scoped — read the current state of all four files first and only fix what M1-M5's actual changes still leave stale, don't redo work already done.
+
 **Files:**
 - Modify: `README.md`; Verify: `docs/architecture.md` still accurate after M1–M5 (update the flaw callouts that are now fixed)
 
-- [ ] **Step 1:** README: remove links to the deleted `EXTENSION_USAGE.md`/`IMPLEMENTATION_SUMMARY.md`/`MIGRATION.md`; point "Additional Documentation" at `docs/`. Replace the false "21 unit tests / all rules tested" with the real numbers from M5 (count them). Update the standalone-demo section per Task 5's deletion. Fix Node version per M4. Describe the offscreen-document Flake8 architecture in the Architecture section (replace the in-page description).
-- [ ] **Step 2:** Update `docs/architecture.md`: rewrite the sections that documented F1/F2/F3-era behavior (isolated-world diagram, "dead code" callouts) to describe the fixed system; keep `docs/review-findings.md` untouched as the historical record but add a one-line "resolved in M<n>" annotation per finding in its summary table.
+- [ ] **Step 1:** README: remove links to the deleted `EXTENSION_USAGE.md`/`IMPLEMENTATION_SUMMARY.md`/`MIGRATION.md`; point "Additional Documentation" at `docs/`. Replace the false "21 unit tests / all rules tested" with the real numbers from M5 (count them). Update the standalone-demo section per Task 5's deletion. Fix Node version per M4. The "Architecture" section already describes the two-engine (flake8 + ruff) offscreen-document design as of the consolidation project — just verify it against whatever M1-M5 changed, don't rewrite it from scratch.
+- [ ] **Step 2:** Update `docs/architecture.md` for whatever M1-M5 changed (it was refreshed 2026-07-10 for everything through the consolidation project, so this should be a small diff, not a rewrite) — in particular the CI/CD section (F4/F5 fixed by M5), the Manifest section (F17 fixed by M4), the ui-components section (F15/F23 fixed by M4/M6 Task 1), and the version-scattering note (F21 fixed by M4). Keep `docs/review-findings.md` untouched as the historical record — the 2026-07-10 addendum already establishes the pattern of appending rather than editing; add a similar "resolved in M<n>" note for whichever findings M1-M5 actually closed, in the same style.
 - [ ] **Step 3: Commit** — `docs: truthful README and refreshed architecture doc`
 
 ---
@@ -93,6 +95,6 @@
 
 ## Deferred (documented, not planned)
 
-- **F31 / Flake8 configuration UI** (ignore-codes list, severity mapping) — add only if users ask.
+- ~~**F31 / Flake8 configuration UI**~~ — resolved 2026-07-10 by the lint-engine-consolidation project (per-engine ignore-codes UI shipped for both flake8 and ruff). Removed from this list.
 - **Standalone demo page** replacement after old-linter deletion.
 - **Chrome Web Store publication** (listing assets, privacy policy) — separate effort with user involvement; the zip release covers sideloading.

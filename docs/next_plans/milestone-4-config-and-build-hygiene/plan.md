@@ -8,7 +8,7 @@
 
 **Tech Stack:** Chrome MV3 manifest, webpack, npm workspaces, TypeScript.
 
-**Fixes findings:** F15, F16, F17, F18, F19, F20, F21, F22, F23. Depends on: Milestone 1.
+**Fixes findings:** F15, F17, F18, F21, F22, F23. (F16, F19, F20 were made moot 2026-07-10 by an unplanned project that deleted the files they described — see Tasks 4-5's inline notes.) Depends on: Milestone 1.
 
 ## Global Constraints
 
@@ -59,33 +59,25 @@
 
 ### Task 4: Deduplicate types (F15, F16)
 
+> **RESCOPED 2026-07-10.** An unplanned "lint-engine-consolidation" project (between M3 and M4) deleted `packages/core/src/engines/LintEngine.ts` and `packages/core/src/engines/Flake8Engine.ts` entirely — F16's target files and the `NotebookCell`/`NotebookError`/`ErrorStats` triplication it names no longer exist (**F16 is moot**; there is nothing left to dedupe there). The real shared shapes now live in `packages/core/src/notebook/buildNotebookSource.ts` (`NotebookCellInput`, `CellOffset`) and `packages/core/src/notebook/severityMapping.ts` (`RawDiagnostic`, and `mapDiagnostics`'s return type `LintError & {cellIndex, cellLine}`), both declared once, not duplicated. **F15 is still real and still needs fixing**: `packages/ui-components/src/types/index.ts` still redeclares `LintError`/`Severity` separately from core's. The task below is rewritten to just that.
+
 **Files:**
-- Modify: `packages/core/src/types/index.ts` (add shared notebook types), `packages/core/src/engines/LintEngine.ts`, `packages/ui-components/src/types/index.ts`, `packages/ui-components/src/index.ts`
-- Note: `Flake8Engine.ts`'s copies are deleted by Milestone 3 Task 4; if M3 hasn't run yet, migrate its local types too.
+- Modify: `packages/ui-components/src/types/index.ts` (delete the duplicated `Severity`/`LintError` interfaces, import from `@kaggle-lint/core` instead), `packages/ui-components/src/index.ts` if it re-exports these types
 
 **Interfaces:**
-- Produces (in `@kaggle-lint/core` types): `NotebookCell { code: string; element?: unknown; cellIndex: number }`, `NotebookError extends LintError { cellIndex: number; element?: unknown; cellLine: number }`, `ErrorStats { total: number; byRule: Record<string, number>; bySeverity: Record<Severity, number> }`. Engines and UI import these; local redeclarations deleted.
+- Consumes: `LintError`, `Severity` from `@kaggle-lint/core` (already exported).
+- Note: `OverlayProps.errors[]`'s inline type also duplicates `LintError`'s shape (plus `cellIndex`/`cellLine`/`element`) — decide during this task whether to also collapse that into `Array<LintError & { cellIndex?: number; cellLine?: number; element?: Element | null }>` or leave it as its own inline type; either is acceptable, note the choice in the commit body.
 
-- [ ] **Step 1:** Move the three interfaces into core's `types/index.ts`; delete the private copies in `LintEngine.ts:10-36` (and `Flake8Engine.ts:23-39` if still present); fix imports.
-- [ ] **Step 2:** In ui-components, delete the duplicated `Severity`/`LintError` (`types/index.ts:6-16`) and `import type { Severity, LintError, NotebookError } from '@kaggle-lint/core';` — `OverlayProps.errors` becomes `Array<Partial<NotebookError> & LintError>` matching actual usage (elements optional). Re-export for consumers.
+- [ ] **Step 1:** Read the current `packages/ui-components/src/types/index.ts` and `packages/core/src/types/index.ts` in full before touching anything — verify the exact current shape of both `LintError` interfaces (they may have drifted further since 2026-07-10; the consolidation project added a `code?: string` field to both as a stopgap, but the duplication itself was left for this task).
+- [ ] **Step 2:** Delete `ui-components`'s local `Severity`/`LintError` declarations; `import type { Severity, LintError } from '@kaggle-lint/core';` instead. Fix any resulting type errors in `OverlayProps`, `ErrorListProps`, `ErrorItemProps`.
 - [ ] **Step 3: Verify** — `npm run type-check && npm run build && npm test` green. `grep -rn "duplicated from core" packages/ui-components/src` → no matches.
-- [ ] **Step 4: Commit** — `refactor: shared notebook/error types live in core only`
+- [ ] **Step 4: Commit** — `refactor: ui-components imports LintError/Severity from core instead of duplicating`
 
 ---
 
 ### Task 5: LintEngine dead branch + typed context hooks (F19, F20)
 
-**Files:**
-- Modify: `packages/core/src/types/index.ts` (extend `LintRule`), `packages/core/src/engines/LintEngine.ts`, `packages/core/src/rules/UndefinedVariablesRule.ts`
-- Test: extend `packages/core/src/__tests__/LintEngine.test.ts`
-
-**Interfaces:**
-- Produces: `LintRule` gains optional members `resetContext?(): void;` and `extractDefinedNames?(code: string): Set<string>;`. `UndefinedVariablesRule` implements them (rename `extractDefinedNamesPublic` → `extractDefinedNames`).
-
-- [ ] **Step 1: Failing test:** cross-cell case through the public API — cell 0 `a = 1`, cell 1 `print(a)` → no `undefinedVariables` error; cell 1 `print(b)` → error. (This pins behavior before refactoring.) Run: `cd packages/core && npx jest LintEngine -v`.
-- [ ] **Step 2:** Delete the `emptyCells` branch in `LintEngine.lintCell` (`LintEngine.ts:90-100` — identical to the default branch). Replace both `(rule as any)` call sites (`:151-161`, `:187-201`) with the typed optional methods. Remove the now-unneeded `CONTEXT_AWARE_RULES` gating for reset (call `resetContext?.()` on every rule — a no-op where undefined).
-- [ ] **Step 3:** Tests pass: `cd packages/core && npx jest -v`.
-- [ ] **Step 4: Commit** — `refactor(core): typed context hooks on LintRule; remove dead emptyCells branch`
+> **MOOT 2026-07-10.** `packages/core/src/engines/LintEngine.ts`, `packages/core/src/rules/UndefinedVariablesRule.ts`, and `packages/core/src/__tests__/LintEngine.test.ts` were all deleted by the unplanned "lint-engine-consolidation" project — every file this task names is gone. F19 (the dead `emptyCells` branch) and F20 (`as any` context-plumbing coupling) both described code inside `LintEngine.ts`, which no longer exists — they are moot, not fixed-as-planned. **Skip this task entirely.** Do not attempt to execute it against current source; there is nothing left to refactor. If you land here via `superpowers:writing-plans` expansion, drop this task from the generated plan and note the omission in the milestone's `notes.md`.
 
 ---
 
