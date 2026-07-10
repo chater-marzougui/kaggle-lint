@@ -62,9 +62,9 @@ module.exports = {
           from: '../ui-components/src/Overlay/Overlay.css', 
           to: 'content.css' 
         },
-        // Copy popup CSS from old-linter
+        // Copy popup CSS (owned by this package, not old-linter)
         {
-          from: '../../old-linter/src/popup/popup.css',
+          from: 'src/popup/popup.css',
           to: 'popup.css'
         },
         // Copy pyodide files from core package
