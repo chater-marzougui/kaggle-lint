@@ -269,7 +269,7 @@ export const PopupApp: React.FC = () => {
       </div>
 
       <div className="footer">
-        <span className="footer-version">v2.0.0</span>
+        <span className="footer-version">v{process.env.EXTENSION_VERSION}</span>
         <a
           href="https://github.com/chater-marzougui/kaggle-lint"
           target="_blank"

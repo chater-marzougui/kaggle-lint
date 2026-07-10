@@ -2,6 +2,7 @@ const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const { version } = require('../../package.json');
 
 const ruffWasmDir = path.dirname(require.resolve('@astral-sh/ruff-wasm-web/package.json'));
 
@@ -51,11 +52,19 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
       'process.env.DEBUG': JSON.stringify(process.env.DEBUG || 'false'),
-      'process.env.EXTENSION_VERSION': JSON.stringify(process.env.EXTENSION_VERSION || '2.0.0'),
+      'process.env.EXTENSION_VERSION': JSON.stringify(process.env.EXTENSION_VERSION || version),
     }),
     new CopyPlugin({
       patterns: [
-        { from: 'public/manifest.json', to: 'manifest.json' },
+        {
+          from: 'public/manifest.json',
+          to: 'manifest.json',
+          transform(content) {
+            const manifest = JSON.parse(content.toString());
+            manifest.version = process.env.EXTENSION_VERSION || version;
+            return JSON.stringify(manifest, null, 2);
+          },
+        },
         { from: 'public/icons', to: 'icons' },
         // Copy CSS from ui-components
         { 

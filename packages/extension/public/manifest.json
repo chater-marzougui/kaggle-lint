@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kaggle Python Linter",
   "description": "A linter extension for Python code in Kaggle notebooks",
-  "version": "2.0.0",
+  "version": "0.0.0",
   "permissions": ["activeTab", "storage", "offscreen"],
   "background": {
     "service_worker": "background.js"
