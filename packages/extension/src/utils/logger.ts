@@ -10,6 +10,11 @@
  * DefinePlugin substitutes this at build time, so a production build ships
  * console-quiet by default. `warn()`/`error()` are never gated: a real
  * failure should always be visible regardless of the DEBUG flag.
+ *
+ * `setDebugEnabled()` is a runtime override on top of the build-time flag,
+ * so a shipped production build can still be switched into debug logging
+ * without a rebuild — ContentApp.tsx flips it on when the user types
+ * "debug" into the popup's ignore-codes field.
  */
 
 const BASE_TAG = '[Kaggle Linter]';
@@ -20,8 +25,14 @@ export interface Logger {
   error(...args: unknown[]): void;
 }
 
+let runtimeDebugOverride = false;
+
+export function setDebugEnabled(enabled: boolean): void {
+  runtimeDebugOverride = enabled;
+}
+
 function isDebugEnabled(): boolean {
-  return process.env.DEBUG === 'true';
+  return process.env.DEBUG === 'true' || runtimeDebugOverride;
 }
 
 export function createLogger(component?: string): Logger {

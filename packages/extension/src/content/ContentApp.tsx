@@ -10,8 +10,9 @@ import type { LintUIError } from '@kaggle-lint/ui-components';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
 import { EngineClient } from '../engine/EngineClient';
-import { createLogger } from '../utils/logger';
+import { createLogger, setDebugEnabled } from '../utils/logger';
 import { applyLineMarkers, clearAllLineMarkers } from './lineMarkers';
+import { parseIgnoreCodes } from './parseIgnoreCodes';
 import { LINT_STATS, type LintStatsMessage } from '../background/statsProtocol';
 import type { OverlayUiState } from '@kaggle-lint/ui-components';
 
@@ -183,14 +184,12 @@ export const ContentApp: React.FC = () => {
       // messaging), so strip elements before sending and re-attach them
       // to the returned errors by cellIndex — error-click-to-scroll needs
       // them.
-      const ignoreCodes = (
+      const { codes: ignoreCodes, debugRequested } = parseIgnoreCodes(
         settings.linterEngine === 'flake8'
           ? settings.flake8IgnoreCodes
           : settings.ruffIgnoreCodes
-      )
-        .split(',')
-        .map((code) => code.trim())
-        .filter((code) => code.length > 0);
+      );
+      setDebugEnabled(debugRequested);
 
       logger.log(`Running ${settings.linterEngine} engine...`);
       setEngineStatus('loading');

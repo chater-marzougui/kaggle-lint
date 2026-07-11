@@ -1,8 +1,9 @@
-import { createLogger } from '../utils/logger';
+import { createLogger, setDebugEnabled } from '../utils/logger';
 
 describe('createLogger', () => {
   afterEach(() => {
     delete process.env.DEBUG;
+    setDebugEnabled(false);
     jest.restoreAllMocks();
   });
 
@@ -37,5 +38,27 @@ describe('createLogger', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[Kaggle Linter]', 'careful');
     expect(errorSpy).toHaveBeenCalledWith('[Kaggle Linter]', 'broken');
+  });
+
+  it('emits log() when setDebugEnabled(true) overrides DEBUG=false', () => {
+    process.env.DEBUG = 'false';
+    setDebugEnabled(true);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+    const logger = createLogger();
+
+    logger.log('runtime override');
+
+    expect(logSpy).toHaveBeenCalledWith('[Kaggle Linter]', 'runtime override');
+  });
+
+  it('suppresses log() again once setDebugEnabled(false) is called', () => {
+    setDebugEnabled(true);
+    setDebugEnabled(false);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+    const logger = createLogger();
+
+    logger.log('should not appear');
+
+    expect(logSpy).not.toHaveBeenCalled();
   });
 });

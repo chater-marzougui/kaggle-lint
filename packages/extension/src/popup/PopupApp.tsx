@@ -246,7 +246,8 @@ export const PopupApp: React.FC = () => {
             <label className="option-item" style={{ display: 'block' }}>
               <span className="option-description">
                 Comma-separated codes to ignore for {settings.linterEngine}{' '}
-                (e.g. E501, F401)
+                (e.g. E501, F401). Add &quot;debug&quot; to enable debug
+                logging.
               </span>
               <input
                 type="text"

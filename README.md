@@ -1,4 +1,4 @@
-# Kaggle Python Linter
+# Kaggle Linter
 
 A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both Flake8 and Ruff linting engines.
 
@@ -169,7 +169,7 @@ npm run type-check
 Current test coverage:
 
 - `packages/core`: 31 tests across 4 suites (notebook-source building, severity mapping, syntax-isolation retry, the flake8 Python shim), enforced coverage thresholds
-- `packages/extension`: 16 tests across 4 suites (cell store, DOM-scrape extraction fallback, debug-log gating, popup↔content-script messaging), enforced coverage thresholds
+- `packages/extension`: 22 tests across 5 suites (cell store, DOM-scrape extraction fallback, debug-log gating, popup↔content-script messaging, ignore-codes/debug-token parsing), enforced coverage thresholds
 - `npm run lint`: 0 errors, 1 warning repo-wide (a deliberately-deferred `react-hooks/exhaustive-deps` gap in `Overlay.tsx` — see `docs/next_plans/milestone-4-config-and-build-hygiene/notes.md`)
 
 ### Testing the Extension
