@@ -51,6 +51,7 @@ export class KaggleDomParser {
     if (!body) return 'light';
 
     const bgColor = getComputedStyle(body).backgroundColor;
+    this.log(`detectTheme: body background-color = ${bgColor}`);
     return this.isDarkColor(bgColor) ? 'dark' : 'light';
   }
 

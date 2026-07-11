@@ -267,6 +267,15 @@ export const ContentApp: React.FC = () => {
    * media query here is only used as a "something may have changed,
    * re-check" signal, same technique PopupApp.tsx already uses for its
    * own (separate) theme state.
+   *
+   * The initial check runs the instant `.jp-Notebook` appears in the DOM
+   * (waitForNotebookThenMount, content/index.tsx) — that can be before
+   * Kaggle's own CSS has actually painted its background, in which case
+   * `getComputedStyle` still reads the browser's transparent default and
+   * this locks onto 'light' with nothing left to re-trigger a recheck
+   * (the page finishing its own load isn't a prefers-color-scheme
+   * change). Same shape of race the lint "catch-up" timer below already
+   * works around for cell content — a delayed one-time recheck here too.
    */
   useEffect(() => {
     const updateTheme = () => {
@@ -275,10 +284,14 @@ export const ContentApp: React.FC = () => {
       logger.log('Detected theme:', detectedTheme);
     };
     updateTheme();
+    const catchUpThemeTimer = setTimeout(updateTheme, 2000);
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', updateTheme);
-    return () => mediaQuery.removeEventListener('change', updateTheme);
+    return () => {
+      clearTimeout(catchUpThemeTimer);
+      mediaQuery.removeEventListener('change', updateTheme);
+    };
   }, [domParser]);
 
   /**
