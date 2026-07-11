@@ -1,6 +1,6 @@
 {
   "name": "@kaggle-lint/extension",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chrome extension for Kaggle Linter",
   "private": true,
   "scripts": {

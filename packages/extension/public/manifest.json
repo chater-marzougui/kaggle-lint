@@ -32,7 +32,6 @@
   },
   "host_permissions": [
     "https://www.kaggle.com/*",
-    "https://*.kaggleusercontent.com/*",
     "https://kkb-production.jupyter-proxy.kaggle.net/*"
   ],
   "content_scripts": [

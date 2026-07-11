@@ -1,6 +1,6 @@
 {
   "name": "@kaggle-lint/ui-components",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React UI components for Kaggle Linter",
   "private": true,
   "main": "dist/index.js",
