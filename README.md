@@ -1,36 +1,89 @@
-# Kaggle Linter
+<a name="readme-top"></a>
 
-A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both Flake8 and Ruff linting engines.
+<div align="center">
 
-<!--
-  ASSET: docs/assets/hero-overlay.png
-  What to capture: a Kaggle notebook in edit mode with the Kaggle Linter
-  overlay open in the bottom-right corner, showing a handful of real
-  errors/warnings (mixed severities) so the icons and stats bar are visible.
-  Full capture instructions: docs/assets/README.md
--->
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+[![LinkedIn][linkedin-shield]][linkedin-url]
 
-![Kaggle Linter overlay showing lint results on a Kaggle notebook](docs/assets/hero-overlay.png)
+</div>
 
-## ✨ Features
+---
 
-### Two Linting Engines
+# 🛠️ Kaggle Linter
 
-- **Flake8**: Industry-standard Python linter (pyflakes + pycodestyle + mccabe) running in-browser via Pyodide (Python-in-WebAssembly)
-  - Comprehensive PEP-8 compliance checking, real `# noqa` comment support
-  - Notebook-aware: variables defined in earlier cells are correctly recognized in later ones
-  - Configurable ignore-codes list
-- **Ruff**: Fast Rust-based Python linter, no Python runtime needed — a native WebAssembly build (`@astral-sh/ruff-wasm-web`)
-  - Much lighter/faster cold start than the Pyodide-based flake8 engine (no wheels, no Python stdlib)
-  - Same notebook-aware cross-cell scoping and configurable ignore-codes list
+**Lint your Python code right inside Kaggle notebooks — no copy-pasting into a separate tool.**
+Built with ❤️ by [Chater Marzougui](https://github.com/chater-marzougui).
 
-### Smart Notebook Features
+<br />
+<div align="center">
+  <a href="https://github.com/chater-marzougui/kaggle-lint">
+     <img src="packages/extension/public/icons/icon256.png" alt="Kaggle Linter Logo" width="128" height="128">
+  </a>
+  <h3>Kaggle Linter</h3>
+  <p align="center">
+    <strong>Real-time Flake8 and Ruff linting for Kaggle notebooks, running entirely in your browser.</strong>
+    <br />
+    <br />
+    <a href="https://github.com/chater-marzougui/kaggle-lint/issues/new?labels=bug&title=False+positive%3A+&body=Engine%3A+Flake8+or+Ruff+%28delete+one%29%0A%0ARule+code%3A+%0A%0ANotebook+cell+code+that+triggered+it%3A%0A%0A%0A%0AWhat+you+expected%3A%0A%0A%0AWhat+happened+instead%3A%0A">Report Bug / False Positive</a>
+    ·
+    <a href="https://github.com/chater-marzougui/kaggle-lint/issues/new?labels=enhancement">Request Feature</a>
+  </p>
+</div>
 
-- **Cross-cell Context**: Understands variables defined in previous cells
-- **Lazy Loading Support**: Works with Kaggle's dynamic cell loading
-- **Theme Aware**: Automatically adapts to light/dark mode
-- **Interactive Overlay**: Draggable error panel with click-to-navigate
-- **Keyboard Shortcuts**: Quick linting with Ctrl+Shift+L
+<br/>
+
+---
+
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#about-the-project">About The Project</a></li>
+    <li><a href="#-screenshots--demo">Screenshots &amp; Demo</a></li>
+    <li><a href="#-getting-started">Getting Started</a></li>
+    <li><a href="#-installation">Installation</a></li>
+    <li><a href="#-usage">Usage</a></li>
+    <li><a href="#-configuration">Configuration</a></li>
+    <li><a href="#️-known-limitations">Known Limitations</a></li>
+    <li><a href="#-contributing">Contributing</a></li>
+    <li><a href="#-license">License</a></li>
+    <li><a href="#-privacy">Privacy</a></li>
+    <li><a href="#-contact">Contact</a></li>
+    <li><a href="#-acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
+
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
+
+## About The Project
+
+**🚀 Kaggle Linter** is a Chrome extension that brings real Python linting into Kaggle's notebook editor. Instead of finding out about an unused import or an undefined variable only when a cell fails to run, you see it flagged inline, with severity, exact line, and a one-click way to jump to it or ignore that rule going forward. It understands the whole notebook, not just the cell you're looking at, so a variable defined three cells up is correctly recognized where you use it.
+
+### 🎯 Key Features
+
+- 🔧 **Two linting engines, your choice**: Ruff (native WebAssembly, near-instant) or Flake8 (pyflakes + pycodestyle + mccabe, via Pyodide) — pick whichever fits how you work.
+- 🧠 **Whole-notebook awareness**: cross-cell variable scoping, not per-cell isolation.
+- ⚡ **Real-time feedback**: re-lints automatically as you edit, no manual trigger needed.
+- 🎯 **Click-to-navigate**: click any finding to jump straight to the exact line.
+- 🌓 **Theme aware**: matches your system's light/dark preference.
+- 🔇 **Per-engine ignore codes**: silence the checks you don't want, with a one-click "ignore this code" action right from the error list.
+
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
 
 ## 🎬 Screenshots & Demo
 
@@ -40,291 +93,187 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 
 ![Expanding and minimizing the overlay](docs/assets/overlay-minimized.gif)
 
-## 🚀 Installation
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
+
+## ⚡ Getting Started
 
 ### Prerequisites
 
-- Node.js 22+
-- npm 10+
+Nothing to install to _use_ the extension beyond Chrome itself. Building from source needs Node.js 22+ and npm 10+ — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### From Source
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-1. **Clone the repository**
+---
 
-   ```bash
-   git clone https://github.com/chater-marzougui/kaggle-lint.git
-   cd kaggle-lint
-   ```
+## 📦 Installation
 
-2. **Install dependencies**
+### Chrome Web Store — coming soon
 
-   ```bash
-   npm install
-   ```
+Kaggle Linter is currently pending Chrome Web Store review. Once it's approved, installing from the store will be the recommended way to get it — this section will be updated with the link.
 
-3. **Build the extension**
-
-   ```bash
-   npm run build
-   ```
-
-4. **Load in Chrome**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable "Developer mode" in the top right
-   - Click "Load unpacked"
-   - Select the `packages/extension/dist/` directory
-
-### From Release
-
-Download the latest release `.zip` file from the [releases page](https://github.com/chater-marzougui/kaggle-lint/releases) and load it as an unpacked extension in Chrome.
-
-## 📖 Usage
-
-### On Kaggle Notebooks
-
-1. Navigate to any Kaggle notebook in edit mode
-2. The linter automatically initializes and displays an overlay in the bottom-right corner
-3. Errors, warnings, and info messages appear with severity indicators
-
-### Keyboard Shortcuts
-
-- **Ctrl+Shift+L**: Manually re-run the linter
-- **Ctrl+Shift+H**: Toggle overlay visibility
-- **Click on error**: Scroll to and highlight the affected cell
-
-### Extension Settings
-
-Click the extension icon in Chrome toolbar to configure:
-
-- **Linter Engine**: Switch between Flake8 and Ruff
-- **Ignore Codes**: Comma-separated error codes to ignore, per engine (e.g. `E501, F401`) — add `debug` to enable debug logging without a rebuild
-- **Show overlay on Kaggle**: Toggle the overlay on/off
-
-## 🏗️ Architecture
-
-### Monorepo Structure
-
-The project is organized as a monorepo with three main packages:
-
-```
-kaggle-lint/
-├── packages/
-│   ├── core/                    # Core linting logic
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript type definitions
-│   │   │   ├── notebook/       # Shared cell-concatenation + severity/diagnostic mapping (used by both engines)
-│   │   │   ├── engines/        # flake8Shim.ts (pure Python string; browser glue lives in the extension's offscreen document)
-│   │   │   ├── pyodide/        # Pyodide WebAssembly runtime + bundled flake8/pyflakes/pycodestyle/mccabe wheels
-│   │   │   └── __tests__/      # Jest tests
-│   │   └── dist/               # Compiled output
-│   ├── ui-components/          # React UI components
-│   │   ├── src/
-│   │   │   ├── Overlay/        # Main overlay component
-│   │   │   ├── ErrorList/      # Error list component
-│   │   │   └── ErrorItem/      # Error item component
-│   │   └── dist/               # Compiled output
-│   └── extension/              # Chrome extension
-│       ├── src/
-│       │   ├── content/        # Content script (React)
-│       │   ├── popup/          # Extension popup (React)
-│       │   └── utils/          # DOM parser, CodeMirror manager
-│       ├── public/             # Static assets (manifest, icons)
-│       └── dist/               # Built extension (~19 MB with pyodide)
-├── .github/workflows/          # CI/CD pipelines
-└── turbo.json                  # Turborepo configuration
-```
-
-### Package Overview
-
-1. **@kaggle-lint/core**: Pure TypeScript linting logic
-   - No DOM dependencies
-   - Can be used standalone or in Node.js
-   - Includes shared notebook-source building, severity mapping, and the flake8 Python shim
-   - Fully tested with Jest
-
-2. **@kaggle-lint/ui-components**: React UI components
-   - Reusable overlay, error list, error items
-   - CSS modules for scoped styling
-   - Can be used in any React app
-
-3. **@kaggle-lint/extension**: Chrome extension
-   - Integrates core + UI components
-   - Content script with React
-   - Popup with React
-   - DOM utilities for Kaggle notebooks
-
-## 💻 Development
-
-### Building
+### Manual install (current)
 
 ```bash
-# Build all packages (uses Turborepo)
-npm run build
+# Step 1: Download the latest release
+# https://github.com/chater-marzougui/kaggle-lint/releases
 
-# Build in watch mode
-npm run dev
+# Step 2: Extract the ZIP file
 
-# Build specific package
-cd packages/core && npm run build
-cd packages/ui-components && npm run build
-cd packages/extension && npm run build
+# Step 3: In Chrome, go to chrome://extensions/, enable Developer mode,
+# click "Load unpacked", and select the extracted folder.
 ```
 
-### Testing
+Building from source instead? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-```bash
-# Run all tests
-npm test
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-# Run tests in watch mode
-cd packages/core && npm run test:watch
+---
 
-# Type check all packages
-npm run type-check
-```
+## 📚 Usage
 
-Current test coverage:
+1. Open any Kaggle notebook in edit mode.
+2. The linter initializes automatically and shows an overlay in the bottom-right corner.
+3. Click any error to jump to it in the notebook.
 
-- `packages/core`: 31 tests across 4 suites (notebook-source building, severity mapping, syntax-isolation retry, the flake8 Python shim), enforced coverage thresholds
-- `packages/extension`: 22 tests across 5 suites (cell store, DOM-scrape extraction fallback, debug-log gating, popup↔content-script messaging, ignore-codes/debug-token parsing), enforced coverage thresholds
-- `npm run lint`: 0 errors, 1 warning repo-wide (a deliberately-deferred `react-hooks/exhaustive-deps` gap in `Overlay.tsx` — see `docs/next_plans/milestone-4-config-and-build-hygiene/notes.md`)
+| Shortcut       | Action                     |
+| -------------- | -------------------------- |
+| `Ctrl+Shift+L` | Manually re-run the linter |
+| `Ctrl+Shift+H` | Toggle overlay visibility  |
 
-### Testing the Extension
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-#### In Browser
+---
 
-1. Build and load the extension (see Installation)
-2. Open a Kaggle notebook
-3. Check browser console for `[Kaggle Linter]` logs
+## 🪛 Configuration
 
-#### Standalone Demo
+Click the extension icon in the Chrome toolbar to configure:
 
-Removed along with `old-linter/` (see [next_plans/README.md](docs/next_plans/README.md) for a note on bringing a replacement back as a future milestone). For now, load the extension unpacked (see Installation above) and test against a real Kaggle notebook.
+- **Linter Engine** — switch between Flake8 and Ruff.
+- **Ignore Codes** — comma-separated error codes to ignore, per engine (e.g. `E501, F401`). Add `debug` to turn on debug logging without reinstalling.
+- **Show overlay on Kaggle** — toggle the overlay on/off.
 
-### Code Quality
+There's no config file or environment variable — everything is set from the popup and stored via Chrome's own `chrome.storage` sync.
 
-```bash
-# Lint code
-npm run lint
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-# Auto-fix linting issues
-npm run lint:fix
+---
 
-# Format code
-npm run format
+## ⚠️ Known Limitations
 
-# Check formatting
-npm run format:check
-```
+- **Depends on Kaggle's current notebook markup.** Extraction reads Kaggle's own JupyterLab-based DOM; if Kaggle changes their notebook UI significantly, extraction may need an update. If linting stops working, please [open an issue](https://github.com/chater-marzougui/kaggle-lint/issues).
+- **Flake8's first load can take up to ~30 seconds** (it's a real Python runtime compiled to WebAssembly). Ruff is near-instant by comparison — it's the default for this reason.
+- **Ignore-codes aren't validated against a live rule catalog**, only checked for a plausible shape (letters + digits). A well-formed but nonexistent code is silently ignored rather than flagged as a typo.
+- **Only active on notebook edit pages** (`kaggle.com/code/.../edit`), not on read-only "view" pages.
+- **Theme follows your OS/browser color-scheme preference**, not a Kaggle-specific in-app toggle if Kaggle ever ships one independently of that.
+- **Very large notebooks** may see a brief delay on the very first lint while Kaggle finishes loading cell content asynchronously — this resolves itself within a few seconds without any action needed.
 
-## 📋 API Reference
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-### Core Package
-
-#### Types
-
-```typescript
-import { LintError } from '@kaggle-lint/core';
-
-// Error structure
-interface LintError {
-  line: number;
-  column?: number;
-  msg: string;
-  severity: 'error' | 'warning' | 'info';
-  rule?: string;
-  code?: string; // For flake8/ruff error codes
-  cellIndex?: number;
-}
-```
-
-#### Flake8/Ruff Linting (extension-only)
-
-Both engines run inside the extension's Chrome offscreen document — flake8 via Pyodide (Python-in-WASM) + bundled wheels, ruff via a native `@astral-sh/ruff-wasm-web` build with no Python runtime at all — not as standalone `@kaggle-lint/core` classes, since both need a Chrome extension context (`chrome.offscreen`, `chrome.runtime` messaging) a plain Node/browser script doesn't have. The content script talks to whichever engine is selected via `EngineClient` (`packages/extension/src/engine/EngineClient.ts`):
-
-```typescript
-import { EngineClient } from '../engine/EngineClient';
-
-const client = new EngineClient();
-const errors = await client.lintNotebook(
-  'flake8',
-  [{ code: 'x = y + 1', cellIndex: 0 }],
-  []
-);
-```
-
-`packages/core` exports the reusable, browser-independent pieces both offscreen runtimes are built from: `buildNotebookSource`/`mapLineToCell` (notebook/buildNotebookSource.ts — concatenates cells into one lint pass), `classifySeverity`/`mapDiagnostics` (notebook/severityMapping.ts — shared by both engines), and `PYTHON_SHIM` (engines/flake8Shim.ts — flake8-specific).
-
-## 🔧 Build & CI/CD
-
-### Turborepo
-
-The project uses Turborepo for optimized build orchestration:
-
-- **Dependency-aware builds**: Packages build in correct order
-- **Caching**: Faster rebuilds with intelligent caching
-- **Parallel execution**: Multiple packages build simultaneously
-
-### GitHub Actions
-
-Automated workflows:
-
-- **CI Pipeline** (runs on every push and PR)
-  - ESLint + Prettier checks
-  - TypeScript type checking
-  - Jest unit tests
-  - Build validation
-
-- **Release Pipeline** (triggered on version tags)
-  - Builds extension with all packages
-  - Creates distribution ZIP
-  - Publishes GitHub release with artifacts
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! When contributing:
+Contributions are what make the open source community amazing! Any contributions are **greatly appreciated**.
 
-1. **Follow existing patterns** - Maintain consistency with the codebase
-2. **Add types** - Use TypeScript for type safety
-3. **Test thoroughly** - Ensure all tests pass
-4. **Document changes** - Update README and comments as needed
-5. **Check formatting** - Run `npm run format` before committing
+1. **Fork the Project**
+2. **Create your Feature Branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit your Changes** (`git commit -m 'Add some AmazingFeature'`)
+4. **Push to the Branch** (`git push origin feature/AmazingFeature`)
+5. **Open a Pull Request**
 
-### Development Workflow
+For the architecture, build/test setup, and coding conventions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-1. Fork and clone the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `npm test`
-5. Check types: `npm run type-check`
-6. Lint code: `npm run lint:fix`
-7. Build: `npm run build`
-8. Submit a pull request
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
-## 📚 Additional Documentation
+---
 
-- [Architecture](docs/architecture.md) - Monorepo structure and runtime design
-- [Review Findings](docs/review-findings.md) - Itemized issues found in the original TS/React migration, and their resolution status
-- [Roadmap](docs/next_plans/README.md) - Milestone plans and execution history
+## 📃 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
+
+## 🔒 Privacy
+
+Kaggle Linter processes your notebook code entirely inside your own browser — both linting engines run locally via WebAssembly, and nothing is sent to any server. See [PRIVACY.md](PRIVACY.md) for the full policy.
+
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
+
+## 📧 Contact
+
+**Chater Marzougui** - [@chater-marzougui](https://github.com/chater-marzougui) - chater.marzougui@ieee.org
+
+Project Link: [https://github.com/chater-marzougui/kaggle-lint](https://github.com/chater-marzougui/kaggle-lint)
+
+---
 
 ## 🙏 Acknowledgments
-
-Special thanks to:
 
 - **[Pyodide](https://pyodide.org/)** - Python runtime compiled to WebAssembly
 - **[Flake8](https://flake8.pycqa.org/)** - Industry-standard Python linting tool
 - **[Ruff](https://docs.astral.sh/ruff/)** - Extremely fast Python linter, written in Rust (via `@astral-sh/ruff-wasm-web`)
 
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
-## 🐛 Issues & Support
-
-- **Report bugs**: [GitHub Issues](https://github.com/chater-marzougui/kaggle-lint/issues)
-- **Discuss features**: [GitHub Discussions](https://github.com/chater-marzougui/kaggle-lint/discussions)
-- **View documentation**: Check the `/docs` folder and wiki
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
 
 ---
 
 **Built with TypeScript, React, and ❤️ for the Kaggle community**
+
+[contributors-shield]: https://img.shields.io/github/contributors/chater-marzougui/kaggle-lint.svg?style=for-the-badge
+[contributors-url]: https://github.com/chater-marzougui/kaggle-lint/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/chater-marzougui/kaggle-lint.svg?style=for-the-badge
+[forks-url]: https://github.com/chater-marzougui/kaggle-lint/network/members
+[stars-shield]: https://img.shields.io/github/stars/chater-marzougui/kaggle-lint.svg?style=for-the-badge
+[stars-url]: https://github.com/chater-marzougui/kaggle-lint/stargazers
+[issues-shield]: https://img.shields.io/github/issues/chater-marzougui/kaggle-lint.svg?style=for-the-badge
+[issues-url]: https://github.com/chater-marzougui/kaggle-lint/issues
+[license-shield]: https://img.shields.io/github/license/chater-marzougui/kaggle-lint.svg?style=for-the-badge
+[license-url]: https://github.com/chater-marzougui/kaggle-lint/blob/main/LICENSE
+[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-url]: https://www.linkedin.com/in/chater-marzougui-342125299/
