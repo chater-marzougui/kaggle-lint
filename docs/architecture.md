@@ -1,6 +1,6 @@
 # Architecture
 
-How kaggle-lint is structured today (v2.1.0, post TypeScript/React migration, and post an unplanned "lint-engine-consolidation" project that landed 2026-07-10 between Milestone 3 and Milestone 4 — see the note at the end of this file). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
+How kaggle-lint is structured today (v1.0.0, post TypeScript/React migration, and post an unplanned "lint-engine-consolidation" project that landed 2026-07-10 between Milestone 3 and Milestone 4 — see the note at the end of this file). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
 
 ## Monorepo layout
 
@@ -117,7 +117,7 @@ MV3. Content script matches `https://www.kaggle.com/code/*/*/edit` and the Kaggl
 ## Settings & versioning
 
 - Settings shape is now `{ linterEngine: 'flake8' | 'ruff', flake8IgnoreCodes: string, ruffIgnoreCodes: string }` persisted in `chrome.storage.sync`'s `linterSettings` key — the old `{ linterEngine: 'handmade'|'flake8', rules: Record<string, boolean> }` shape (and its triple duplication of rule metadata, finding F14) no longer exists; there is no settings migration for users with old stored values (a deliberate decision — see `docs/superpowers/specs/2026-07-09-lint-engine-consolidation-design.md`). Defaults are still independently duplicated between `ContentApp.tsx` and `PopupApp.tsx` (two copies now, not three — no third rule-registry copy exists anymore since there are no rules).
-- Version is now single-sourced from root `package.json` into the shipped manifest (via a webpack `CopyPlugin` transform) and the popup footer (via `process.env.EXTENSION_VERSION`, a `DefinePlugin` substitution) — Milestone 4, finding F21, mostly resolved. `public/manifest.json`'s own `"version"` field is a deliberate `"0.0.0"` canary (so a bypassed transform ships something obviously wrong, not silently stale); the three per-package `package.json`s (core/ui-components/extension) are kept in sync with the root version by hand at release time (currently `"2.1.0"`) even though they're internal `*`-linked workspace references that never ship — cheap enough to keep from drifting once release bumps are already a manual step.
+- Version is now single-sourced from root `package.json` into the shipped manifest (via a webpack `CopyPlugin` transform) and the popup footer (via `process.env.EXTENSION_VERSION`, a `DefinePlugin` substitution) — Milestone 4, finding F21, mostly resolved. `public/manifest.json`'s own `"version"` field is a deliberate `"0.0.0"` canary (so a bypassed transform ships something obviously wrong, not silently stale); the three per-package `package.json`s (core/ui-components/extension) are kept in sync with the root version by hand at release time (currently `"1.0.0"` — the first public release; earlier internal history used a `2.x` line before any version had actually shipped, which is why the jump isn't a downgrade) even though they're internal `*`-linked workspace references that never ship — cheap enough to keep from drifting once release bumps are already a manual step.
 
 ## Note: the lint-engine-consolidation project (2026-07-10)
 
