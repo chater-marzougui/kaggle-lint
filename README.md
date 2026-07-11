@@ -2,6 +2,16 @@
 
 A modern TypeScript + React Chrome extension for linting Python code in Kaggle notebooks. Provides real-time code quality feedback with support for both Flake8 and Ruff linting engines.
 
+<!--
+  ASSET: docs/assets/hero-overlay.png
+  What to capture: a Kaggle notebook in edit mode with the Kaggle Linter
+  overlay open in the bottom-right corner, showing a handful of real
+  errors/warnings (mixed severities) so the icons and stats bar are visible.
+  Full capture instructions: docs/assets/README.md
+-->
+
+![Kaggle Linter overlay showing lint results on a Kaggle notebook](docs/assets/hero-overlay.png)
+
 ## ✨ Features
 
 ### Two Linting Engines
@@ -21,6 +31,26 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 - **Theme Aware**: Automatically adapts to light/dark mode
 - **Interactive Overlay**: Draggable error panel with click-to-navigate
 - **Keyboard Shortcuts**: Quick linting with Ctrl+Shift+L
+
+## 🎬 Screenshots & Demo
+
+Placeholders below — see [docs/assets/README.md](docs/assets/README.md) for exactly what to capture and drop in for each one.
+
+<!-- ASSET: docs/assets/popup-settings.png — the toolbar popup, engine radio (Flake8/Ruff) and Ignore Codes field both visible -->
+
+![Extension popup: engine selector and ignore-codes settings](docs/assets/popup-settings.png)
+
+<!-- ASSET: docs/assets/click-to-scroll.gif — clicking an error in the overlay scrolls to and highlights the exact line in the notebook -->
+
+![Clicking an error scrolls to and highlights the exact line](docs/assets/click-to-scroll.gif)
+
+<!-- ASSET: docs/assets/live-relint.gif — editing a cell and watching the overlay's error list update automatically a moment later -->
+
+![Editing a cell triggers an automatic re-lint](docs/assets/live-relint.gif)
+
+<!-- ASSET: docs/assets/overlay-minimized.png — the overlay dragged and collapsed into its minimized pill form -->
+
+![Overlay minimized to a small pill in the corner](docs/assets/overlay-minimized.png)
 
 ## 🚀 Installation
 
@@ -112,7 +142,6 @@ kaggle-lint/
 │       │   └── utils/          # DOM parser, CodeMirror manager
 │       ├── public/             # Static assets (manifest, icons)
 │       └── dist/               # Built extension (~19 MB with pyodide)
-├── old-linter/                  # Original vanilla JS implementation (reference)
 ├── .github/workflows/          # CI/CD pipelines
 └── turbo.json                  # Turborepo configuration
 ```
