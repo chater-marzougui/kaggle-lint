@@ -8,11 +8,12 @@
 
 import React from 'react';
 import { ErrorItemProps } from '../types';
+import { ErrorIcon, WarningIcon, InfoIcon } from '../icons';
 
 const SEVERITY_ICONS = {
-  error: '❌',
-  warning: '⚠️',
-  info: 'ℹ️',
+  error: ErrorIcon,
+  warning: WarningIcon,
+  info: InfoIcon,
 };
 
 /**
@@ -32,6 +33,7 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
   onIgnoreCode,
 }) => {
   const severityClass = `kaggle-lint-severity-${error.severity}`;
+  const SeverityIcon = SEVERITY_ICONS[error.severity];
 
   const handleIgnoreClick = (e: React.MouseEvent) => {
     // Don't trigger the row's own click (scroll-to-error) — muting a code
@@ -49,7 +51,7 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
       onClick={onClick}
     >
       <span className={`kaggle-lint-icon kaggle-lint-${error.severity}`}>
-        {SEVERITY_ICONS[error.severity]}
+        <SeverityIcon />
       </span>
       <span className="kaggle-lint-location">
         Cell {(error.cellIndex ?? 0) + 1}:{error.cellLine ?? error.line}

@@ -56,6 +56,11 @@ export interface ErrorListProps {
   errors: LintUIError[];
   onErrorClick?: (error: LintUIError) => void;
   onIgnoreCode?: (code: string) => void;
+  /** Shown instead of the list when `errors` is empty. Defaults to a
+   * generic message; the severity tabs in Overlay pass a per-tab one
+   * (e.g. "No warnings") since ErrorList only ever sees one severity's
+   * errors at a time now. */
+  emptyMessage?: string;
 }
 
 export interface ErrorItemProps {

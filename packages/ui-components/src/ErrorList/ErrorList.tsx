@@ -9,6 +9,7 @@
 import React from 'react';
 import { ErrorListProps } from '../types';
 import { ErrorItem } from '../ErrorItem';
+import { SuccessIcon } from '../icons';
 
 const SEVERITY_RANK: Record<'error' | 'warning' | 'info', number> = {
   error: 0,
@@ -36,10 +37,15 @@ export const ErrorList: React.FC<ErrorListProps> = ({
   errors,
   onErrorClick,
   onIgnoreCode,
+  emptyMessage = 'No issues found!',
 }) => {
-  // EXACT LOGIC from displayErrors function in old-linter/src/ui/overlay.js
   if (errors.length === 0) {
-    return <div className="kaggle-lint-success">✅ No issues found!</div>;
+    return (
+      <div className="kaggle-lint-success">
+        <SuccessIcon />
+        {emptyMessage}
+      </div>
+    );
   }
 
   const sortedErrors = [...errors].sort(bySeverityThenPosition);
