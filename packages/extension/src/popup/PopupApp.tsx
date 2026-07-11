@@ -193,7 +193,8 @@ export const PopupApp: React.FC = () => {
               >
                 <span className="engine-pill-name">Flake8</span>
                 <span className="engine-pill-meta">
-                  Thorough{settings.linterEngine === 'flake8' ? ' · selected' : ''}
+                  Thorough
+                  {settings.linterEngine === 'flake8' ? ' · selected' : ''}
                 </span>
               </button>
               <button

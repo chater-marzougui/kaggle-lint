@@ -38,32 +38,37 @@ export class KaggleDomParser {
   }
 
   /**
-   * Detect theme (light/dark)
-   * EXACT COPY from old-linter/src/domParser.js detectTheme function
+   * Detect theme (light/dark) from the notebook body's actual computed
+   * background color. Live-probed against real Kaggle DOM (both light and
+   * dark): `<html>`/`<body>` carry no distinguishing class or data
+   * attribute in either mode (the old `theme--dark` class and `data-theme`
+   * attribute this function used to check for don't exist — dead checks,
+   * removed) — only the computed background color differs, so that's the
+   * one real signal available.
    */
   detectTheme(): 'light' | 'dark' {
     const body = document.body;
     if (!body) return 'light';
 
-    if (body.classList.contains('theme--dark')) return 'dark';
-    if (body.getAttribute('data-theme') === 'dark') return 'dark';
-
     const bgColor = getComputedStyle(body).backgroundColor;
-    if (bgColor && this.isDarkColor(bgColor)) return 'dark';
-
-    return 'light';
+    return this.isDarkColor(bgColor) ? 'dark' : 'light';
   }
 
   /**
-   * Check if color is dark
-   * EXACT COPY from old-linter/src/domParser.js isDarkColor function
+   * A simple average-brightness threshold rather than exact color
+   * matching, so small palette tweaks on Kaggle's side don't silently
+   * break detection again. Fully transparent (alpha 0, e.g. an unstyled
+   * jsdom/default body with no background set at all) is treated as
+   * "no real signal" rather than literally black.
    */
   private isDarkColor(color: string): boolean {
-    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    const match = color.match(
+      /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/
+    );
     if (!match) return false;
-    const [, r, g, b] = match.map(Number);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance < 0.5;
+    const [, r, g, b, a] = match;
+    if (a !== undefined && Number(a) === 0) return false;
+    return (Number(r) + Number(g) + Number(b)) / 3 < 128;
   }
 
   /**

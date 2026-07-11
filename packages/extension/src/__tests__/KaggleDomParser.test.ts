@@ -80,12 +80,31 @@ describe('KaggleDomParser', () => {
   });
 
   describe('detectTheme', () => {
-    it('returns "dark" when the body has the theme--dark class', () => {
-      document.body.classList.add('theme--dark');
+    afterEach(() => {
+      document.body.style.backgroundColor = '';
+    });
+
+    it('returns "dark" for a dark computed background (real Kaggle dark-mode value)', () => {
+      document.body.style.backgroundColor = 'rgb(28, 29, 32)';
       expect(new KaggleDomParser().detectTheme()).toBe('dark');
     });
 
-    it('returns "light" by default', () => {
+    it('returns "dark" for a different, still-dark background (threshold, not exact match)', () => {
+      document.body.style.backgroundColor = 'rgb(40, 40, 45)';
+      expect(new KaggleDomParser().detectTheme()).toBe('dark');
+    });
+
+    it('returns "light" for a light computed background (real Kaggle light-mode value)', () => {
+      document.body.style.backgroundColor = 'rgb(255, 255, 255)';
+      expect(new KaggleDomParser().detectTheme()).toBe('light');
+    });
+
+    it('returns "light" when the background is fully transparent (no real signal)', () => {
+      document.body.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+      expect(new KaggleDomParser().detectTheme()).toBe('light');
+    });
+
+    it('returns "light" by default (unstyled body)', () => {
       expect(new KaggleDomParser().detectTheme()).toBe('light');
     });
   });

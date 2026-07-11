@@ -255,15 +255,37 @@ export const ContentApp: React.FC = () => {
   }, [runLinter]);
 
   /**
+   * Detect theme on mount and re-detect whenever it might have changed.
+   * Live-probed against real Kaggle DOM: `<html>`/`<body>` carry no
+   * observable class/attribute signal in either mode, only the computed
+   * background color differs (see KaggleDomParser.detectTheme), and
+   * nothing ever mutates that color's underlying DOM state while the page
+   * is open — the only real trigger for it changing is the OS/browser
+   * color-scheme preference. detectTheme() still reads the real DOM
+   * background as the source of truth (not matchMedia's own value)
+   * in case Kaggle ever adds an in-app override independent of it; the
+   * media query here is only used as a "something may have changed,
+   * re-check" signal, same technique PopupApp.tsx already uses for its
+   * own (separate) theme state.
+   */
+  useEffect(() => {
+    const updateTheme = () => {
+      const detectedTheme = domParser.detectTheme();
+      setTheme(detectedTheme);
+      logger.log('Detected theme:', detectedTheme);
+    };
+    updateTheme();
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', updateTheme);
+    return () => mediaQuery.removeEventListener('change', updateTheme);
+  }, [domParser]);
+
+  /**
    * Initialize linter on mount
    */
   useEffect(() => {
     logger.log('Initializing ContentApp...');
-
-    // Detect theme
-    const detectedTheme = domParser.detectTheme();
-    setTheme(detectedTheme);
-    logger.log('Detected theme:', detectedTheme);
 
     // Load settings
     if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -285,7 +307,6 @@ export const ContentApp: React.FC = () => {
     } else {
       setSettingsLoaded(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
