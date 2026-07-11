@@ -17,6 +17,11 @@
      React state, so a drag doesn't re-render the panel. */
   --kaggle-lint-drag-x: 0px;
   --kaggle-lint-drag-y: 0px;
+  /* Severity colors, shared by the error-item left accent and the plain
+     error/warning/info text color rules below. */
+  --error: #f48771;
+  --warning: #deb887;
+  --info: #6a9fb5;
   transform: translate(var(--kaggle-lint-drag-x), var(--kaggle-lint-drag-y));
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -355,7 +360,8 @@
 
 .kaggle-lint-error-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -376,42 +382,50 @@
   filter: brightness(1.15);
 }
 
-.kaggle-lint-error-row {
+.kaggle-lint-error-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 2px;
+}
+
+.kaggle-lint-error-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .kaggle-lint-icon {
   flex-shrink: 0;
-  width: 18px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .kaggle-lint-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
 }
 
 .kaggle-lint-location {
   flex-shrink: 0;
   font-family: "Monaco", "Courier New", monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #4ab9ea;
 }
 
 .kaggle-lint-code-badge {
-  margin-left: auto;
   flex-shrink: 0;
   font-family: "Monaco", "Courier New", monospace;
   font-size: 10px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(120, 120, 120, 0.5);
   color: inherit;
   opacity: 0.75;
 }
@@ -422,35 +436,35 @@
 
 .kaggle-lint-message {
   word-break: break-word;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.4;
-  padding-left: 23px;
 }
 
-/* Severity-tinted card backgrounds (replace the old left-border-stripe
-   treatment — the whole card is now tinted, not just an accent bar). */
+/* Severity accent: an inset box-shadow left stripe instead of tinting the
+   whole card — inset respects the card's border-radius on its own (no
+   separate corner-clipping needed the way a plain border-left would). */
 .kaggle-lint-severity-error {
-  background: rgba(244, 135, 113, 0.14);
+  box-shadow: inset 4px 0 0 0 var(--error);
 }
 
 .kaggle-lint-severity-warning {
-  background: rgba(222, 184, 135, 0.16);
+  box-shadow: inset 4px 0 0 0 var(--warning);
 }
 
 .kaggle-lint-severity-info {
-  background: rgba(106, 159, 181, 0.14);
+  box-shadow: inset 4px 0 0 0 var(--info);
 }
 
 .kaggle-lint-error {
-  color: #f48771;
+  color: var(--error);
 }
 
 .kaggle-lint-warning {
-  color: #deb887;
+  color: var(--warning);
 }
 
 .kaggle-lint-info {
-  color: #6a9fb5;
+  color: var(--info);
 }
 
 /* Inline markers */
@@ -491,7 +505,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 /* Inline marker states */
@@ -639,8 +653,8 @@
 }
 
 .kaggle-lint-btn-ignore svg {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
 }
 
 .kaggle-lint-btn-ignore:hover {

@@ -36,11 +36,13 @@ interface Settings {
 // have long one-liners), W293 (whitespace-only blank lines, harmless),
 // E302 (2-blank-lines-before-def, notebook cell boundaries already do
 // this job), E402 (imports not at top of file — normal in notebooks,
-// where cells rearrange execution order).
+// where cells rearrange execution order). ruffIgnoreCodes only needs
+// E402 — ruff's pycodestyle implementation is already less noisy than
+// flake8's for the rest of these (E221/E241/E302 in particular).
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'ruff',
   flake8IgnoreCodes: 'E221, E501, E241, W293, E302, E402',
-  ruffIgnoreCodes: '',
+  ruffIgnoreCodes: 'E402',
 };
 
 type ContentScriptMessage =

@@ -18,7 +18,7 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'ruff',
   flake8IgnoreCodes: 'E221, E501, E241, W293, E302, E402',
-  ruffIgnoreCodes: '',
+  ruffIgnoreCodes: 'E402',
 };
 
 export const PopupApp: React.FC = () => {
