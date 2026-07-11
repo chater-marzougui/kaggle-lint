@@ -34,23 +34,11 @@ A modern TypeScript + React Chrome extension for linting Python code in Kaggle n
 
 ## 🎬 Screenshots & Demo
 
-Placeholders below — see [docs/assets/README.md](docs/assets/README.md) for exactly what to capture and drop in for each one.
-
-<!-- ASSET: docs/assets/popup-settings.png — the toolbar popup, engine radio (Flake8/Ruff) and Ignore Codes field both visible -->
-
 ![Extension popup: engine selector and ignore-codes settings](docs/assets/popup-settings.png)
-
-<!-- ASSET: docs/assets/click-to-scroll.gif — clicking an error in the overlay scrolls to and highlights the exact line in the notebook -->
 
 ![Clicking an error scrolls to and highlights the exact line](docs/assets/click-to-scroll.gif)
 
-<!-- ASSET: docs/assets/live-relint.gif — editing a cell and watching the overlay's error list update automatically a moment later -->
-
-![Editing a cell triggers an automatic re-lint](docs/assets/live-relint.gif)
-
-<!-- ASSET: docs/assets/overlay-minimized.png — the overlay dragged and collapsed into its minimized pill form -->
-
-![Overlay minimized to a small pill in the corner](docs/assets/overlay-minimized.png)
+![Expanding and minimizing the overlay](docs/assets/overlay-minimized.gif)
 
 ## 🚀 Installation
 
@@ -109,8 +97,8 @@ Download the latest release `.zip` file from the [releases page](https://github.
 Click the extension icon in Chrome toolbar to configure:
 
 - **Linter Engine**: Switch between Flake8 and Ruff
-- **Ignore Codes**: Comma-separated error codes to ignore, per engine (e.g. `E501, F401`)
-- **Actions**: Re-lint now or toggle overlay
+- **Ignore Codes**: Comma-separated error codes to ignore, per engine (e.g. `E501, F401`) — add `debug` to enable debug logging without a rebuild
+- **Show overlay on Kaggle**: Toggle the overlay on/off
 
 ## 🏗️ Architecture
 
@@ -325,6 +313,7 @@ Special thanks to:
 
 - **[Pyodide](https://pyodide.org/)** - Python runtime compiled to WebAssembly
 - **[Flake8](https://flake8.pycqa.org/)** - Industry-standard Python linting tool
+- **[Ruff](https://docs.astral.sh/ruff/)** - Extremely fast Python linter, written in Rust (via `@astral-sh/ruff-wasm-web`)
 
 ## 📄 License
 
