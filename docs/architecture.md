@@ -1,6 +1,6 @@
 # Architecture
 
-How kaggle-lint is structured today (v2.0.0, post TypeScript/React migration, and post an unplanned "lint-engine-consolidation" project that landed 2026-07-10 between Milestone 3 and Milestone 4 — see the note at the end of this file). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
+How kaggle-lint is structured today (v2.1.0, post TypeScript/React migration, and post an unplanned "lint-engine-consolidation" project that landed 2026-07-10 between Milestone 3 and Milestone 4 — see the note at the end of this file). This documents the **actual** current state, including flaws — see [review-findings.md](review-findings.md) for the itemized problems and [next_plans/](next_plans/) for the fixes.
 
 ## Monorepo layout
 
