@@ -4,5 +4,8 @@ export {
   InfoIcon,
   SuccessIcon,
   EyeOffIcon,
+  XIcon,
+  chevronIcon,
+  refreshIcon,
   type IconProps,
 } from './Icons';

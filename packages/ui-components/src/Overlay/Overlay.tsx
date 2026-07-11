@@ -15,6 +15,9 @@ import {
   WarningIcon,
   InfoIcon,
   SuccessIcon,
+  XIcon,
+  chevronIcon,
+  refreshIcon,
   type IconProps,
 } from '../icons';
 import './Overlay.css';
@@ -201,31 +204,17 @@ export const Overlay: React.FC<OverlayProps> = ({
     return null;
   }
 
-  const chevronIcon = (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-    </svg>
-  );
-
-  const refreshIcon = (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-    </svg>
-  );
-
   return (
     <div
       ref={overlayRef}
       id="kaggle-lint-overlay"
-      className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${
-        isMinimized ? 'kaggle-lint-minimized' : ''
-      } ${
-        stats.bySeverity.error > 0
+      className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${isMinimized ? 'kaggle-lint-minimized' : ''
+        } ${stats.bySeverity.error > 0
           ? 'kaggle-lint-worst-error'
           : stats.bySeverity.warning > 0
             ? 'kaggle-lint-worst-warning'
             : ''
-      }`}
+        }`}
     >
       <div ref={headerRef} className="kaggle-lint-header">
         <span className="kaggle-lint-title">
@@ -243,9 +232,8 @@ export const Overlay: React.FC<OverlayProps> = ({
 
         <div className="kaggle-lint-controls">
           <button
-            className={`kaggle-lint-btn kaggle-lint-btn-icon ${
-              isRefreshing || isLoading ? 'kaggle-lint-spinning' : ''
-            }`}
+            className={`kaggle-lint-btn kaggle-lint-btn-icon ${isRefreshing || isLoading ? 'kaggle-lint-spinning' : ''
+              }`}
             title="Refresh lint"
             id="kaggle-lint-refresh-btn"
             onClick={handleRefresh}
@@ -267,7 +255,7 @@ export const Overlay: React.FC<OverlayProps> = ({
             title="Close"
             onClick={onClose}
           >
-            ✕
+            {XIcon}
           </button>
         </div>
       </div>
@@ -299,9 +287,8 @@ export const Overlay: React.FC<OverlayProps> = ({
                   key={key}
                   type="button"
                   title={label}
-                  className={`kaggle-lint-tab kaggle-lint-tab-${key} ${
-                    activeSeverity === key ? 'kaggle-lint-tab-active' : ''
-                  }`}
+                  className={`kaggle-lint-tab kaggle-lint-tab-${key} ${activeSeverity === key ? 'kaggle-lint-tab-active' : ''
+                    }`}
                   onClick={() => setActiveSeverity(key)}
                 >
                   <Icon className="kaggle-lint-tab-icon" />
@@ -318,9 +305,8 @@ export const Overlay: React.FC<OverlayProps> = ({
               )}
               onErrorClick={handleErrorClick}
               onIgnoreCode={onIgnoreCode}
-              emptyMessage={`No ${
-                activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
-              }`}
+              emptyMessage={`No ${activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
+                }`}
             />
           </>
         )}

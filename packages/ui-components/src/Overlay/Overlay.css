@@ -257,10 +257,14 @@
 .kaggle-lint-tabs {
   display: flex;
   gap: 4px;
-  padding: 8px 12px 0;
+  padding: 8px 6px 0;
   margin: 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   transition: border-bottom 0.3s ease;
+}
+
+.kaggle-lint-tabs button {
+  margin-bottom: 0;
 }
 
 .kaggle-lint-tab {
@@ -273,7 +277,7 @@
   background: transparent;
   color: inherit;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, opacity 0.15s ease;
@@ -296,8 +300,8 @@
 }
 
 .kaggle-lint-tab-icon {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
 }
 
