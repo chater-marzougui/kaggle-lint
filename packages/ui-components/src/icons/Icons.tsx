@@ -1,6 +1,5 @@
 /**
- * Severity/status icon set (Lucide, https://lucide.dev), replacing the
- * emoji this overlay used to render (❌/⚠️/ℹ️/✅). Inlined as JSX rather
+ * Severity/status icon set (Lucide, https://lucide.dev). Inlined as JSX rather
  * than loaded as image assets — ui-components' build is plain `tsc` (no
  * asset loader), and every other icon in this package (Overlay.tsx's
  * refresh/chevron) already follows this same inline-SVG pattern.

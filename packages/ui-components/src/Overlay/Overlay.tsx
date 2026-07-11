@@ -15,7 +15,6 @@ import {
   WarningIcon,
   InfoIcon,
   SuccessIcon,
-  EyeOffIcon,
   type IconProps,
 } from '../icons';
 import './Overlay.css';
@@ -72,13 +71,6 @@ export const Overlay: React.FC<OverlayProps> = ({
   // so a notebook with hundreds of errors doesn't pay for rendering all
   // three lists just because one is active.
   const [activeSeverity, setActiveSeverity] = useState<Severity>('error');
-  // Per-severity "hide this category" toggle (eye-off icon on each tab).
-  // Display-only: doesn't touch ignore-codes/engine settings, doesn't
-  // persist across an overlay remount — a lightweight view preference,
-  // not a linting decision.
-  const [silencedSeverities, setSilencedSeverities] = useState<Set<Severity>>(
-    new Set()
-  );
   const overlayRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const dragOffsetRef = useRef({
@@ -205,18 +197,6 @@ export const Overlay: React.FC<OverlayProps> = ({
     onErrorClick?.(error);
   };
 
-  const toggleSilence = (severity: Severity) => {
-    setSilencedSeverities((prev) => {
-      const next = new Set(prev);
-      if (next.has(severity)) {
-        next.delete(severity);
-      } else {
-        next.add(severity);
-      }
-      return next;
-    });
-  };
-
   if (!visible) {
     return null;
   }
@@ -314,77 +294,34 @@ export const Overlay: React.FC<OverlayProps> = ({
         ) : (
           <>
             <div className="kaggle-lint-tabs">
-              {SEVERITY_TABS.map(({ key, label, Icon }) => {
-                const silenced = silencedSeverities.has(key);
-                return (
-                  // A <button> can't contain another interactive element
-                  // (the eye-off toggle below), so this is a
-                  // keyboard-accessible div rather than a real <button>.
-                  <div
-                    key={key}
-                    role="button"
-                    tabIndex={0}
-                    className={`kaggle-lint-tab kaggle-lint-tab-${key} ${
-                      activeSeverity === key ? 'kaggle-lint-tab-active' : ''
-                    } ${silenced ? 'kaggle-lint-tab-silenced' : ''}`}
-                    onClick={() => setActiveSeverity(key)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setActiveSeverity(key);
-                      }
-                    }}
-                  >
-                    <Icon className="kaggle-lint-tab-icon" />
-                    <span className="kaggle-lint-tab-count">
-                      {stats.bySeverity[key]}
-                    </span>
-                    <button
-                      type="button"
-                      className="kaggle-lint-tab-silence"
-                      title={
-                        silenced
-                          ? `Show ${label.toLowerCase()}`
-                          : `Hide ${label.toLowerCase()}`
-                      }
-                      onClick={(e) => {
-                        // Silencing is a separate action from switching
-                        // tabs — don't let it also activate this tab.
-                        e.stopPropagation();
-                        toggleSilence(key);
-                      }}
-                    >
-                      <EyeOffIcon />
-                    </button>
-                  </div>
-                );
-              })}
+              {SEVERITY_TABS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={label}
+                  className={`kaggle-lint-tab kaggle-lint-tab-${key} ${
+                    activeSeverity === key ? 'kaggle-lint-tab-active' : ''
+                  }`}
+                  onClick={() => setActiveSeverity(key)}
+                >
+                  <Icon className="kaggle-lint-tab-icon" />
+                  <span className="kaggle-lint-tab-count">
+                    {stats.bySeverity[key]}
+                  </span>
+                </button>
+              ))}
             </div>
 
-            {silencedSeverities.has(activeSeverity) ? (
-              <div className="kaggle-lint-tab-silenced-placeholder">
-                {SEVERITY_TABS.find((tab) => tab.key === activeSeverity)?.label}{' '}
-                are hidden.{' '}
-                <button
-                  type="button"
-                  className="kaggle-lint-tab-unsilence-link"
-                  onClick={() => toggleSilence(activeSeverity)}
-                >
-                  Show them
-                </button>
-              </div>
-            ) : (
-              <ErrorList
-                errors={errors.filter(
-                  (error) => error.severity === activeSeverity
-                )}
-                onErrorClick={handleErrorClick}
-                onIgnoreCode={onIgnoreCode}
-                emptyMessage={`No ${
-                  activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
-                }`}
-              />
-            )}
+            <ErrorList
+              errors={errors.filter(
+                (error) => error.severity === activeSeverity
+              )}
+              onErrorClick={handleErrorClick}
+              onIgnoreCode={onIgnoreCode}
+              emptyMessage={`No ${
+                activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
+              }`}
+            />
           </>
         )}
       </div>

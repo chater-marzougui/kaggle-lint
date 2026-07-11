@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { ErrorItemProps } from '../types';
-import { ErrorIcon, WarningIcon, InfoIcon } from '../icons';
+import { ErrorIcon, WarningIcon, InfoIcon, EyeOffIcon } from '../icons';
 
 const SEVERITY_ICONS = {
   error: ErrorIcon,
@@ -71,7 +71,7 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
           title={`Ignore ${error.code} everywhere`}
           onClick={handleIgnoreClick}
         >
-          🔇
+          <EyeOffIcon />
         </button>
       )}
     </li>

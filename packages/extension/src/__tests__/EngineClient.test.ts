@@ -22,20 +22,18 @@ describe('EngineClient lint result cache', () => {
   });
 
   it('caches identical (engine, cells, ignoreCodes) calls — only one sendMessage round-trip', async () => {
-    const sendMessage = jest
-      .fn()
-      .mockResolvedValue(
-        okResponse([
-          {
-            code: 'F401',
-            msg: 'unused',
-            line: 1,
-            cellIndex: 0,
-            cellLine: 1,
-            severity: 'error',
-          },
-        ])
-      );
+    const sendMessage = jest.fn().mockResolvedValue(
+      okResponse([
+        {
+          code: 'F401',
+          msg: 'unused',
+          line: 1,
+          cellIndex: 0,
+          cellLine: 1,
+          severity: 'error',
+        },
+      ])
+    );
     stubChrome(sendMessage);
     const client = new EngineClient();
 
