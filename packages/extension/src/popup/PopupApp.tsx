@@ -21,6 +21,10 @@ const DEFAULT_SETTINGS: Settings = {
 export const PopupApp: React.FC = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [isKaggle, setIsKaggle] = useState(true);
+  // ponytail: not wired to real overlay-visibility state (that's deliberately
+  // never persisted/queried, see ContentApp.tsx) — purely local UI state for
+  // the switch's on/off look, same as the old button being always clickable.
+  const [overlayEnabled, setOverlayEnabled] = useState(true);
 
   // Load settings from chrome storage
   useEffect(() => {
@@ -111,18 +115,6 @@ export const PopupApp: React.FC = () => {
     }
   };
 
-  const handleRefresh = () => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (tabId === undefined) return;
-        sendToContentScript(tabId, { type: 'runLinter' }).then((result) => {
-          if (!result.ok) setIsKaggle(false);
-        });
-      });
-    }
-  };
-
   const handleToggleOverlay = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -182,7 +174,6 @@ export const PopupApp: React.FC = () => {
           />
           <div className="header-text">
             <h1>Kaggle Linter</h1>
-            <p className="subtitle">Python code quality checker</p>
           </div>
         </div>
       </div>
@@ -194,46 +185,33 @@ export const PopupApp: React.FC = () => {
             <h2 className="section-title">Linter Engine</h2>
           </div>
           <div className="section-content">
-            <div className="option-group">
-              <label className="option-item">
-                <input
-                  type="radio"
-                  name="linter-engine"
-                  value="flake8"
-                  checked={settings.linterEngine === 'flake8'}
-                  onChange={() => handleEngineChange('flake8')}
-                />
-                <div className="option-info">
-                  <span className="option-label">
-                    Flake8 (slower first load)
-                  </span>
-                  <span className="option-description">
-                    Industry-standard Python linter (pyflakes + pycodestyle +
-                    mccabe)
-                  </span>
-                </div>
-              </label>
-              <label className="option-item">
-                <input
-                  type="radio"
-                  name="linter-engine"
-                  value="ruff"
-                  checked={settings.linterEngine === 'ruff'}
-                  onChange={() => handleEngineChange('ruff')}
-                />
-                <div className="option-info">
-                  <span className="option-label">
-                    Ruff (recommended — instant)
-                  </span>
-                  <span className="option-description">
-                    Fast Rust-based Python linter — no Python runtime needed
-                  </span>
-                </div>
-              </label>
+            <div className="engine-selector">
+              <button
+                type="button"
+                className={`engine-pill${settings.linterEngine === 'flake8' ? ' active' : ''}`}
+                onClick={() => handleEngineChange('flake8')}
+              >
+                <span className="engine-pill-name">Flake8</span>
+                <span className="engine-pill-meta">
+                  Thorough{settings.linterEngine === 'flake8' ? ' · selected' : ''}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`engine-pill${settings.linterEngine === 'ruff' ? ' active' : ''}`}
+                onClick={() => handleEngineChange('ruff')}
+              >
+                <span className="engine-pill-name">Ruff</span>
+                <span className="engine-pill-meta">
+                  Instant{settings.linterEngine === 'ruff' ? ' · selected' : ''}
+                </span>
+              </button>
             </div>
-            <div className="status-message">
-              {settings.linterEngine} will be loaded on first lint
-            </div>
+            <p className="engine-caption">
+              {settings.linterEngine === 'flake8'
+                ? 'Industry-standard Python linter (pyflakes + pycodestyle + mccabe)'
+                : 'Fast Rust-based Python linter — no Python runtime needed'}
+            </p>
           </div>
         </div>
 
@@ -267,28 +245,25 @@ export const PopupApp: React.FC = () => {
             <h2 className="section-title">Actions</h2>
           </div>
           <div className="section-content">
-            <button
-              id="refresh-btn"
-              className="action-btn action-btn-primary"
-              onClick={handleRefresh}
-            >
-              <svg className="btn-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
-                <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
-              </svg>
-              Re-lint Now
-            </button>
-            <button
-              id="toggle-overlay-btn"
-              className="action-btn action-btn-secondary"
-              onClick={handleToggleOverlay}
-            >
-              <svg className="btn-icon" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
-                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z" />
-              </svg>
-              Toggle Overlay
-            </button>
+            <div className="overlay-toggle-row">
+              <div className="overlay-toggle-info">
+                <span className="option-label">Show overlay on Kaggle</span>
+                <span className="option-description">
+                  Re-lints live as you edit
+                </span>
+              </div>
+              <label className="rule-toggle">
+                <input
+                  type="checkbox"
+                  checked={overlayEnabled}
+                  onChange={(e) => {
+                    setOverlayEnabled(e.target.checked);
+                    handleToggleOverlay();
+                  }}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
           </div>
         </div>
       </div>
