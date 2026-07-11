@@ -12,9 +12,12 @@ interface Settings {
   ruffIgnoreCodes: string;
 }
 
+// Kept in sync with ContentApp.tsx's DEFAULT_SETTINGS (see its comment for
+// why each flake8 code is pre-ignored) — this copy only matters for what
+// the popup shows before any settings have ever been saved.
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'ruff',
-  flake8IgnoreCodes: '',
+  flake8IgnoreCodes: 'E221, E501, E241, W293, E302, E402',
   ruffIgnoreCodes: '',
 };
 

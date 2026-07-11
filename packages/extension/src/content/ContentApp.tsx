@@ -29,9 +29,17 @@ interface Settings {
 // they wonder if the extension works. This only affects installs with no
 // saved settings yet — chrome.storage.sync's `linterSettings` always wins
 // once it exists, so upgrading users keep whatever they already chose.
+//
+// flake8IgnoreCodes ships pre-populated with codes that are more noise
+// than signal in a notebook: E221/E241 (alignment spacing, often
+// deliberate for readability), E501 (line length — notebooks routinely
+// have long one-liners), W293 (whitespace-only blank lines, harmless),
+// E302 (2-blank-lines-before-def, notebook cell boundaries already do
+// this job), E402 (imports not at top of file — normal in notebooks,
+// where cells rearrange execution order).
 const DEFAULT_SETTINGS: Settings = {
   linterEngine: 'ruff',
-  flake8IgnoreCodes: '',
+  flake8IgnoreCodes: 'E221, E501, E241, W293, E302, E402',
   ruffIgnoreCodes: '',
 };
 
