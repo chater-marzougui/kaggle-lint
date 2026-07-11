@@ -87,11 +87,26 @@ Built with ❤️ by [Chater Marzougui](https://github.com/chater-marzougui).
 
 ## 🎬 Screenshots & Demo
 
-![Extension popup: engine selector and ignore-codes settings](docs/assets/popup-settings.png)
+<div align="center">
+  <img src="docs/assets/hero-overlay.png" alt="Kaggle Linter overlay showing lint results on a Kaggle notebook" width="420">
+</div>
 
-![Clicking an error scrolls to and highlights the exact line](docs/assets/click-to-scroll.gif)
-
-![Expanding and minimizing the overlay](docs/assets/overlay-minimized.gif)
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/assets/popup-settings.png" alt="Extension popup: engine selector and ignore-codes settings" width="220"><br>
+      <sub>Popup settings</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/click-to-scroll.gif" alt="Clicking an error scrolls to and highlights the exact line" width="280"><br>
+      <sub>Click-to-navigate</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/overlay-minimized.gif" alt="Expanding and minimizing the overlay" width="280"><br>
+      <sub>Expand / minimize</sub>
+    </td>
+  </tr>
+</table>
 
 <div align="right">
   <a href="#readme-top">
@@ -220,6 +235,26 @@ For the architecture, build/test setup, and coding conventions, see [CONTRIBUTIN
 ## 📃 License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+<div align="right">
+  <a href="#readme-top">
+    <img src="https://img.shields.io/badge/Back_to_Top-⬆️-blue?style=for-the-badge" alt="Back to Top">
+  </a>
+</div>
+
+---
+
+## ⚖️ Disclaimer
+
+Kaggle Linter is an independent, unofficial project. It is **not affiliated with, endorsed by, or sponsored by Kaggle or Google**.
+
+The extension is provided **"as is," with no warranty of any kind**, express or implied — see the [LICENSE](LICENSE) for the full legal terms. In plain language:
+
+- **Lint results are suggestions, not guarantees.** Flake8 and Ruff can have false positives or miss real issues. Always use your own judgment before acting on a finding.
+- **It only reads your notebook to lint it — it never edits, submits, or deletes anything.** It doesn't modify your code, run it, or touch your Kaggle account in any way.
+- **Use it at your own risk.** The author is not liable for any loss, damage, or issue — including anything related to your Kaggle notebooks, account, or data — arising from installing or using this extension.
+
+Found a real bug? [Open an issue](https://github.com/chater-marzougui/kaggle-lint/issues) — that's genuinely the fastest way to get something fixed, not a liability question.
 
 <div align="right">
   <a href="#readme-top">
