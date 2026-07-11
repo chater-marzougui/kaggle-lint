@@ -69,3 +69,11 @@ export interface ErrorItemProps {
   onClick?: () => void;
   onIgnoreCode?: (code: string) => void;
 }
+
+export interface ConsentGateProps {
+  theme?: 'light' | 'dark';
+  /** Called once, when the user clicks "I Agree". The caller is
+   * responsible for persisting that choice — this component has no
+   * storage access of its own. */
+  onAgree: () => void;
+}

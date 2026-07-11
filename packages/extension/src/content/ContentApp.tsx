@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Overlay } from '@kaggle-lint/ui-components';
+import { Overlay, ConsentGate } from '@kaggle-lint/ui-components';
 import type { LintUIError } from '@kaggle-lint/ui-components';
 import { KaggleDomParser } from '../utils/KaggleDomParser';
 import { CodeMirrorManager } from '../utils/CodeMirrorManager';
@@ -57,6 +57,11 @@ const DEFAULT_OVERLAY_UI_STATE: OverlayUiState = {
   isMinimized: false,
 };
 
+// Sync (not local) deliberately: agreeing once should carry across the
+// user's own signed-in devices, the same way linterSettings already does,
+// rather than needing to re-agree on every machine.
+const DISCLAIMER_ACCEPTED_KEY = 'disclaimerAccepted';
+
 export const ContentApp: React.FC = () => {
   const [errors, setErrors] = useState<LintUIError[]>([]);
   const errorsRef = React.useRef<LintUIError[]>([]);
@@ -75,6 +80,12 @@ export const ContentApp: React.FC = () => {
   const overlayStateSaveTimerRef = React.useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
+  // null = not yet loaded from storage (render nothing rather than flash
+  // the gate for users who already agreed) — same pattern as
+  // overlayUiStateLoaded above.
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState<
+    boolean | null
+  >(null);
 
   /**
    * Overlay position/minimize state is deliberately chrome.storage.local
@@ -112,6 +123,33 @@ export const ContentApp: React.FC = () => {
       }
     );
   }, []);
+
+  /**
+   * First-run disclaimer gate: until the user has agreed once, ContentApp
+   * renders <ConsentGate/> instead of <Overlay/> (see the render logic
+   * near the bottom of this component) — linting still runs normally in
+   * the background either way, only the display is gated, so results are
+   * ready the moment they agree.
+   */
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      setDisclaimerAccepted(true);
+      return;
+    }
+    chrome.storage.sync.get(
+      [DISCLAIMER_ACCEPTED_KEY],
+      (result: Record<string, boolean | undefined>) => {
+        setDisclaimerAccepted(Boolean(result[DISCLAIMER_ACCEPTED_KEY]));
+      }
+    );
+  }, []);
+
+  const handleAgreeToDisclaimer = () => {
+    setDisclaimerAccepted(true);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.sync.set({ [DISCLAIMER_ACCEPTED_KEY]: true });
+    }
+  };
 
   const handleOverlayStateChange = (state: OverlayUiState) => {
     setOverlayUiState(state);
@@ -683,8 +721,14 @@ export const ContentApp: React.FC = () => {
     });
   };
 
-  if (!overlayUiStateLoaded) {
+  if (!overlayUiStateLoaded || disclaimerAccepted === null) {
     return null;
+  }
+
+  if (!disclaimerAccepted) {
+    return visible ? (
+      <ConsentGate theme={theme} onAgree={handleAgreeToDisclaimer} />
+    ) : null;
   }
 
   return (

@@ -1,0 +1,1 @@
+export { ConsentGate } from './ConsentGate';

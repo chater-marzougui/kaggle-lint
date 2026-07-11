@@ -6,4 +6,5 @@
 export { Overlay } from './Overlay';
 export { ErrorList } from './ErrorList';
 export { ErrorItem } from './ErrorItem';
+export { ConsentGate } from './ConsentGate';
 export * from './types';

@@ -705,3 +705,60 @@
 .kaggle-lint-overlay.kaggle-lint-minimized.kaggle-lint-worst-warning {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px #deb887;
 }
+
+/* ConsentGate (first-run disclaimer) — reuses the overlay, theme, header,
+   and content rules above for a consistent look; only its own content
+   area needs new rules. Lives here, not a separate file, because
+   webpack's CopyPlugin only ever copies this exact file into content.css
+   (see webpack.config.js) — a second CSS file wouldn't reliably reach
+   the page. */
+.kaggle-lint-consent-content {
+  padding: 16px;
+  overflow-y: visible;
+}
+
+.kaggle-lint-consent-intro {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.kaggle-lint-consent-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.kaggle-lint-consent-list li {
+  margin-bottom: 6px;
+}
+
+.kaggle-lint-consent-links {
+  margin: 0 0 16px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.kaggle-lint-consent-links a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.kaggle-lint-consent-agree-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #6a9fb5;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.kaggle-lint-consent-agree-btn:hover {
+  background: #5c8ba0;
+}
