@@ -83,9 +83,9 @@ export const ContentApp: React.FC = () => {
   // null = not yet loaded from storage (render nothing rather than flash
   // the gate for users who already agreed) — same pattern as
   // overlayUiStateLoaded above.
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState<
-    boolean | null
-  >(null);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean | null>(
+    null
+  );
 
   /**
    * Overlay position/minimize state is deliberately chrome.storage.local

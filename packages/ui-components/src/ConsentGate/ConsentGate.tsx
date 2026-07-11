@@ -45,16 +45,16 @@ export const ConsentGate: React.FC<ConsentGateProps> = ({
         </p>
         <ul className="kaggle-lint-consent-list">
           <li>
-            This is an independent project, not affiliated with or endorsed
-            by Kaggle or Google.
+            This is an independent project, not affiliated with or endorsed by
+            Kaggle or Google.
           </li>
           <li>
-            It only reads your notebook to lint it — it never edits, runs,
-            or submits anything, and never leaves your browser.
+            It only reads your notebook to lint it — it never edits, runs, or
+            submits anything, and never leaves your browser.
           </li>
           <li>
-            Lint results are suggestions, not guarantees. Use your own
-            judgment, and use the extension at your own risk.
+            Lint results are suggestions, not guarantees. Use your own judgment,
+            and use the extension at your own risk.
           </li>
         </ul>
         <p className="kaggle-lint-consent-links">
