@@ -1,6 +1,6 @@
 {
   "name": "kaggle-lint-monorepo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Kaggle Linter - Monorepo with TypeScript + React",
   "private": true,
   "workspaces": [
