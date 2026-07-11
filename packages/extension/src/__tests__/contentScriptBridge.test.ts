@@ -1,4 +1,7 @@
-import { sendToContentScript, pingContentScript } from '../popup/contentScriptBridge';
+import {
+  sendToContentScript,
+  pingContentScript,
+} from '../popup/contentScriptBridge';
 
 function stubChrome(
   callbackResponse: unknown,

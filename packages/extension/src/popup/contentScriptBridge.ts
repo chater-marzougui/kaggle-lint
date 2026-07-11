@@ -10,8 +10,7 @@
  */
 
 export type SendResult<TResponse> =
-  | { ok: true; response: TResponse }
-  | { ok: false };
+  { ok: true; response: TResponse } | { ok: false };
 
 export function sendToContentScript<TResponse = unknown>(
   tabId: number,

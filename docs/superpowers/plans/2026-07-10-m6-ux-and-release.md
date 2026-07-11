@@ -9,6 +9,7 @@
 **Tech Stack:** React 18, Chrome extension APIs (`chrome.tabs`, `chrome.runtime`), Jest + ts-jest + jsdom (existing extension test infra from Milestone 5), GitHub Actions release workflow.
 
 **Verified against current source (2026-07-10) before writing this plan — not the milestone plan's paraphrase:**
+
 - `packages/core`: 4 suites, **31 tests**, all passing (`buildNotebookSource`, `flake8Shim`, `lintWithSyntaxIsolation`, `severityMapping`).
 - `packages/extension`: 2 suites, **9 tests**, all passing (`CodeMirrorManager`, `KaggleDomParser`).
 - `npm run lint` (repo root): **0 errors, 1 warning** — the warning is `Overlay.tsx`'s `onStateChange` `react-hooks/exhaustive-deps` gap, already documented as deliberately-not-fixed in `docs/next_plans/milestone-4-config-and-build-hygiene/notes.md`. Not this plan's concern.
@@ -36,6 +37,7 @@
 ### Task 2: Debug logging gate (F27)
 
 **Files:**
+
 - Modify: `packages/extension/src/utils/logger.ts`
 - Modify: `packages/extension/src/utils/KaggleDomParser.ts:34,37-39`
 - Modify: `packages/extension/src/utils/CodeMirrorManager.ts:22,25-29`
@@ -43,6 +45,7 @@
 - Test: `packages/extension/src/__tests__/logger.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes: `createLogger(component?: string): Logger` (unchanged signature) from `packages/extension/src/utils/logger.ts`, already imported by `ContentApp.tsx`, `content/index.tsx`, `KaggleDomParser.ts`, `CodeMirrorManager.ts`.
 - Produces: same `Logger` interface (`log`/`warn`/`error`, each `(...args: unknown[]) => void`) — no caller needs to change.
 
@@ -188,14 +191,14 @@ with:
 In `packages/extension/src/__tests__/KaggleDomParser.test.ts`, line 24 currently reads:
 
 ```ts
-    // Suppress console noise from KaggleDomParser's DEBUG logger
+// Suppress console noise from KaggleDomParser's DEBUG logger
 ```
 
 Replace with:
 
 ```ts
-    // Suppress console.warn/error noise (console.log is already silent
-    // under test — logger.ts gates it behind DEBUG, unset here).
+// Suppress console.warn/error noise (console.log is already silent
+// under test — logger.ts gates it behind DEBUG, unset here).
 ```
 
 - [ ] **Step 7: Run the full extension suite**
@@ -220,12 +223,14 @@ git commit -m "fix(extension): gate debug logging behind DEBUG flag"
 ### Task 3: Popup robustness (F12)
 
 **Files:**
+
 - Create: `packages/extension/src/popup/contentScriptBridge.ts`
 - Modify: `packages/extension/src/popup/PopupApp.tsx`
 - Modify: `packages/extension/src/content/ContentApp.tsx:37-40,461-485` (ping branch)
 - Test: `packages/extension/src/__tests__/contentScriptBridge.test.ts` (new)
 
 **Interfaces:**
+
 - Produces: `sendToContentScript<TResponse>(tabId: number, message: unknown): Promise<{ ok: true; response: TResponse } | { ok: false }>` and `pingContentScript(tabId: number): Promise<boolean>`, both from `packages/extension/src/popup/contentScriptBridge.ts`.
 - Consumes (from `ContentApp.tsx`'s existing message protocol): the `ContentScriptMessage` discriminated union (currently `{type:'runLinter'}|{type:'toggleOverlay'}|{type:'settingsChanged',settings}`), extended with `{type:'ping'}`, answered with `{ pong: true }`.
 
@@ -234,7 +239,10 @@ git commit -m "fix(extension): gate debug logging behind DEBUG flag"
 Create `packages/extension/src/__tests__/contentScriptBridge.test.ts`:
 
 ```ts
-import { sendToContentScript, pingContentScript } from '../popup/contentScriptBridge';
+import {
+  sendToContentScript,
+  pingContentScript,
+} from '../popup/contentScriptBridge';
 
 function stubChrome(
   callbackResponse: unknown,
@@ -318,8 +326,7 @@ Create `packages/extension/src/popup/contentScriptBridge.ts`:
  */
 
 export type SendResult<TResponse> =
-  | { ok: true; response: TResponse }
-  | { ok: false };
+  { ok: true; response: TResponse } | { ok: false };
 
 export function sendToContentScript<TResponse = unknown>(
   tabId: number,
@@ -373,33 +380,33 @@ type ContentScriptMessage =
 In the same file's message listener (around lines 460–485), widen the `sendResponse` parameter type and add the branch:
 
 ```ts
-      const messageListener = (
-        message: ContentScriptMessage,
-        _sender: chrome.runtime.MessageSender,
-        sendResponse: (response: { success: boolean } | { pong: true }) => void
-      ) => {
-        logger.log('Received message:', message);
+const messageListener = (
+  message: ContentScriptMessage,
+  _sender: chrome.runtime.MessageSender,
+  sendResponse: (response: { success: boolean } | { pong: true }) => void
+) => {
+  logger.log('Received message:', message);
 
-        if (message.type === 'runLinter') {
-          logger.log('Message: runLinter');
-          runLinterRef.current();
-          sendResponse({ success: true });
-        } else if (message.type === 'toggleOverlay') {
-          logger.log('Message: toggleOverlay');
-          setVisible((prev) => !prev);
-          sendResponse({ success: true });
-        } else if (message.type === 'settingsChanged') {
-          logger.log('Message: settingsChanged', message.settings);
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...message.settings,
-          });
-        } else if (message.type === 'ping') {
-          sendResponse({ pong: true });
-        }
+  if (message.type === 'runLinter') {
+    logger.log('Message: runLinter');
+    runLinterRef.current();
+    sendResponse({ success: true });
+  } else if (message.type === 'toggleOverlay') {
+    logger.log('Message: toggleOverlay');
+    setVisible((prev) => !prev);
+    sendResponse({ success: true });
+  } else if (message.type === 'settingsChanged') {
+    logger.log('Message: settingsChanged', message.settings);
+    setSettings({
+      ...DEFAULT_SETTINGS,
+      ...message.settings,
+    });
+  } else if (message.type === 'ping') {
+    sendResponse({ pong: true });
+  }
 
-        return true;
-      };
+  return true;
+};
 ```
 
 - [ ] **Step 6: Replace PopupApp's URL-sniffing effect with a ping**
@@ -413,36 +420,36 @@ import { pingContentScript, sendToContentScript } from './contentScriptBridge';
 Replace the "Check if current tab is a Kaggle page" effect (lines 42–52):
 
 ```tsx
-  // Check if current tab is a Kaggle page
-  useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.url) {
-          const isKagglePage = tabs[0].url.includes('kaggle.com');
-          setIsKaggle(isKagglePage);
-        }
-      });
-    }
-  }, []);
+// Check if current tab is a Kaggle page
+useEffect(() => {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.url) {
+        const isKagglePage = tabs[0].url.includes('kaggle.com');
+        setIsKaggle(isKagglePage);
+      }
+    });
+  }
+}, []);
 ```
 
 with:
 
 ```tsx
-  // Detect whether the content script is actually running in the active
-  // tab (F12) — a URL match alone can't tell, since the content script
-  // only injects on /code/*/*/edit, not every kaggle.com page.
-  useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.tabs) return;
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (tabId === undefined) {
-        setIsKaggle(false);
-        return;
-      }
-      pingContentScript(tabId).then(setIsKaggle);
-    });
-  }, []);
+// Detect whether the content script is actually running in the active
+// tab (F12) — a URL match alone can't tell, since the content script
+// only injects on /code/*/*/edit, not every kaggle.com page.
+useEffect(() => {
+  if (typeof chrome === 'undefined' || !chrome.tabs) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (tabId === undefined) {
+      setIsKaggle(false);
+      return;
+    }
+    pingContentScript(tabId).then(setIsKaggle);
+  });
+}, []);
 ```
 
 - [ ] **Step 7: Wrap the three existing sendMessage call sites**
@@ -450,55 +457,55 @@ with:
 Replace `saveSettings` (lines 77–93):
 
 ```tsx
-  const saveSettings = (newSettings: Settings) => {
-    setSettings(newSettings);
+const saveSettings = (newSettings: Settings) => {
+  setSettings(newSettings);
 
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ linterSettings: newSettings });
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (tabId === undefined) return;
-        sendToContentScript(tabId, {
-          type: 'settingsChanged',
-          settings: newSettings,
-        }).then((result) => {
-          if (!result.ok) setIsKaggle(false);
-        });
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.sync.set({ linterSettings: newSettings });
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (tabId === undefined) return;
+      sendToContentScript(tabId, {
+        type: 'settingsChanged',
+        settings: newSettings,
+      }).then((result) => {
+        if (!result.ok) setIsKaggle(false);
       });
-    }
-  };
+    });
+  }
+};
 ```
 
 Replace `handleRefresh` (lines 110–118):
 
 ```tsx
-  const handleRefresh = () => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (tabId === undefined) return;
-        sendToContentScript(tabId, { type: 'runLinter' }).then((result) => {
-          if (!result.ok) setIsKaggle(false);
-        });
+const handleRefresh = () => {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (tabId === undefined) return;
+      sendToContentScript(tabId, { type: 'runLinter' }).then((result) => {
+        if (!result.ok) setIsKaggle(false);
       });
-    }
-  };
+    });
+  }
+};
 ```
 
 Replace `handleToggleOverlay` (lines 120–128):
 
 ```tsx
-  const handleToggleOverlay = () => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (tabId === undefined) return;
-        sendToContentScript(tabId, { type: 'toggleOverlay' }).then((result) => {
-          if (!result.ok) setIsKaggle(false);
-        });
+const handleToggleOverlay = () => {
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (tabId === undefined) return;
+      sendToContentScript(tabId, { type: 'toggleOverlay' }).then((result) => {
+        if (!result.ok) setIsKaggle(false);
       });
-    }
-  };
+    });
+  }
+};
 ```
 
 - [ ] **Step 8: Reword the not-connected panel**
@@ -542,6 +549,7 @@ git commit -m "fix(popup): detect content script via ping; surface messaging fai
 ### Task 4: Honest documentation (F24) — also verifies Task 1's (M8's) intent held
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/architecture.md`
 - Verify only, no edit: `docs/review-findings.md` (already carries per-finding "resolved"/"moot" annotations through M5 — confirmed by reading its current summary table)
@@ -657,6 +665,7 @@ git commit -m "docs: truthful README and refreshed architecture doc"
 ### Task 5: Delete old-linter (F30)
 
 **Files:**
+
 - Delete: `old-linter/` (entire folder, including the untracked-but-present `old-linter/.env` — confirmed via `git log --all -- old-linter/.env` returning nothing, i.e. it was never actually committed, so F30 as originally described is moot, but the stray file should still go with the folder)
 - Modify: `docs/next_plans/README.md` (append a follow-up note)
 
@@ -685,7 +694,6 @@ rm -rf old-linter
 Append to the end of `docs/next_plans/README.md` (after the "Rules for the executing agent" section):
 
 ```md
-
 ## Follow-ups
 
 - **Standalone demo page**: removed along with `old-linter/` in Milestone 6 Task 5 (2026-07-10). A replacement (upload a `.ipynb`, lint without installing the extension) is a candidate future milestone, not yet planned.
@@ -712,6 +720,7 @@ git commit -m "chore: remove legacy old-linter implementation"
 ### Task 6: Release pipeline honesty + ship (F28)
 
 **Files:**
+
 - Modify: `.github/workflows/release.yml`
 - Modify: `package.json`, `packages/core/package.json`, `packages/ui-components/package.json`, `packages/extension/package.json` (version bump)
 - Modify: `docs/architecture.md` (one line — see Step 2)
@@ -721,24 +730,24 @@ git commit -m "chore: remove legacy old-linter implementation"
 In `.github/workflows/release.yml`, delete the entire `release_notes.md` heredoc block (lines 37–68, the `Get release notes` step) and the `body_path: release_notes.md` line, replacing the `Create GitHub Release` step with:
 
 ```yaml
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: kaggle-linter-${{ github.ref_name }}.zip
-          body: |
-            ## Kaggle Python Linter ${{ github.ref_name }}
+- name: Create GitHub Release
+  uses: softprops/action-gh-release@v2
+  with:
+    files: kaggle-linter-${{ github.ref_name }}.zip
+    body: |
+      ## Kaggle Python Linter ${{ github.ref_name }}
 
-            ### Installation
-            1. Download `kaggle-linter-${{ github.ref_name }}.zip`
-            2. Extract the ZIP file
-            3. Open Chrome and go to `chrome://extensions/`
-            4. Enable "Developer mode"
-            5. Click "Load unpacked" and select the extracted folder
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ### Installation
+      1. Download `kaggle-linter-${{ github.ref_name }}.zip`
+      2. Extract the ZIP file
+      3. Open Chrome and go to `chrome://extensions/`
+      4. Enable "Developer mode"
+      5. Click "Load unpacked" and select the extracted folder
+    generate_release_notes: true
+    draft: false
+    prerelease: false
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 This drops the now-false "9 custom lint rules" / "TypeScript + React migration complete" marketing copy (F28) — GitHub's own auto-generated notes (commit list since the last tag) replace it, with the install steps kept as a static, always-true prefix.
