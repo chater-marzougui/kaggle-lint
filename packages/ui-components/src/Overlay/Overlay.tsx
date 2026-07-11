@@ -220,7 +220,7 @@ export const Overlay: React.FC<OverlayProps> = ({
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
-          <span className="kaggle-lint-title-text">Python Linter</span>
+          <span className="kaggle-lint-title-text">Kaggle Linter</span>
         </span>
 
         <div className="kaggle-lint-controls">

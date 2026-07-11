@@ -1,7 +1,7 @@
 {
   "name": "@kaggle-lint/extension",
-  "version": "2.1.0",
-  "description": "Chrome extension for Kaggle Python Linter",
+  "version": "1.0.0",
+  "description": "Chrome extension for Kaggle Linter",
   "private": true,
   "scripts": {
     "build": "webpack --config webpack.config.js",

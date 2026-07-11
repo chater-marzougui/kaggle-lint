@@ -1,5 +1,5 @@
 /**
- * Core TypeScript type definitions for Kaggle Python Linter
+ * Core TypeScript type definitions for Kaggle Linter
  */
 
 export type Severity = 'error' | 'warning' | 'info';

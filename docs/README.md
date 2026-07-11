@@ -1,6 +1,6 @@
 # kaggle-lint Documentation
 
-Documentation for the Kaggle Python Linter Chrome extension monorepo.
+Documentation for the Kaggle Linter Chrome extension monorepo.
 
 ## Contents
 

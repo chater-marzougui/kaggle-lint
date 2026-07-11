@@ -1,7 +1,7 @@
 {
   "name": "@kaggle-lint/ui-components",
-  "version": "2.1.0",
-  "description": "React UI components for Kaggle Python Linter",
+  "version": "1.0.0",
+  "description": "React UI components for Kaggle Linter",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -1,6 +1,6 @@
 /**
  * @kaggle-lint/ui-components
- * React UI components for Kaggle Python Linter
+ * React UI components for Kaggle Linter
  */
 
 export { Overlay } from './Overlay';

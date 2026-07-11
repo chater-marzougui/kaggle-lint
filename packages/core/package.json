@@ -1,7 +1,7 @@
 {
   "name": "@kaggle-lint/core",
-  "version": "2.1.0",
-  "description": "Core linting logic for Kaggle Python Linter",
+  "version": "1.0.0",
+  "description": "Core linting logic for Kaggle Linter",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

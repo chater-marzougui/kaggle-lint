@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Kaggle Python Linter",
+  "name": "Kaggle Linter",
   "description": "A linter extension for Python code in Kaggle notebooks",
   "version": "0.0.0",
   "permissions": ["activeTab", "storage", "offscreen"],
@@ -28,7 +28,7 @@
       "256": "icons/icon256.png",
       "512": "icons/icon512.png"
     },
-    "default_title": "Kaggle Python Linter Options"
+    "default_title": "Kaggle Linter Options"
   },
   "host_permissions": [
     "https://www.kaggle.com/*",

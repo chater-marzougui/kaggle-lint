@@ -39,7 +39,7 @@ jobs:
         with:
           files: kaggle-linter-${{ github.ref_name }}.zip
           body: |
-            ## Kaggle Python Linter ${{ github.ref_name }}
+            ## Kaggle Linter ${{ github.ref_name }}
 
             ### Installation
             1. Download `kaggle-linter-${{ github.ref_name }}.zip`

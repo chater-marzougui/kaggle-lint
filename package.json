@@ -1,7 +1,7 @@
 {
   "name": "kaggle-lint-monorepo",
-  "version": "2.1.0",
-  "description": "Kaggle Python Linter - Monorepo with TypeScript + React",
+  "version": "1.0.0",
+  "description": "Kaggle Linter - Monorepo with TypeScript + React",
   "private": true,
   "workspaces": [
     "packages/*"
