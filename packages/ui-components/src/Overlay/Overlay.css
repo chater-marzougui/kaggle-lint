@@ -349,34 +349,37 @@
 /* Error list */
 .kaggle-lint-errors {
   list-style: none;
-  padding: 0;
+  padding: 8px;
   margin: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.kaggle-lint-theme-dark .kaggle-lint-errors {
-  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 .kaggle-lint-error-item {
   display: flex;
-  align-items: stretch;
-  gap: 0;
-  padding: 12px 16px;
-  border-radius: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s;
-  margin: 0;
-  border-left: 3px solid #999;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.kaggle-lint-theme-dark .kaggle-lint-error-item {
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  transition: filter 0.15s ease;
+  margin: 0 0 6px;
 }
 
 .kaggle-lint-error-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.kaggle-lint-error-item:hover {
+  filter: brightness(0.97);
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-error-item:hover {
+  filter: brightness(1.15);
+}
+
+.kaggle-lint-error-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .kaggle-lint-icon {
@@ -385,7 +388,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 8px;
 }
 
 .kaggle-lint-icon svg {
@@ -397,45 +399,46 @@
   flex-shrink: 0;
   font-family: "Monaco", "Courier New", monospace;
   font-size: 11px;
-  color: #666;
-  margin-right: 8px;
-  padding: 0 6px;
-  border-radius: 0;
-  background: transparent;
+  font-weight: 600;
+  color: #4ab9ea;
 }
 
-.kaggle-lint-theme-dark .kaggle-lint-location {
-  color: #888;
+.kaggle-lint-code-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: "Monaco", "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  opacity: 0.75;
+}
+
+.kaggle-lint-theme-dark .kaggle-lint-code-badge {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .kaggle-lint-message {
-  flex: 1;
   word-break: break-word;
   font-size: 12px;
   line-height: 1.4;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  padding-left: 23px;
 }
 
-.kaggle-lint-rule {
-  flex-shrink: 0;
-  font-size: 11px;
-  opacity: 0.5;
-  margin-left: 8px;
-}
-
-/* Severity colors */
+/* Severity-tinted card backgrounds (replace the old left-border-stripe
+   treatment — the whole card is now tinted, not just an accent bar). */
 .kaggle-lint-severity-error {
-  border-left-color: #f48771 !important;
+  background: rgba(244, 135, 113, 0.14);
 }
 
 .kaggle-lint-severity-warning {
-  border-left-color: #deb887 !important;
+  background: rgba(222, 184, 135, 0.16);
 }
 
 .kaggle-lint-severity-info {
-  border-left-color: #6a9fb5 !important;
+  background: rgba(106, 159, 181, 0.14);
 }
 
 .kaggle-lint-error {
@@ -620,30 +623,24 @@
   background: #5a5a5a;
 }
 
-/* One-click ignore (Milestone 8, Task 4): hidden until the row is
-   hovered, so it doesn't compete visually with the message/rule text at
-   rest. */
+/* One-click ignore (Milestone 8, Task 4). */
 .kaggle-lint-btn-ignore {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  margin-left: 6px;
-  padding: 2px 6px;
+  margin-left: 4px;
+  padding: 2px 4px;
   border: none;
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .kaggle-lint-btn-ignore svg {
   width: 13px;
   height: 13px;
-}
-
-.kaggle-lint-error-item:hover .kaggle-lint-btn-ignore {
-  opacity: 0.7;
 }
 
 .kaggle-lint-btn-ignore:hover {

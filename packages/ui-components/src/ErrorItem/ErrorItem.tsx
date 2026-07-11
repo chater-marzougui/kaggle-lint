@@ -50,30 +50,31 @@ export const ErrorItem: React.FC<ErrorItemProps> = ({
       data-error-index={index}
       onClick={onClick}
     >
-      <span className={`kaggle-lint-icon kaggle-lint-${error.severity}`}>
-        <SeverityIcon />
-      </span>
-      <span className="kaggle-lint-location">
-        Cell {(error.cellIndex ?? 0) + 1}:{error.cellLine ?? error.line}
-      </span>
+      <div className="kaggle-lint-error-row">
+        <span className={`kaggle-lint-icon kaggle-lint-${error.severity}`}>
+          <SeverityIcon />
+        </span>
+        <span className="kaggle-lint-location">
+          Cell {(error.cellIndex ?? 0) + 1}:{error.cellLine ?? error.line}
+        </span>
+        <span className="kaggle-lint-code-badge">
+          {error.code || error.rule}
+        </span>
+        {error.code && (
+          <button
+            type="button"
+            className="kaggle-lint-btn-ignore"
+            title={`Ignore ${error.code} everywhere`}
+            onClick={handleIgnoreClick}
+          >
+            <EyeOffIcon />
+          </button>
+        )}
+      </div>
       <span
         className="kaggle-lint-message"
         dangerouslySetInnerHTML={{ __html: escapeHtml(error.msg) }}
       />
-      <span className="kaggle-lint-rule">
-        [{error.rule}
-        {error.code ? ` ${error.code}` : ''}]
-      </span>
-      {error.code && (
-        <button
-          type="button"
-          className="kaggle-lint-btn-ignore"
-          title={`Ignore ${error.code} everywhere`}
-          onClick={handleIgnoreClick}
-        >
-          <EyeOffIcon />
-        </button>
-      )}
     </li>
   );
 };

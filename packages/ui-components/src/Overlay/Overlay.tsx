@@ -208,13 +208,15 @@ export const Overlay: React.FC<OverlayProps> = ({
     <div
       ref={overlayRef}
       id="kaggle-lint-overlay"
-      className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${isMinimized ? 'kaggle-lint-minimized' : ''
-        } ${stats.bySeverity.error > 0
+      className={`kaggle-lint-overlay kaggle-lint-theme-${theme} ${
+        isMinimized ? 'kaggle-lint-minimized' : ''
+      } ${
+        stats.bySeverity.error > 0
           ? 'kaggle-lint-worst-error'
           : stats.bySeverity.warning > 0
             ? 'kaggle-lint-worst-warning'
             : ''
-        }`}
+      }`}
     >
       <div ref={headerRef} className="kaggle-lint-header">
         <span className="kaggle-lint-title">
@@ -232,8 +234,9 @@ export const Overlay: React.FC<OverlayProps> = ({
 
         <div className="kaggle-lint-controls">
           <button
-            className={`kaggle-lint-btn kaggle-lint-btn-icon ${isRefreshing || isLoading ? 'kaggle-lint-spinning' : ''
-              }`}
+            className={`kaggle-lint-btn kaggle-lint-btn-icon ${
+              isRefreshing || isLoading ? 'kaggle-lint-spinning' : ''
+            }`}
             title="Refresh lint"
             id="kaggle-lint-refresh-btn"
             onClick={handleRefresh}
@@ -287,8 +290,9 @@ export const Overlay: React.FC<OverlayProps> = ({
                   key={key}
                   type="button"
                   title={label}
-                  className={`kaggle-lint-tab kaggle-lint-tab-${key} ${activeSeverity === key ? 'kaggle-lint-tab-active' : ''
-                    }`}
+                  className={`kaggle-lint-tab kaggle-lint-tab-${key} ${
+                    activeSeverity === key ? 'kaggle-lint-tab-active' : ''
+                  }`}
                   onClick={() => setActiveSeverity(key)}
                 >
                   <Icon className="kaggle-lint-tab-icon" />
@@ -305,8 +309,9 @@ export const Overlay: React.FC<OverlayProps> = ({
               )}
               onErrorClick={handleErrorClick}
               onIgnoreCode={onIgnoreCode}
-              emptyMessage={`No ${activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
-                }`}
+              emptyMessage={`No ${
+                activeSeverity === 'info' ? 'info' : `${activeSeverity}s`
+              }`}
             />
           </>
         )}
