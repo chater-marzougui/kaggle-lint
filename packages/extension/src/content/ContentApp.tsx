@@ -194,12 +194,23 @@ export const ContentApp: React.FC = () => {
       // messaging), so strip elements before sending and re-attach them
       // to the returned errors by cellIndex — error-click-to-scroll needs
       // them.
-      const { codes: ignoreCodes, debugRequested } = parseIgnoreCodes(
+      const {
+        codes: ignoreCodes,
+        debugRequested,
+        invalidTokens,
+      } = parseIgnoreCodes(
         settings.linterEngine === 'flake8'
           ? settings.flake8IgnoreCodes
           : settings.ruffIgnoreCodes
       );
       setDebugEnabled(debugRequested);
+      if (invalidTokens.length > 0) {
+        // Not gated behind DEBUG — a typo silently doing nothing is exactly
+        // the kind of thing a user needs to actually see, not dig for.
+        logger.warn(
+          `Ignoring ignore-code(s) that aren't a real code (expected letters+digits, e.g. E501): ${invalidTokens.join(', ')}`
+        );
+      }
 
       logger.log(`Running ${settings.linterEngine} engine...`);
       setEngineStatus('loading');
