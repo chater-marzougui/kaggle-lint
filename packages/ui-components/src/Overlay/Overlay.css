@@ -668,24 +668,30 @@
 
 /* In-editor severity markers (Milestone 8, Task 3). Added directly to a
    Kaggle .cm-line element (a page element, not part of the overlay's own
-   subtree) for as long as that line holds an active lint error. A
-   background tint, not a text-decoration underline: an empty or
-   whitespace-only line has no text to draw an underline under, so a
-   decoration-based marker would silently fail to render on exactly the
-   lines a blank-line rule (e.g. flake8's W391) flags. Alpha-blended so it
-   reads on both Kaggle's light and dark themes without a separate
-   .kaggle-lint-theme-dark variant (same approach already used for
-   .kaggle-lint-severity-* below). */
+   subtree, so the --error/--warning/--info custom properties on
+   .kaggle-lint-overlay don't cascade here — hardcoded to match) for as
+   long as that line holds an active lint error. An inset left-edge
+   box-shadow stripe rather than a full background tint, so it reads as
+   an accent, not a wash over the code. Not a text-decoration underline:
+   an empty or whitespace-only line has no text to draw an underline
+   under, so a decoration-based marker would silently fail to render on
+   exactly the lines a blank-line rule (e.g. flake8's W391) flags -
+   box-shadow has no such dependency on text content. background-color is
+   kept explicitly transparent (not removed) so a future per-theme
+   override only has to touch one property per severity if needed. */
 .cm-line.kaggle-lint-line-error {
-  background-color: rgba(244, 71, 113, 0.35);
+  background-color: rgba(244, 71, 113, 0);
+  box-shadow: inset 4px 0 0 0 rgb(244, 71, 113);
 }
 
 .cm-line.kaggle-lint-line-warning {
-  background-color: rgba(222, 184, 135, 0.35);
+  background-color: rgba(222, 184, 135, 0);
+  box-shadow: inset 4px 0 0 0 rgb(222, 184, 135);
 }
 
 .cm-line.kaggle-lint-line-info {
-  background-color: rgba(106, 159, 181, 0.35);
+  background-color: rgba(106, 159, 181, 0);
+  box-shadow: inset 4px 0 0 0 rgb(106, 159, 181);
 }
 
 /* Glanceable status (Milestone 8, Task 5): only visually distinct while
